@@ -6,8 +6,6 @@ import Html.Events as HE
 import Yafl as Y
 
 
-
-
 viewFeedback : List Y.Feedback -> H.Html msg
 viewFeedback feedback =
     case feedback of

@@ -31,33 +31,33 @@ type alias FormModel =
 
 
 main : Program () (Y.Model FormModel) (Y.Msg FormMsg)
-main = 
+main =
     Browser.element
         { init =
             \() -> Y.init form
         , update =
             \msg model ->
-                let 
+                let
                     -- if we need the state of field A to depend on the state of
                     -- field B, we can intercept messages sent to field B and
                     -- then conditionally send messages to field A. Both fields
                     -- need to have addresses set with `Y.address` for this to
                     -- work.
-                    prettySureThisGuyLikesBonesCmd = 
+                    prettySureThisGuyLikesBonesCmd =
                         case Y.intercept nameField msg of
-                            Just ("Boney M") -> 
-                                Cmd.batch 
+                            Just "Boney M" ->
+                                Cmd.batch
                                     [ Y.send likesBonesField True
                                     , Y.choose likesBonesField
                                     ]
-                        
+
                             _ ->
                                 Cmd.none
 
-                    (newModel, cmd) = 
+                    ( newModel, cmd ) =
                         Y.update form msg model
                 in
-                (newModel
+                ( newModel
                 , Cmd.batch [ cmd, prettySureThisGuyLikesBonesCmd ]
                 )
         , view =
@@ -71,6 +71,7 @@ main =
         , subscriptions =
             Y.subscriptions form
         }
+
 
 type alias Fields =
     { int : Y.Field FormModel FormMsg Y.NoAddress String Int
@@ -110,9 +111,9 @@ nameField : Y.Field FormModel FormMsg Y.HasAddress String String
 nameField =
     fields.string
         |> Y.label "What is your dog's name?"
-        -- if we want to send messages directly to this field with `Y.send`, we
-        -- need to give it an address. The address can be any string, it doesn't
-        -- matter what it is as long as it's unique.
+        -- if we want to intercept messages sent to this field with
+        -- `Y.intercept`, we need to give it an address. The address can be any
+        -- string, it doesn't matter what it is as long as it's unique.
         |> Y.address "name-field"
 
 
@@ -129,8 +130,8 @@ likesBonesField =
     fields.bool
         |> Y.map LikesBones
         |> Y.label "Do they _really_ like bones?"
-        -- if we want to intercept messages sent to this field with
-        -- `Y.intercept`, we need to give it an address.
+        -- if we want to send messages directly to this field with `Y.send`, we
+        -- need to give it an address.
         |> Y.address "likes-bones-field"
 
 
