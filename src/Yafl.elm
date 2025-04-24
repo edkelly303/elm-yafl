@@ -398,7 +398,14 @@ fail e =
                         ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
-        , submit = \_ -> Err [ { message = e, fail = True, path = [] } ]
+        , submit =
+            \model ->
+                Err
+                    [ { message = e
+                      , fail = True
+                      , path = getPath model
+                      }
+                    ]
         , send = \_ _ -> Noop
         , intercept = \_ _ -> Nothing
         , label = ""
@@ -596,33 +603,25 @@ andThen :
     -> Field model msg address innerMsg output2
 andThen f (Field field) =
     Field
-        { init = \path maybeAddress -> ( Empty (newLocation path maybeAddress), Cmd.none )
-        , update =
-            \msg model ->
-                case msg of
-                    OptionSelected locator ->
-                        locateOneOf locator model
-
-                    _ ->
-                        ( model, Cmd.none )
-        , view = \_ _ -> []
-        , subscriptions = \_ -> Sub.none
+        { init = field.init
+        , update = field.update
+        , view = field.view
+        , subscriptions = field.subscriptions
         , submit =
             \model ->
-                case field.submit model of
-                    Ok output ->
-                        let
-                            (Field field2) =
-                                f output
-                        in
-                        field2.submit model
-
-                    Err e ->
-                        Err e
-        , send = \_ _ -> Noop
-        , intercept = \_ _ -> Nothing
-        , label = ""
-        , maybeAddress = Nothing
+                field.submit model
+                    |> Result.andThen
+                        (\output ->
+                            let
+                                (Field field2) =
+                                    f output
+                            in
+                            field2.submit model
+                        )
+        , send = field.send
+        , intercept = field.intercept
+        , label = field.label
+        , maybeAddress = field.maybeAddress
         }
 
 
