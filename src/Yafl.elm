@@ -6,7 +6,6 @@ module Yafl exposing
     , Model(..)
     , Msg
     , NoAddress
-    , NotAddressable
     , Widget
     , addWidget
     , address
@@ -77,7 +76,7 @@ type alias MaybeAddress =
     Maybe String
 
 
-type Field model msg address widgetMsg output
+type Field model msg address innerMsg output
     = Field
         { init :
             Path -> MaybeAddress -> ( Model model, Cmd (Msg msg) )
@@ -95,8 +94,8 @@ type Field model msg address widgetMsg output
         , subscriptions :
             Model model
             -> Sub (Msg msg)
-        , send : MaybeAddress -> widgetMsg -> Msg msg
-        , intercept : MaybeAddress -> Msg msg -> Maybe widgetMsg
+        , send : MaybeAddress -> innerMsg -> Msg msg
+        , intercept : MaybeAddress -> Msg msg -> Maybe innerMsg
         , label : String
         , maybeAddress : MaybeAddress
         }
@@ -108,10 +107,6 @@ type HasAddress
 
 type NoAddress
     = NoAddress Never
-
-
-type NotAddressable
-    = NotAddressable Never
 
 
 type alias Widget model msg output =
@@ -208,7 +203,7 @@ address sendId_ (Field field) =
     Field { field | maybeAddress = Just sendId_ }
 
 
-choose : Field model msg HasAddress widgetMsg output -> Cmd (Msg a)
+choose : Field model msg HasAddress innerMsg output -> Cmd (Msg msg)
 choose (Field field) =
     case field.maybeAddress of
         Just address_ ->
@@ -228,7 +223,7 @@ intercept (Field field) =
     field.intercept field.maybeAddress
 
 
-updateField : Field model msg address b output -> b -> Model model -> ( Model model, Cmd (Msg msg) )
+updateField : Field model msg HasAddress innerMsg output -> innerMsg -> Model model -> ( Model model, Cmd (Msg msg) )
 updateField (Field field) innerMsg model =
     field.update (field.send field.maybeAddress innerMsg) model
 
@@ -239,7 +234,7 @@ andUpdateField field innerMsg ( model, cmd1 ) =
         |> Tuple.mapSecond (\cmd2 -> Cmd.batch [ cmd1, cmd2 ])
 
 
-chooseField : Field model msg address widgetMsg output -> Model model -> ( Model model, Cmd (Msg msg) )
+chooseField : Field model msg HasAddress innerMsg output -> Model model -> ( Model model, Cmd (Msg msg) )
 chooseField (Field field) model =
     case field.maybeAddress of
         Just address_ ->
@@ -253,7 +248,7 @@ chooseField (Field field) model =
             ( model, Cmd.none )
 
 
-andChooseField : Field model msg HasAddress widgetMsg output -> ( Model model, Cmd (Msg msg) ) -> ( Model model, Cmd (Msg msg) )
+andChooseField : Field model msg HasAddress innerMsg output -> ( Model model, Cmd (Msg msg) ) -> ( Model model, Cmd (Msg msg) )
 andChooseField field ( model, cmd1 ) =
     chooseField field model
         |> Tuple.mapSecond (\cmd2 -> Cmd.batch [ cmd1, cmd2 ])
@@ -492,7 +487,7 @@ map2 :
     (output1 -> output2 -> output3)
     -> Field model msg address1 innerMsg1 output1
     -> Field model msg address2 innerMsg2 output2
-    -> Field model msg NotAddressable Never output3
+    -> Field model msg NoAddress Never output3
 map2 f (Field field1) (Field field2) =
     Field
         { init =
@@ -577,7 +572,7 @@ map2 f (Field field1) (Field field2) =
 andMap :
     Field model msg address1 innerMsg1 output1
     -> Field model msg address2 innerMsg2 (output1 -> output2)
-    -> Field model msg NotAddressable Never output2
+    -> Field model msg NoAddress Never output2
 andMap (Field field1) (Field field2) =
     let
         (Field mapped) =
@@ -600,7 +595,7 @@ andMap (Field field1) (Field field2) =
 andThen :
     (output -> Field model msg address innerMsg output2)
     -> Field model msg address innerMsg output
-    -> Field model msg address innerMsg output2
+    -> Field model msg NoAddress innerMsg output2
 andThen f (Field field) =
     Field
         { init = field.init

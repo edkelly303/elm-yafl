@@ -100,7 +100,7 @@ type FunFact
     | HasFleas Int
 
 
-form : Y.Field FormModel FormMsg Y.NotAddressable Never Dog
+form : Y.Field FormModel FormMsg Y.NoAddress Never Dog
 form =
     Y.succeed Dog
         |> Y.andMap nameField
