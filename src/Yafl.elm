@@ -20,6 +20,7 @@ module Yafl exposing
     , chooseField
     , defineFields
     , endFields
+    , fail
     , init
     , intercept
     , label
@@ -27,11 +28,11 @@ module Yafl exposing
     , map2
     , option
     , pathFromLocation
-    , pure
     , send
     , showFeedback
     , submit
     , subscriptions
+    , succeed
     , update
     , updateField
     , view
@@ -361,8 +362,8 @@ toLocator location =
 -}
 
 
-pure : output -> Field model msg NoAddress () output
-pure f =
+succeed : output -> Field model msg address innerMsg output
+succeed f =
     Field
         { init = \path maybeAddress -> ( Empty (newLocation path maybeAddress), Cmd.none )
         , update =
@@ -376,6 +377,28 @@ pure f =
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
         , submit = \_ -> Ok f
+        , send = \_ _ -> Noop
+        , intercept = \_ _ -> Nothing
+        , label = ""
+        , maybeAddress = Nothing
+        }
+
+
+fail : String -> Field model msg address innerMsg output
+fail e =
+    Field
+        { init = \path maybeAddress -> ( Empty (newLocation path maybeAddress), Cmd.none )
+        , update =
+            \msg model ->
+                case msg of
+                    OptionSelected locator ->
+                        locateOneOf locator model
+
+                    _ ->
+                        ( model, Cmd.none )
+        , view = \_ _ -> []
+        , subscriptions = \_ -> Sub.none
+        , submit = \_ -> Err [ { message = e, fail = True, path = [] } ]
         , send = \_ _ -> Noop
         , intercept = \_ _ -> Nothing
         , label = ""
@@ -568,27 +591,38 @@ andMap (Field field1) (Field field2) =
 
 
 andThen :
-    (output -> Result (List String) output2)
+    (output -> Field model msg address innerMsg output2)
     -> Field model msg address innerMsg output
     -> Field model msg address innerMsg output2
 andThen f (Field field) =
     Field
-        { init = field.init
-        , update = field.update
-        , view = field.view
-        , subscriptions = field.subscriptions
+        { init = \path maybeAddress -> ( Empty (newLocation path maybeAddress), Cmd.none )
+        , update =
+            \msg model ->
+                case msg of
+                    OptionSelected locator ->
+                        locateOneOf locator model
+
+                    _ ->
+                        ( model, Cmd.none )
+        , view = \_ _ -> []
+        , subscriptions = \_ -> Sub.none
         , submit =
             \model ->
-                let
-                    errToFeedback =
-                        \err -> { message = err, fail = True, path = getPath model }
-                in
-                field.submit model
-                    |> Result.andThen (f >> Result.mapError (\errs -> List.map errToFeedback errs))
-        , send = field.send
-        , intercept = field.intercept
-        , label = field.label
-        , maybeAddress = field.maybeAddress
+                case field.submit model of
+                    Ok output ->
+                        let
+                            (Field field2) =
+                                f output
+                        in
+                        field2.submit model
+
+                    Err e ->
+                        Err e
+        , send = \_ _ -> Noop
+        , intercept = \_ _ -> Nothing
+        , label = ""
+        , maybeAddress = Nothing
         }
 
 

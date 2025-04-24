@@ -4,7 +4,10 @@ import Browser
 import Html as H
 import Widgets
 import Yafl as Y
-import YaflDebug
+
+
+
+--import YaflDebug
 
 
 type alias FormMsg =
@@ -78,7 +81,7 @@ type FunFact
 
 form : Y.Field FormModel FormMsg Y.NotAddressable Never Dog
 form =
-    Y.pure Dog
+    Y.succeed Dog
         |> Y.andMap nameField
         |> Y.andMap funFactField
 
@@ -111,9 +114,9 @@ hasFleasField =
         |> Y.andThen
             (\numberOfFleas ->
                 if numberOfFleas < 1 then
-                    Err [ "They must have at least one?!" ]
+                    Y.fail "They must have at least one?!"
 
                 else
-                    Ok (HasFleas numberOfFleas)
+                    Y.succeed (HasFleas numberOfFleas)
             )
         |> Y.showFeedback Widgets.viewFeedback
