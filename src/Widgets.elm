@@ -6,8 +6,6 @@ import Html.Events as HE
 import Yafl as Y
 
 
-type BoolMsg
-    = BoolChanged Bool
 
 
 viewFeedback : List Y.Feedback -> H.Html msg
@@ -73,14 +71,12 @@ int =
     }
 
 
-bool : Y.Widget Bool BoolMsg Bool
+bool : Y.Widget Bool Bool Bool
 bool =
     { init = ( False, Cmd.none )
     , update =
         \msg _ ->
-            case msg of
-                BoolChanged b ->
-                    ( b, Cmd.none )
+            ( msg, Cmd.none )
     , view =
         \{ label } model ->
             [ H.label [ HA.for label ] [ H.text label ]
@@ -88,7 +84,7 @@ bool =
                 [ HA.id label
                 , HA.type_ "checkbox"
                 , HA.checked model
-                , HE.onCheck BoolChanged
+                , HE.onCheck identity
                 ]
                 []
             ]

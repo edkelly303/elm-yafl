@@ -13,7 +13,7 @@ import Yafl as Y
 type alias FormMsg =
     ( Maybe String
     , ( Maybe String
-      , ( Maybe Widgets.BoolMsg
+      , ( Maybe Bool
         , ()
         )
       )
@@ -31,12 +31,35 @@ type alias FormModel =
 
 
 main : Program () (Y.Model FormModel) (Y.Msg FormMsg)
-main =
+main = 
     Browser.element
         { init =
             \() -> Y.init form
         , update =
-            Y.update form
+            \msg model ->
+                let 
+                    -- if we need the state of field A to depend on the state of
+                    -- field B, we can intercept messages sent to field B and
+                    -- then conditionally send messages to field A. Both fields
+                    -- need to have addresses set with `Y.address` for this to
+                    -- work.
+                    prettySureThisGuyLikesBonesCmd = 
+                        case Y.intercept nameField msg of
+                            Just ("Boney M") -> 
+                                Cmd.batch 
+                                    [ Y.send likesBonesField True
+                                    , Y.choose likesBonesField
+                                    ]
+                        
+                            _ ->
+                                Cmd.none
+
+                    (newModel, cmd) = 
+                        Y.update form msg model
+                in
+                (newModel
+                , Cmd.batch [ cmd, prettySureThisGuyLikesBonesCmd ]
+                )
         , view =
             \model ->
                 H.main_ []
@@ -44,18 +67,15 @@ main =
                         [ H.h1 [] [ H.text "About your dog" ]
                         , H.div [] (Y.view form model)
                         ]
-
-                    --, YaflDebug.draw model
                     ]
         , subscriptions =
             Y.subscriptions form
         }
 
-
 type alias Fields =
     { int : Y.Field FormModel FormMsg Y.NoAddress String Int
     , string : Y.Field FormModel FormMsg Y.NoAddress String String
-    , bool : Y.Field FormModel FormMsg Y.NoAddress Widgets.BoolMsg Bool
+    , bool : Y.Field FormModel FormMsg Y.NoAddress Bool Bool
     }
 
 
@@ -86,10 +106,14 @@ form =
         |> Y.andMap funFactField
 
 
-nameField : Y.Field FormModel FormMsg Y.NoAddress String String
+nameField : Y.Field FormModel FormMsg Y.HasAddress String String
 nameField =
     fields.string
         |> Y.label "What is your dog's name?"
+        -- if we want to send messages directly to this field with `Y.send`, we
+        -- need to give it an address. The address can be any string, it doesn't
+        -- matter what it is as long as it's unique.
+        |> Y.address "name-field"
 
 
 funFactField : Y.Field FormModel FormMsg Y.NoAddress Never FunFact
@@ -100,11 +124,14 @@ funFactField =
         |> Y.option "They have fleas" hasFleasField
 
 
-likesBonesField : Y.Field FormModel FormMsg Y.NoAddress Widgets.BoolMsg FunFact
+likesBonesField : Y.Field FormModel FormMsg Y.HasAddress Bool FunFact
 likesBonesField =
     fields.bool
         |> Y.map LikesBones
         |> Y.label "Do they _really_ like bones?"
+        -- if we want to intercept messages sent to this field with
+        -- `Y.intercept`, we need to give it an address.
+        |> Y.address "likes-bones-field"
 
 
 hasFleasField : Y.Field FormModel FormMsg Y.NoAddress String FunFact
