@@ -272,7 +272,7 @@ viewFeedback feedback =
 
 
 {-
-   Step 5: Wire it into your application
+   Step 5: Wire your form into your application
 
    To see our `Dog` form in action, we just need to call `Yafl.init`,
    `Yafl.update`, `Yafl.view` and `Yafl.subscriptions` in the `init`, `update`,
