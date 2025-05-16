@@ -1,4 +1,4 @@
-module YaflDebug exposing (draw)
+module Visualize exposing (draw)
 
 import Html as H
 import Html.Attributes as HA
@@ -6,7 +6,7 @@ import Svg
 import Svg.Attributes
 import TreeDiagram
 import TreeDiagram.Svg
-import Yafl as Yafl
+import Yafl
 
 
 draw : Yafl.Model model -> H.Html msg

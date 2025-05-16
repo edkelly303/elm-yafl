@@ -6,24 +6,6 @@ import Html.Events as HE
 import Yafl as Y
 
 
-viewFeedback : List Y.Feedback -> H.Html msg
-viewFeedback feedback =
-    case feedback of
-        [] ->
-            H.text ""
-
-        _ ->
-            H.ul []
-                (List.map
-                    (\f ->
-                        H.li
-                            []
-                            [ H.text f.message ]
-                    )
-                    feedback
-                )
-
-
 string : Y.Widget String String String
 string =
     { init = ( "", Cmd.none )
@@ -69,24 +51,7 @@ int =
     }
 
 
-bool : Y.Widget Bool Bool Bool
-bool =
-    { init = ( False, Cmd.none )
-    , update =
-        \msg _ ->
-            ( msg, Cmd.none )
-    , view =
-        \{ label } model ->
-            [ H.label [ HA.for label ] [ H.text label ]
-            , H.input
-                [ HA.id label
-                , HA.type_ "checkbox"
-                , HA.checked model
-                , HE.onCheck identity
-                ]
-                []
-            ]
-    , submit = Ok
-    , subscriptions = \_ -> Sub.none
-    , label = "Bool"
-    }
+
+
+
+
