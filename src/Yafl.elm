@@ -657,7 +657,7 @@ andThen_ f (Field field) =
                                 field.update msg model1
 
                             ( newModel2, cmd2 ) =
-                                case field.submit model1 of
+                                case field.submit newModel1 of
                                     Ok output ->
                                         let
                                             (Field field2) =

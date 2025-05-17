@@ -246,9 +246,13 @@ hasFleasField =
                 if numberOfFleas < 1 then
                     Y.fail "They must have at least one?!"
 
+                else if numberOfFleas < 10 then
+                    fields.int
+                        |> Y.label "Are you sure there aren't more than that?"
+                        |> Y.map (\extraFleas -> HasFleas (numberOfFleas + extraFleas))
+
                 else
-                    -- Y.succeed (HasFleas numberOfFleas)
-                    fields.int |> Y.map HasFleas
+                    Y.succeed (HasFleas numberOfFleas)
             )
         |> Y.showFeedback viewFeedback
 
