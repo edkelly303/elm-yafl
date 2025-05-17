@@ -13,7 +13,6 @@ module Yafl exposing
     , andChooseField
     , andMap
     , andThen
-    , andThen_
     , andUpdateField
     , choice
     , choose
@@ -294,8 +293,8 @@ getLocation model =
             loc
 
 
-getPath : Model model -> Path
-getPath model =
+pathFromModel : Model model -> Path
+pathFromModel model =
     pathFromLocation (getLocation model)
 
 
@@ -399,7 +398,7 @@ fail e =
                 Err
                     [ { message = e
                       , fail = True
-                      , path = getPath model
+                      , path = pathFromModel model
                       }
                     ]
         , send = \_ _ -> Noop
@@ -417,7 +416,7 @@ locateOneOf locator model =
                 List.Extra.findMap
                     (\( _, optionModel ) ->
                         if isLocated locator (getLocation optionModel) then
-                            getPath optionModel
+                            pathFromModel optionModel
                                 |> List.head
 
                         else
@@ -594,38 +593,10 @@ andMap (Field field1) (Field field2) =
 
 
 andThen :
-    (output -> Field model msg address innerMsg output2)
-    -> Field model msg address innerMsg output
-    -> Field model msg NoAddress innerMsg output2
-andThen f (Field field) =
-    Field
-        { init = field.init
-        , update = field.update
-        , view = field.view
-        , subscriptions = field.subscriptions
-        , submit =
-            \model ->
-                field.submit model
-                    |> Result.andThen
-                        (\output ->
-                            let
-                                (Field field2) =
-                                    f output
-                            in
-                            field2.submit model
-                        )
-        , send = field.send
-        , intercept = field.intercept
-        , label = field.label
-        , maybeAddress = field.maybeAddress
-        }
-
-
-andThen_ :
-    (output -> Field model msg address innerMsg output2)
+    (output -> Field model msg address innerMsg2 output2)
     -> Field model msg address innerMsg output
     -> Field model msg address innerMsg output2
-andThen_ f (Field field) =
+andThen f (Field field) =
     Field
         { init =
             \path maybeAddress ->
@@ -665,7 +636,7 @@ andThen_ f (Field field) =
                                         in
                                         case model2 of
                                             Empty _ ->
-                                                field2.init (1 :: getPath model) field2.maybeAddress
+                                                field2.init (1 :: pathFromModel model) field2.maybeAddress
 
                                             _ ->
                                                 field2.update msg model2
@@ -733,7 +704,12 @@ andThen_ f (Field field) =
                                 )
 
                     _ ->
-                        Err []
+                        Err
+                            [ { message = "Fatal error, expecting a `Both` node"
+                              , path = pathFromModel model
+                              , fail = True
+                              }
+                            ]
         , send = field.send
         , intercept = field.intercept
         , label = field.label
@@ -752,7 +728,7 @@ showFeedback render (Field field) =
                 \config model ->
                     let
                         relevantFeedback =
-                            List.filter (\f -> f.path == getPath model) config.feedback
+                            List.filter (\f -> f.path == pathFromModel model) config.feedback
                     in
                     field.view config model ++ [ render relevantFeedback ]
         }
@@ -822,7 +798,7 @@ option radioLabel (Field field) (Field choice_) =
                                     Just ( _, optionModel ) ->
                                         ( OneOf location
                                             { selected =
-                                                getPath optionModel
+                                                pathFromModel optionModel
                                                     |> List.head
                                                     |> Maybe.withDefault 0
                                             }

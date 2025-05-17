@@ -229,7 +229,8 @@ likesBonesField =
 
 {-
    `Yafl.andThen` is useful for validating outputs, in combination with
-   `Yafl.succeed` and `Yafl.fail`.
+   `Yafl.succeed` and `Yafl.fail`, and also for asking the user for more
+   information.
 
    When a field could possibly fail validation, we may want to show the user an
    error message. You can customise how errors are displayed with
@@ -241,20 +242,41 @@ hasFleasField : Y.Field FormModel FormMsg Y.NoAddress String FunFact
 hasFleasField =
     fields.int
         |> Y.label "How many fleas do they have?"
-        |> Y.andThen_
+        |> Y.showFeedback viewFeedback
+        |> Y.andThen
             (\numberOfFleas ->
                 if numberOfFleas < 1 then
                     Y.fail "They must have at least one?!"
+                        |> Y.showFeedback viewFeedback
 
                 else if numberOfFleas < 10 then
-                    fields.int
-                        |> Y.label "Are you sure there aren't more than that?"
-                        |> Y.map (\extraFleas -> HasFleas (numberOfFleas + extraFleas))
+                    Y.choice
+                        |> Y.label "Hmm, that's not very many, did you check their belly?"
+                        |> Y.option "Yes, that's really all the fleas they have" (Y.succeed True)
+                        |> Y.option "No, I'll check the belly..." (Y.succeed False)
+                        |> Y.andThen
+                            (\yes ->
+                                if yes then
+                                    Y.succeed (HasFleas numberOfFleas)
+
+                                else
+                                    fields.int
+                                        |> Y.label "Ok, how many extra fleas did you find on their belly?"
+                                        |> Y.showFeedback viewFeedback
+                                        |> Y.andThen
+                                            (\extraFleas ->
+                                                if extraFleas < 0 then
+                                                    Y.fail "C'mon, you can't have negative fleas!"
+                                                        |> Y.showFeedback viewFeedback
+
+                                                else
+                                                    Y.succeed (HasFleas (numberOfFleas + extraFleas))
+                                            )
+                            )
 
                 else
                     Y.succeed (HasFleas numberOfFleas)
             )
-        |> Y.showFeedback viewFeedback
 
 
 viewFeedback : List Y.Feedback -> H.Html msg
