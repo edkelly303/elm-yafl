@@ -338,36 +338,93 @@ main_ =
 -}
 
 
-main : Program () (Y.Model FormModel) (Y.Msg FormMsg)
+type Msg
+    = FormUpdated (Y.Msg FormMsg)
+    | FormSubmitted
+
+
+type Model
+    = EditingForm (Y.Model FormModel)
+    | ViewingDog Dog
+
+
+main : Program () Model Msg
 main =
     Browser.element
         { init =
             \() ->
                 Y.init dogField
+                    |> Tuple.mapFirst EditingForm
+                    |> Tuple.mapSecond (Cmd.map FormUpdated)
         , update =
             \msg model ->
-                let
-                    prettySureThisGuyLikesBonesCmd =
-                        case Y.intercept nameField msg of
-                            Just "Boney M" ->
-                                Cmd.batch
-                                    [ Y.send likesBonesField True
-                                    , Y.choose likesBonesField
-                                    ]
+                case ( msg, model ) of
+                    ( FormUpdated formMsg, EditingForm formModel ) ->
+                        let
+                            prettySureThisGuyLikesBonesCmd =
+                                case Y.intercept nameField formMsg of
+                                    Just "Boney M" ->
+                                        Cmd.batch
+                                            [ Y.send likesBonesField True
+                                            , Y.choose likesBonesField
+                                            ]
 
-                            _ ->
-                                Cmd.none
+                                    _ ->
+                                        Cmd.none
 
-                    ( newModel, cmd ) =
-                        Y.update dogField msg model
-                in
-                ( newModel
-                , Cmd.batch [ cmd, prettySureThisGuyLikesBonesCmd ]
-                )
+                            ( newFormModel, cmd ) =
+                                Y.update dogField formMsg formModel
+                        in
+                        ( EditingForm newFormModel
+                        , [ cmd, prettySureThisGuyLikesBonesCmd ]
+                            |> Cmd.batch
+                            |> Cmd.map FormUpdated
+                        )
+
+                    ( FormSubmitted, EditingForm formModel ) ->
+                        ( case Y.submit dogField formModel of
+                            Ok dog ->
+                                ViewingDog dog
+
+                            Err _ ->
+                                EditingForm formModel
+                        , Cmd.none
+                        )
+
+                    _ ->
+                        ( model, Cmd.none )
         , view =
             \model ->
-                H.form [] (Y.view dogField model)
+                case model of
+                    EditingForm formModel ->
+                        H.form [ HE.onSubmit FormSubmitted ]
+                            ((Y.view dogField formModel
+                                |> List.map (H.map FormUpdated)
+                             )
+                                ++ [ H.button [] [ H.text "Submit" ] ]
+                            )
+
+                    ViewingDog dog ->
+                        H.text
+                            (dog.name
+                                ++ (case dog.funFact of
+                                        LikesBones True ->
+                                            " likes bones."
+
+                                        LikesBones False ->
+                                            " doesn't like bones, what a weirdo!"
+
+                                        HasFleas numberOfFleas ->
+                                            " has " ++ String.fromInt numberOfFleas ++ " fleas."
+                                   )
+                            )
         , subscriptions =
             \model ->
-                Y.subscriptions dogField model
+                case model of
+                    EditingForm formModel ->
+                        Y.subscriptions dogField formModel
+                            |> Sub.map FormUpdated
+
+                    ViewingDog _ ->
+                        Sub.none
         }
