@@ -241,13 +241,14 @@ hasFleasField : Y.Field FormModel FormMsg Y.NoAddress String FunFact
 hasFleasField =
     fields.int
         |> Y.label "How many fleas do they have?"
-        |> Y.andThen
+        |> Y.andThen_
             (\numberOfFleas ->
                 if numberOfFleas < 1 then
                     Y.fail "They must have at least one?!"
 
                 else
-                    Y.succeed (HasFleas numberOfFleas)
+                    -- Y.succeed (HasFleas numberOfFleas)
+                    fields.int |> Y.map HasFleas
             )
         |> Y.showFeedback viewFeedback
 

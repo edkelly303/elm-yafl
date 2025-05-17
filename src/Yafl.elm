@@ -13,6 +13,7 @@ module Yafl exposing
     , andChooseField
     , andMap
     , andThen
+    , andThen_
     , andUpdateField
     , choice
     , choose
@@ -613,6 +614,126 @@ andThen f (Field field) =
                             in
                             field2.submit model
                         )
+        , send = field.send
+        , intercept = field.intercept
+        , label = field.label
+        , maybeAddress = field.maybeAddress
+        }
+
+
+andThen_ :
+    (output -> Field model msg address innerMsg output2)
+    -> Field model msg address innerMsg output
+    -> Field model msg address innerMsg output2
+andThen_ f (Field field) =
+    Field
+        { init =
+            \path maybeAddress ->
+                let
+                    ( model1, cmd1 ) =
+                        field.init (0 :: path) field.maybeAddress
+
+                    ( model2, cmd2 ) =
+                        case field.submit model1 of
+                            Ok output ->
+                                let
+                                    (Field field2) =
+                                        f output
+                                in
+                                field2.init (1 :: path) field2.maybeAddress
+
+                            Err _ ->
+                                ( Empty (newLocation (1 :: path) Nothing), Cmd.none )
+                in
+                ( Both (newLocation path maybeAddress) model1 model2
+                , Cmd.batch [ cmd1, cmd2 ]
+                )
+        , update =
+            \msg model ->
+                case model of
+                    Both location model1 model2 ->
+                        let
+                            ( newModel1, cmd1 ) =
+                                field.update msg model1
+
+                            ( newModel2, cmd2 ) =
+                                case field.submit model1 of
+                                    Ok output ->
+                                        let
+                                            (Field field2) =
+                                                f output
+                                        in
+                                        case model2 of
+                                            Empty _ ->
+                                                field2.init (1 :: getPath model) field2.maybeAddress
+
+                                            _ ->
+                                                field2.update msg model2
+
+                                    Err _ ->
+                                        ( model2, Cmd.none )
+                        in
+                        ( Both location newModel1 newModel2
+                        , Cmd.batch [ cmd1, cmd2 ]
+                        )
+
+                    _ ->
+                        ( model, Cmd.none )
+        , view =
+            \config model ->
+                case model of
+                    Both _ model1 model2 ->
+                        field.view { config | label = field.label } model1
+                            ++ (case field.submit model1 of
+                                    Ok output ->
+                                        let
+                                            (Field field2) =
+                                                f output
+                                        in
+                                        field2.view { config | label = field2.label } model2
+
+                                    Err _ ->
+                                        []
+                               )
+
+                    _ ->
+                        []
+        , subscriptions =
+            \model ->
+                case model of
+                    Both _ model1 model2 ->
+                        Sub.batch
+                            [ field.subscriptions model1
+                            , case field.submit model1 of
+                                Ok output ->
+                                    let
+                                        (Field field2) =
+                                            f output
+                                    in
+                                    field2.subscriptions model2
+
+                                Err _ ->
+                                    Sub.none
+                            ]
+
+                    _ ->
+                        Sub.none
+        , submit =
+            \model ->
+                case model of
+                    Both _ model1 model2 ->
+                        field.submit model1
+                            |> Result.andThen
+                                (\output ->
+                                    let
+                                        (Field field2) =
+                                            f output
+                                    in
+                                    field2.submit model2
+                                )
+
+                    _ ->
+                        Err []
         , send = field.send
         , intercept = field.intercept
         , label = field.label
