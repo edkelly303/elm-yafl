@@ -331,10 +331,22 @@ main_ =
 {-
    Appendix: Advanced stuff!
 
+   Below is a slightly more realistic example of integrating a form into an app
+   that has its own `Model` and `Msg` types.
+
+   This example also shows how we can use some of `Yafl`'s more advanced
+   features to handle situations where the state of one field needs to depend on
+   the state of another. 
+   
    If we need the state of field A to depend on the state of field B, we can use
    `Yafl.intercept` in our app's `update` function to intercept messages sent to
-   field B and then conditionally send messages to field A with `Yafl.send`.
-   Both fields need to have addresses set with `Yafl.address` for this to work.
+   field B.
+   
+   If necessary, we can then send messages to field A with `Yafl.send`. If field
+   A is a `Yafl.option`, we can also select it using `Yafl.choose`.
+   
+   Both field B and Field B need to have addresses set with `Yafl.address` for
+   this to work.
 -}
 
 
@@ -362,6 +374,10 @@ main =
                     ( FormUpdated formMsg, EditingForm formModel ) ->
                         let
                             prettySureThisGuyLikesBonesCmd =
+                                -- If the user sets the `name` field to "Boney
+                                -- M", then we automatically select the
+                                -- `LikesBones` variant and set the `Bool`
+                                -- within it to `True`
                                 case Y.intercept nameField formMsg of
                                     Just "Boney M" ->
                                         Cmd.batch
