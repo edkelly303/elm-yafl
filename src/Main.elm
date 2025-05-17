@@ -1,4 +1,4 @@
-module Main exposing (fancyMain, main)
+module Main exposing (main)
 
 import Browser
 import Html as H
@@ -203,8 +203,8 @@ funFactField : Y.Field FormModel FormMsg Y.NoAddress Never FunFact
 funFactField =
     Y.choice
         |> Y.label "A fun fact about your dog is:"
-        |> Y.option "They like bones" likesBonesField
         |> Y.option "They have fleas" hasFleasField
+        |> Y.option "They like bones" likesBonesField
 
 
 
@@ -309,8 +309,8 @@ viewFeedback feedback =
 -}
 
 
-main : Program () (Y.Model FormModel) (Y.Msg FormMsg)
-main =
+main_ : Program () (Y.Model FormModel) (Y.Msg FormMsg)
+main_ =
     Browser.element
         { init =
             \() ->
@@ -338,8 +338,8 @@ main =
 -}
 
 
-fancyMain : Program () (Y.Model FormModel) (Y.Msg FormMsg)
-fancyMain =
+main : Program () (Y.Model FormModel) (Y.Msg FormMsg)
+main =
     Browser.element
         { init =
             \() ->
