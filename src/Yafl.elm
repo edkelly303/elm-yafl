@@ -1,83 +1,77 @@
 module Yafl exposing
-    ( Feedback
-    , Field
-    , HasAddress
-    , Location
-    , Model(..)
-    , Msg
-    , NoAddress
-    , Path
-    , ViewConfig
-    , Widget
-    , addWidget
-    , address
-    , addressFromLocation
-    , andChooseField
-    , andMap
-    , andThen
-    , andUpdateField
-    , choice
-    , choose
-    , chooseField
-    , defineFields
-    , endFields
-    , fail
-    , init
-    , intercept
-    , label
-    , map
-    , map2
-    , option
-    , pathFromLocation
-    , send
-    , showFeedback
-    , submit
-    , subscriptions
-    , succeed
-    , update
-    , updateField
-    , view
+    ( Widget, Field, defineFields, addWidget, endFields
+    , Model, Msg, init, update, ViewConfig, view, subscriptions, submit
+    , succeed, fail, map, map2, andMap, andThen, choice, option
+    , label, Feedback, Path, showFeedback
+    , HasAddress, NoAddress, address, intercept, send, choose
+    , updateField, chooseField, andUpdateField, andChooseField
     )
+
+{-| This library helps you build user input forms in Elm by creating and
+composing self-contained widgets.
+
+
+# Widgets and Fields
+
+@docs Widget, Field, defineFields, addWidget, endFields
+
+
+# Turning Fields into Forms
+
+@docs Model, Msg, init, update, ViewConfig, view, subscriptions, submit
+
+
+# Combining Fields
+
+@docs succeed, fail, map, map2, andMap, andThen, choice, option
+
+
+# Customizing Fields
+
+@docs label, Feedback, Path, showFeedback
+
+
+# Communicating between Fields
+
+@docs HasAddress, NoAddress, address, intercept, send, choose
+
+
+# Updating Fields synchronously
+
+@docs updateField, chooseField, andUpdateField, andChooseField
+
+-}
 
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
+import Internal exposing (Locator(..), MaybeAddress, Model(..), Msg(..), Path)
 import List.Extra
+import Location
 import NestedTuple as NT
 import Task
 
 
-type Msg msg
-    = ValueChanged Locator msg
-    | OptionSelected Locator
-    | Noop
+{-| The top-level model type for your form.
+-}
+type alias Model model =
+    Internal.Model model
 
 
-type Model model
-    = Value Location model
-    | Both Location (Model model) (Model model)
-    | OneOf Location { selected : Int } (List ( String, Model model ))
-    | Empty Location
+{-| The top-level message type for your form.
+-}
+type alias Msg msg =
+    Internal.Msg msg
 
 
-type Locator
-    = ByPath Path
-    | ByAddress String
-
-
-type Location
-    = Located Path
-    | Addressed Path String
-
-
+{-| An internal data type used to track the location of a field within the form.
+-}
 type alias Path =
-    List Int
+    Internal.Path
 
 
-type alias MaybeAddress =
-    Maybe String
-
-
+{-| Forms are composed of Fields - this is the main data type we'll be using in this package.
+-}
 type Field model msg address innerMsg output
     = Field
         { init :
@@ -103,14 +97,20 @@ type Field model msg address innerMsg output
         }
 
 
+{-| Indicates that a Field has been given an `address`, and can therefore be used with `intercept`, `send`, etc. See the docs for `address`.
+-}
 type HasAddress
     = HasAddress Never
 
 
+{-| Indicates that a Field has not been given an `address`. See the docs for `address`.
+-}
 type NoAddress
     = NoAddress Never
 
 
+{-| Widgets are used to build Fields, which can be composed into forms.
+-}
 type alias Widget model msg output =
     { init : ( model, Cmd msg )
     , update : msg -> model -> ( model, Cmd msg )
@@ -121,12 +121,16 @@ type alias Widget model msg output =
     }
 
 
+{-| Configuration passed into the `view` function for each Field in your form.
+-}
 type alias ViewConfig =
     { label : String
     , feedback : List Feedback
     }
 
 
+{-| Feedback produced when running the `submit` function on your form returns errors.
+-}
 type alias Feedback =
     { message : String, fail : Bool, path : Path }
 
@@ -144,16 +148,38 @@ type alias Feedback =
 -}
 
 
+{-| Initialize your form
+-}
 init : Field model msg address innerMsg output -> ( Model model, Cmd (Msg msg) )
 init (Field field) =
     field.init [ 0 ] field.maybeAddress
 
 
+{-| Update your form by supplying a `Msg` and `Model`
+-}
 update : Field model msg address innerMsg output -> Msg msg -> Model model -> ( Model model, Cmd (Msg msg) )
 update (Field field) msg model =
     field.update msg model
 
 
+{-| View your form.
+
+    import Yafl exposing (Msg, succeed, init, view)
+    import Html exposing (Html)
+
+    form =
+        succeed ()
+
+    model =
+        form
+            |> init
+            |> Tuple.first
+
+    view form model
+
+    --: List (Html (Msg msg))
+
+-}
 view : Field model msg address innerMsg output -> Model model -> List (H.Html (Msg msg))
 view (Field field) model =
     let
@@ -172,16 +198,64 @@ view (Field field) model =
         model
 
 
+{-| Generate subscriptions for your form.
+
+    import Yafl exposing (Msg, succeed, init, subscriptions)
+
+
+    form =
+        succeed ()
+
+    model =
+        form
+            |> init
+            |> Tuple.first
+
+    subscriptions form model
+
+    --: Sub (Msg msg)
+
+-}
 subscriptions : Field model msg address innerMsg output -> Model model -> Sub (Msg msg)
 subscriptions (Field field) model =
     field.subscriptions model
 
 
+{-| Submit your form.
+
+    import Yafl exposing (succeed, init, submit)
+
+    form =
+        succeed ()
+
+    model =
+        form
+            |> init
+            |> Tuple.first
+
+    submit form model
+
+    --> Ok ()
+
+-}
 submit : Field model msg address innerMsg output -> Model model -> Result (List Feedback) output
 submit (Field field) model =
     field.submit model
 
 
+{-| Add a label to a Field
+
+    import Yafl exposing (label, succeed, Field, NoAddress)
+
+    myField =
+        succeed ()
+
+    myField
+        |> label "This is my field"
+
+    --: Field model msg NoAddress Never ()
+
+-}
 label : String -> Field model msg address innerMsg output -> Field model msg address innerMsg output
 label label_ (Field field) =
     Field { field | label = label_ }
@@ -200,11 +274,33 @@ label label_ (Field field) =
 -}
 
 
+{-| Add a unique identifier to a Field, which can be used to send and intercept messages to that Field.
+
+    import Yafl exposing (Field, HasAddress, NoAddress, address, succeed)
+
+    myField =
+        succeed ()
+
+    myField
+
+    --: Field model msg NoAddress Never ()
+
+    myAddressedField =
+        myField
+            |> address "any-string-as-long-as-it's-unique"
+
+    myAddressedField
+
+    --: Field model msg HasAddress Never ()
+
+-}
 address : String -> Field model msg NoAddress innerMsg output -> Field model msg HasAddress innerMsg output
 address sendId_ (Field field) =
     Field { field | maybeAddress = Just sendId_ }
 
 
+{-| Create a `Cmd` that will select a specific `option` in a `choice` Field.
+-}
 choose : Field model msg HasAddress innerMsg output -> Cmd (Msg msg)
 choose (Field field) =
     case field.maybeAddress of
@@ -215,27 +311,37 @@ choose (Field field) =
             Cmd.none
 
 
+{-| Create a `Cmd` that will send a message to a specific `option` in a `choice` Field .
+-}
 send : Field model msg HasAddress innerMsg output -> innerMsg -> Cmd (Msg msg)
 send (Field field) msg =
     Task.perform identity (Task.succeed (field.send field.maybeAddress msg))
 
 
+{-| Intercept the top-level `Msg` sent to your form, and if it contains a message sent to the specified field, return that message.
+-}
 intercept : Field model msg HasAddress innerMsg output -> Msg msg -> Maybe innerMsg
 intercept (Field field) =
     field.intercept field.maybeAddress
 
 
+{-| Update an individual Field within your form's `Model` by supplying a message for that Field.
+-}
 updateField : Field model msg HasAddress innerMsg output -> innerMsg -> Model model -> ( Model model, Cmd (Msg msg) )
 updateField (Field field) innerMsg model =
     field.update (field.send field.maybeAddress innerMsg) model
 
 
+{-| Like `updateField`, but works on `( model, cmd )` tuples. Useful if you're chaining multiple updates.
+-}
 andUpdateField : Field model msg HasAddress innerMsg output -> innerMsg -> ( Model model, Cmd (Msg msg) ) -> ( Model model, Cmd (Msg msg) )
 andUpdateField field innerMsg ( model, cmd1 ) =
     updateField field innerMsg model
         |> Tuple.mapSecond (\cmd2 -> Cmd.batch [ cmd1, cmd2 ])
 
 
+{-| Select a specific `option` Field within your form's `Model`.
+-}
 chooseField : Field model msg HasAddress innerMsg output -> Model model -> ( Model model, Cmd (Msg msg) )
 chooseField (Field field) model =
     case field.maybeAddress of
@@ -250,100 +356,12 @@ chooseField (Field field) model =
             ( model, Cmd.none )
 
 
+{-| Like `chooseField`, but works on `( model, cmd )` tuples. Useful if you're chaining multiple updates.
+-}
 andChooseField : Field model msg HasAddress innerMsg output -> ( Model model, Cmd (Msg msg) ) -> ( Model model, Cmd (Msg msg) )
 andChooseField field ( model, cmd1 ) =
     chooseField field model
         |> Tuple.mapSecond (\cmd2 -> Cmd.batch [ cmd1, cmd2 ])
-
-
-
-{-
-   db       .d88b.   .o88b.  .d8b.  d888888b d888888b  .d88b.  d8b   db
-   88      .8P  Y8. d8P  Y8 d8' `8b `~~88~~'   `88'   .8P  Y8. 888o  88
-   88      88    88 8P      88ooo88    88       88    88    88 88V8o 88
-   88      88    88 8b      88~~~88    88       88    88    88 88 V8o88
-   88booo. `8b  d8' Y8b  d8 88   88    88      .88.   `8b  d8' 88  V888
-   Y88888P  `Y88P'   `Y88P' YP   YP    YP    Y888888P  `Y88P'  VP   V8P
-
-
--}
-
-
-newLocation : Path -> Maybe String -> Location
-newLocation path maybeAddress =
-    case maybeAddress of
-        Nothing ->
-            Located path
-
-        Just address_ ->
-            Addressed path address_
-
-
-getLocation : Model model -> Location
-getLocation model =
-    case model of
-        Value loc _ ->
-            loc
-
-        Both loc _ _ ->
-            loc
-
-        OneOf loc _ _ ->
-            loc
-
-        Empty loc ->
-            loc
-
-
-pathFromModel : Model model -> Path
-pathFromModel model =
-    pathFromLocation (getLocation model)
-
-
-pathFromLocation : Location -> Path
-pathFromLocation location =
-    case location of
-        Located path_ ->
-            path_
-
-        Addressed path_ _ ->
-            path_
-
-
-addressFromLocation : Location -> Maybe String
-addressFromLocation location =
-    case location of
-        Located _ ->
-            Nothing
-
-        Addressed _ address_ ->
-            Just address_
-
-
-isLocated : Locator -> Location -> Bool
-isLocated locator location =
-    case ( locator, location ) of
-        ( ByPath path1, Located path2 ) ->
-            path1 == path2
-
-        ( ByPath path1, Addressed path2 _ ) ->
-            path1 == path2
-
-        ( ByAddress address1, Addressed _ address2 ) ->
-            address1 == address2
-
-        ( ByAddress _, Located _ ) ->
-            False
-
-
-toLocator : Location -> Locator
-toLocator location =
-    case location of
-        Located path ->
-            ByPath path
-
-        Addressed _ address_ ->
-            ByAddress address_
 
 
 
@@ -359,10 +377,27 @@ toLocator location =
 -}
 
 
+{-| A Field that always successfully generates the value that you supply.
+
+    import Yafl exposing (succeed, init, submit)
+
+    form =
+        succeed "Hurrah!"
+
+    model =
+        form
+            |> init
+            |> Tuple.first
+
+    submit form model
+
+    --> Ok "Hurrah!"
+
+-}
 succeed : output -> Field model msg address innerMsg output
 succeed f =
     Field
-        { init = \path maybeAddress -> ( Empty (newLocation path maybeAddress), Cmd.none )
+        { init = \path maybeAddress -> ( Empty (Location.new path maybeAddress), Cmd.none )
         , update =
             \msg model ->
                 case msg of
@@ -381,10 +416,27 @@ succeed f =
         }
 
 
+{-| A Field that always fails on submission with the error message that you supply.
+
+    import Yafl exposing (fail, init, submit)
+
+    form =
+        fail "Oh dear!"
+
+    model =
+        form
+            |> init
+            |> Tuple.first
+
+    submit form model
+
+    --> Err [ { message = "Oh dear!", path = [ 0 ], fail = True } ]
+
+-}
 fail : String -> Field model msg address innerMsg output
 fail e =
     Field
-        { init = \path maybeAddress -> ( Empty (newLocation path maybeAddress), Cmd.none )
+        { init = \path maybeAddress -> ( Empty (Location.new path maybeAddress), Cmd.none )
         , update =
             \msg model ->
                 case msg of
@@ -400,7 +452,7 @@ fail e =
                 Err
                     [ { message = e
                       , fail = True
-                      , path = pathFromModel model
+                      , path = Location.pathFromModel model
                       }
                     ]
         , send = \_ _ -> Noop
@@ -417,8 +469,8 @@ locateOneOf locator model =
             case
                 List.Extra.findMap
                     (\( _, optionModel ) ->
-                        if isLocated locator (getLocation optionModel) then
-                            pathFromModel optionModel
+                        if Location.isLocated locator (Location.fromModel optionModel) then
+                            Location.pathFromModel optionModel
                                 |> List.head
 
                         else
@@ -467,6 +519,29 @@ locateOneOf locator model =
             ( model, Cmd.none )
 
 
+{-| Convert the output of a Field from one type to another.
+
+    import Yafl exposing (map, init, submit, succeed)
+
+    form =
+        map
+            (\bool ->
+                if bool then
+                    "True"
+                else
+                    "False")
+            (succeed True)
+
+
+    model =
+        init form
+            |> Tuple.first
+
+    submit form model
+
+    --> Ok "True"
+
+-}
 map :
     (output -> output2)
     -> Field model msg address innerMsg output
@@ -485,6 +560,25 @@ map f (Field field) =
         }
 
 
+{-| Combine two fields.
+
+    import Yafl exposing (map2, init, submit, succeed)
+
+    form =
+        map2
+            (\a b -> { a = a, b = b })
+            (succeed 1)
+            (succeed 2)
+
+    model =
+        init form
+            |> Tuple.first
+
+    submit form model
+
+    --> Ok { a = 1, b = 2 }
+
+-}
 map2 :
     (output1 -> output2 -> output3)
     -> Field model msg address1 innerMsg1 output1
@@ -501,7 +595,7 @@ map2 f (Field field1) (Field field2) =
                     ( model2, cmd2 ) =
                         field2.init (1 :: path) field2.maybeAddress
                 in
-                ( Both (newLocation path maybeAddress) model1 model2
+                ( Both (Location.new path maybeAddress) model1 model2
                 , Cmd.batch
                     [ cmd1
                     , cmd2
@@ -571,6 +665,26 @@ map2 f (Field field1) (Field field2) =
         }
 
 
+{-| Combine multiple fields. This is useful when `map2` isn't enough.
+
+Use in combination with `succeed`:
+
+    import Yafl exposing (succeed, andMap, init, submit)
+
+    form =
+        succeed (\a b -> { a = a, b = b })
+            |> andMap (succeed 1)
+            |> andMap (succeed 2)
+
+    model =
+        init form
+            |> Tuple.first
+
+    submit form model
+
+    --> Ok { a = 1, b = 2 }
+
+-}
 andMap :
     Field model msg address1 innerMsg1 output1
     -> Field model msg address2 innerMsg2 (output1 -> output2)
@@ -594,6 +708,9 @@ andMap (Field field1) (Field field2) =
         }
 
 
+{-| Check the result of submitting a Field, and optionally display another
+Field. This can be very useful for validation.
+-}
 andThen :
     (output -> Field model msg address innerMsg2 output2)
     -> Field model msg address innerMsg output
@@ -616,9 +733,9 @@ andThen f (Field field) =
                                 field2.init (1 :: path) field2.maybeAddress
 
                             Err _ ->
-                                ( Empty (newLocation (1 :: path) Nothing), Cmd.none )
+                                ( Empty (Location.new (1 :: path) Nothing), Cmd.none )
                 in
-                ( Both (newLocation path maybeAddress) model1 model2
+                ( Both (Location.new path maybeAddress) model1 model2
                 , Cmd.batch [ cmd1, cmd2 ]
                 )
         , update =
@@ -638,7 +755,7 @@ andThen f (Field field) =
                                         in
                                         case model2 of
                                             Empty _ ->
-                                                field2.init (1 :: pathFromModel model) field2.maybeAddress
+                                                field2.init (1 :: Location.pathFromModel model) field2.maybeAddress
 
                                             _ ->
                                                 field2.update msg model2
@@ -708,7 +825,7 @@ andThen f (Field field) =
                     _ ->
                         Err
                             [ { message = "Fatal error, expecting a `Both` node"
-                              , path = pathFromModel model
+                              , path = Location.pathFromModel model
                               , fail = True
                               }
                             ]
@@ -719,6 +836,8 @@ andThen f (Field field) =
         }
 
 
+{-| Provide a view function to display the feedback generated when a Field's `submit` function returns errors.
+-}
 showFeedback :
     (List Feedback -> H.Html (Msg msg))
     -> Field model msg address innerMsg output
@@ -730,16 +849,18 @@ showFeedback render (Field field) =
                 \config model ->
                     let
                         relevantFeedback =
-                            List.filter (\f -> f.path == pathFromModel model) config.feedback
+                            List.filter (\f -> f.path == Location.pathFromModel model) config.feedback
                     in
                     field.view config model ++ [ render relevantFeedback ]
         }
 
 
+{-| Begin defining a `choice` between multiple `options`.
+-}
 choice : Field model msg NoAddress Never output
 choice =
     Field
-        { init = \path maybeAddress -> ( OneOf (newLocation path maybeAddress) { selected = 0 } [], Cmd.none )
+        { init = \path maybeAddress -> ( OneOf (Location.new path maybeAddress) { selected = 0 } [], Cmd.none )
         , update = \_ model -> ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
@@ -751,6 +872,8 @@ choice =
         }
 
 
+{-| Add an option to the Fields of a `choice`.
+-}
 option :
     String
     -> Field model msg address innerMsg output
@@ -796,11 +919,11 @@ option radioLabel (Field field) (Field choice_) =
                         in
                         case msg of
                             OptionSelected locator ->
-                                case List.Extra.find (\( _, optionModel ) -> isLocated locator (getLocation optionModel)) options of
+                                case List.Extra.find (\( _, optionModel ) -> Location.isLocated locator (Location.fromModel optionModel)) options of
                                     Just ( _, optionModel ) ->
                                         ( OneOf location
                                             { selected =
-                                                pathFromModel optionModel
+                                                Location.pathFromModel optionModel
                                                     |> List.head
                                                     |> Maybe.withDefault 0
                                             }
@@ -826,7 +949,7 @@ option radioLabel (Field field) (Field choice_) =
                                     [ H.input
                                         [ HA.type_ "radio"
                                         , HA.name config.label
-                                        , HE.onClick (OptionSelected (ByPath (idx :: pathFromLocation location)))
+                                        , HE.onClick (OptionSelected (ByPath (idx :: Location.toPath location)))
                                         , HA.checked (meta.selected == idx)
                                         ]
                                         []
@@ -890,6 +1013,21 @@ option radioLabel (Field field) (Field choice_) =
 -}
 
 
+{-| Begin a definition of the fields you want to use in your forms.
+-}
+defineFields :
+    ctor
+    ->
+        { ctor : ctor
+        , fields : b -> b
+        , modelGetters : { focus : focus -> focus, appendToGetters : getters -> getters }
+        , modelSetters : { focus : c -> c, appendToSetters : setters -> setters }
+        , modelBlanks : d -> d
+        , msgGetters : { focus : e -> e, appendToGetters : f -> f }
+        , msgSetters : { focus : g -> g, appendToSetters : h -> h }
+        , msgBlanks : i -> i
+        , apply : j -> j
+        }
 defineFields ctor =
     { ctor = ctor
     , fields = NT.define
@@ -903,9 +1041,92 @@ defineFields ctor =
     }
 
 
-addWidget field builder =
+{-| Add a Widget to the definition of the Fields you want to use in your forms.
+-}
+addWidget :
+    widget
+    ->
+        { apply :
+            ({ blankModel : model
+             , blankMsg : b
+             , ctor :
+                Field model msg NoAddress innerMsg value -> c
+             }
+             -> ( msg -> Maybe innerMsg, tailA )
+             -> ( Maybe innerMsg -> b -> msg, tailB )
+             -> ( model -> Maybe a2, tailC )
+             -> ( Maybe a3 -> model -> model, tailD )
+             ->
+                ( { init : ( a3, Cmd innerMsg )
+                  , label : String
+                  , submit : a2 -> Result (List String) value
+                  , subscriptions : a2 -> Sub innerMsg
+                  , update : innerMsg -> a2 -> ( a3, Cmd innerMsg )
+                  , view :
+                        ViewConfig -> a2 -> List (H.Html innerMsg)
+                  }
+                , tailE
+                )
+             -> accForNext
+            )
+            -> toFolder5
+        , ctor : f
+        , fields : ( widget, tail6 ) -> toAppender2
+        , modelBlanks : ( Maybe a1, tail5 ) -> toAppender1
+        , modelGetters :
+            { appendToGetters : ( tuple3 -> head3, nextGetters1 ) -> toGetters1
+            , focus : tuple3 -> ( head3, tail4 )
+            }
+        , modelSetters :
+            { appendToSetters :
+                ( head2 -> tuple2 -> tuple2, nextSetters1 ) -> toSetters1
+            , focus :
+                (( head2, tail3 ) -> ( head2, tail3 )) -> tuple2 -> tuple2
+            }
+        , msgBlanks : ( Maybe a, tail2 ) -> toAppender
+        , msgGetters :
+            { appendToGetters : ( tuple1 -> head1, nextGetters ) -> toGetters
+            , focus : tuple1 -> ( head1, tail1 )
+            }
+        , msgSetters :
+            { appendToSetters :
+                ( head -> tuple -> tuple, nextSetters ) -> toSetters
+            , focus : (( head, tail ) -> ( head, tail )) -> tuple -> tuple
+            }
+        }
+    ->
+        { apply :
+            ({ blankModel : model, blankMsg : b, ctor : c }
+             -> tailA
+             -> tailB
+             -> tailC
+             -> tailD
+             -> tailE
+             -> accForNext
+            )
+            -> toFolder5
+        , ctor : f
+        , fields : tail6 -> toAppender2
+        , modelBlanks : tail5 -> toAppender1
+        , modelGetters :
+            { appendToGetters : nextGetters1 -> toGetters1
+            , focus : tuple3 -> tail4
+            }
+        , modelSetters :
+            { appendToSetters : nextSetters1 -> toSetters1
+            , focus : (tail3 -> tail3) -> tuple2 -> tuple2
+            }
+        , msgBlanks : tail2 -> toAppender
+        , msgGetters :
+            { appendToGetters : nextGetters -> toGetters, focus : tuple1 -> tail1 }
+        , msgSetters :
+            { appendToSetters : nextSetters -> toSetters
+            , focus : (tail -> tail) -> tuple -> tuple
+            }
+        }
+addWidget widget builder =
     { ctor = builder.ctor
-    , fields = NT.appender field builder.fields
+    , fields = NT.appender widget builder.fields
     , modelGetters = NT.getter builder.modelGetters
     , modelSetters = NT.setter builder.modelSetters
     , modelBlanks = NT.appender Nothing builder.modelBlanks
@@ -916,6 +1137,25 @@ addWidget field builder =
     }
 
 
+applier :
+    (msg -> Maybe innerMsg)
+    -> (Maybe innerMsg -> b -> msg)
+    -> (model -> Maybe a)
+    -> (Maybe a1 -> model -> model)
+    ->
+        { init : ( a1, Cmd innerMsg )
+        , label : String
+        , submit : a -> Result (List String) value
+        , subscriptions : a -> Sub innerMsg
+        , update : innerMsg -> a -> ( a1, Cmd innerMsg )
+        , view : ViewConfig -> a -> List (H.Html innerMsg)
+        }
+    ->
+        { blankModel : model
+        , blankMsg : b
+        , ctor : Field model msg NoAddress innerMsg value -> d
+        }
+    -> { blankModel : model, blankMsg : b, ctor : d }
 applier msgGetter msgSetter modelGetter modelSetter fieldType acc =
     let
         send_ msg_ =
@@ -995,12 +1235,12 @@ wrapWithTrees args =
             \path maybeAddress ->
                 let
                     location =
-                        newLocation path maybeAddress
+                        Location.new path maybeAddress
                 in
                 args.init
                     |> Tuple.mapBoth
                         (\model -> Value location model)
-                        (\cmd -> Cmd.map (ValueChanged (toLocator location)) cmd)
+                        (\cmd -> Cmd.map (ValueChanged (Location.toLocator location)) cmd)
         , update =
             \msg model ->
                 internalUpdate args.update msg model
@@ -1008,10 +1248,10 @@ wrapWithTrees args =
             \config model ->
                 let
                     location =
-                        getLocation model
+                        Location.fromModel model
 
                     path =
-                        pathFromLocation location
+                        Location.toPath location
 
                     relevantFeedback =
                         List.filter (\f -> f.path == path) config.feedback
@@ -1019,7 +1259,7 @@ wrapWithTrees args =
                     ( model_, mapper ) =
                         case model of
                             Value _ model__ ->
-                                ( model__, ValueChanged (toLocator location) )
+                                ( model__, ValueChanged (Location.toLocator location) )
 
                             _ ->
                                 ( args.blankModel, always Noop )
@@ -1031,7 +1271,7 @@ wrapWithTrees args =
                 case model of
                     Value location model_ ->
                         args.submit model_
-                            |> Result.mapError (\errs -> List.map (\err -> { err | path = pathFromLocation location }) errs)
+                            |> Result.mapError (\errs -> List.map (\err -> { err | path = Location.toPath location }) errs)
 
                     _ ->
                         Err []
@@ -1040,7 +1280,7 @@ wrapWithTrees args =
                 case model of
                     Value location model_ ->
                         args.subscriptions model_
-                            |> Sub.map (ValueChanged (toLocator location))
+                            |> Sub.map (ValueChanged (Location.toLocator location))
 
                     _ ->
                         Sub.none
@@ -1069,18 +1309,23 @@ wrapWithTrees args =
         }
 
 
+internalUpdate :
+    (msg -> model -> ( model, Cmd a ))
+    -> Msg msg
+    -> Model model
+    -> ( Model model, Cmd (Msg a) )
 internalUpdate update_ msg model =
     case model of
         Value location innerModel ->
             case msg of
                 ValueChanged locator innerMsg ->
-                    if isLocated locator location then
+                    if Location.isLocated locator location then
                         let
                             ( newModel, cmd ) =
                                 update_ innerMsg innerModel
                         in
                         ( Value location newModel
-                        , Cmd.map (ValueChanged (toLocator location)) cmd
+                        , Cmd.map (ValueChanged (Location.toLocator location)) cmd
                         )
 
                     else
@@ -1124,11 +1369,11 @@ internalUpdate update_ msg model =
                             (\( _, optionModel ) ->
                                 let
                                     optionLocation =
-                                        getLocation optionModel
+                                        Location.fromModel optionModel
                                 in
-                                if isLocated locator optionLocation then
+                                if Location.isLocated locator optionLocation then
                                     optionLocation
-                                        |> pathFromLocation
+                                        |> Location.toPath
                                         |> List.head
 
                                 else
@@ -1151,6 +1396,28 @@ internalUpdate update_ msg model =
             ( model, Cmd.none )
 
 
+{-| Finalize the definition of the Fields you want to use in your forms.
+-}
+endFields :
+    { apply :
+        (acc -> empty -> empty -> empty -> empty -> empty -> acc)
+        -> { blankModel : appender1, blankMsg : appender, ctor : a }
+        -> getters
+        -> setters
+        -> getters1
+        -> setters1
+        -> appender2
+        -> { c | ctor : b }
+    , ctor : a
+    , fields : () -> appender2
+    , modelBlanks : () -> appender1
+    , modelGetters : { appendToGetters : () -> getters1, focus : focus3 }
+    , modelSetters : { appendToSetters : () -> setters1, focus : focus2 }
+    , msgBlanks : () -> appender
+    , msgGetters : { appendToGetters : () -> getters, focus : focus1 }
+    , msgSetters : { appendToSetters : () -> setters, focus : focus }
+    }
+    -> b
 endFields builder =
     let
         apply =
@@ -1203,6 +1470,11 @@ endFields builder =
 -}
 
 
+folder5 :
+    (headA -> headB -> headC -> headD -> headE -> accForHead -> accForTail)
+    -> ((accForHead -> ( headA, tailA ) -> ( headB, tailB ) -> ( headC, tailC ) -> ( headD, tailD ) -> ( headE, tailE ) -> accForNext) -> toFolder5)
+    -> (accForTail -> tailA -> tailB -> tailC -> tailD -> tailE -> accForNext)
+    -> toFolder5
 folder5 =
     let
         folder5_ foldHead foldTail accForHead tuple1 tuple2 tuple3 tuple4 tuple5 =
@@ -1225,5 +1497,6 @@ end ender prev =
     prev ender
 
 
+endFolder5 : ((acc -> empty -> empty -> empty -> empty -> empty -> acc) -> folder5) -> folder5
 endFolder5 =
     end (\acc _ _ _ _ _ -> acc)

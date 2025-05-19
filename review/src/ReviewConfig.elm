@@ -60,9 +60,11 @@ config =
     , NoUnused.CustomTypeConstructorArgs.rule
     , NoUnused.Dependencies.rule
     , NoUnused.Exports.rule
+        |> Rule.ignoreErrorsForFiles ["src/Visualize.elm"]
     , NoUnused.Parameters.rule
     , NoUnused.Patterns.rule
     , NoUnused.Variables.rule
+        |> Rule.ignoreErrorsForFiles [ "tests/DocumentationCodeSnippetTest.elm" ]
     , Simplify.rule Simplify.defaults
     , Review.Documentation.CodeSnippet.check
     ]

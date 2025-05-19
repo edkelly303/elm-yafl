@@ -336,15 +336,15 @@ main_ =
 
    This example also shows how we can use some of `Yafl`'s more advanced
    features to handle situations where the state of one field needs to depend on
-   the state of another. 
-   
+   the state of another.
+
    If we need the state of field A to depend on the state of field B, we can use
    `Yafl.intercept` in our app's `update` function to intercept messages sent to
    field B.
-   
+
    If necessary, we can then send messages to field A with `Yafl.send`. If field
    A is a `Yafl.option`, we can also select it using `Yafl.choose`.
-   
+
    Both field B and Field B need to have addresses set with `Yafl.address` for
    this to work.
 -}

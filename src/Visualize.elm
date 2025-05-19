@@ -2,14 +2,15 @@ module Visualize exposing (draw)
 
 import Html as H
 import Html.Attributes as HA
+import Internal
+import Location
 import Svg
 import Svg.Attributes
 import TreeDiagram
 import TreeDiagram.Svg
-import Yafl
 
 
-draw : Yafl.Model model -> H.Html msg
+draw : Internal.Model model -> H.Html msg
 draw tree =
     H.div
         [ HA.style "display" "flex"
@@ -28,10 +29,10 @@ draw tree =
         ]
 
 
-showLocation : Yafl.Location -> List String
+showLocation : Internal.Location -> List String
 showLocation location =
-    Debug.toString (List.reverse (Yafl.pathFromLocation location))
-        :: (case Yafl.addressFromLocation location of
+    Location.toString location
+        :: (case Location.toMaybeAddress location of
                 Nothing ->
                     []
 
@@ -40,31 +41,31 @@ showLocation location =
            )
 
 
-toTreeDiagram : Yafl.Model model -> TreeDiagram.Tree ( String, List String )
+toTreeDiagram : Internal.Model model -> TreeDiagram.Tree ( String, List String )
 toTreeDiagram model =
     case model of
-        Yafl.Empty location ->
+        Internal.Empty location ->
             TreeDiagram.node
                 ( "lavender"
                 , "Empty" :: showLocation location
                 )
                 []
 
-        Yafl.Value location _ ->
+        Internal.Value location _ ->
             TreeDiagram.node
                 ( "lavenderblush"
                 , "Value" :: showLocation location
                 )
                 []
 
-        Yafl.Both location t1 t2 ->
+        Internal.Both location t1 t2 ->
             TreeDiagram.node
                 ( "lightYellow"
                 , "Both" :: showLocation location
                 )
                 [ toTreeDiagram t1, toTreeDiagram t2 ]
 
-        Yafl.OneOf location meta ts ->
+        Internal.OneOf location meta ts ->
             TreeDiagram.node
                 ( "honeydew"
                 , [ "OneOf"
