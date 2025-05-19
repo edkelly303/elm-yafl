@@ -6,6 +6,8 @@ module Yafl exposing
     , Model(..)
     , Msg
     , NoAddress
+    , Path
+    , ViewConfig
     , Widget
     , addWidget
     , address
@@ -819,10 +821,6 @@ option radioLabel (Field field) (Field choice_) =
                 case model of
                     OneOf location meta (( fieldLabel, fieldModel ) :: choiceModels) ->
                         let
-                            choiceViews =
-                                choice_.view { config | label = choice_.label } (OneOf location meta choiceModels)
-                                    |> List.drop 1
-
                             radio idx lbl =
                                 H.label [ HA.class "yafl-radio-option" ]
                                     [ H.input
@@ -843,7 +841,8 @@ option radioLabel (Field field) (Field choice_) =
                                     field.view { config | label = field.label } fieldModel
 
                                 else
-                                    choiceViews
+                                    choice_.view { config | label = choice_.label } (OneOf location meta choiceModels)
+                                        |> List.drop 1
                                )
 
                     _ ->

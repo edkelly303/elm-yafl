@@ -1,4 +1,4 @@
-module Widgets exposing (..)
+module Widgets exposing (int, string)
 
 import Html as H
 import Html.Attributes as HA
@@ -49,9 +49,3 @@ int =
     , subscriptions = \_ -> Sub.none
     , label = "Int"
     }
-
-
-
-
-
-
