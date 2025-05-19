@@ -4,7 +4,9 @@ module DocumentationCodeSnippetTest exposing (tests)
 -}
 
 import Expect
+import Fields
 import Html
+import Platform.Cmd
 import Platform.Sub
 import Test
 import Yafl
@@ -24,7 +26,7 @@ tests =
                         "0"
                         (\() ->
                             let
-                                unused : Yafl.Field model msg Yafl.NoAddress Basics.Never ()
+                                unused : Yafl.Field Fields.Model Fields.Msg Yafl.NoAddress String.String String.String
                                 unused =
                                     myField__Yafl__address_0
                             in
@@ -34,9 +36,21 @@ tests =
                         "1"
                         (\() ->
                             let
-                                unused : Yafl.Field model msg Yafl.HasAddress Basics.Never ()
+                                unused : Yafl.Field Fields.Model Fields.Msg Yafl.HasAddress String.String String.String
                                 unused =
                                     myAddressedField__Yafl__address_0
+                            in
+                            Expect.pass
+                        )
+                    , Test.test
+                        "2"
+                        (\() ->
+                            let
+                                unused : Platform.Cmd.Cmd (Yafl.Msg Fields.Msg)
+                                unused =
+                                    Yafl.send
+                                        myAddressedField__Yafl__address_0
+                                        "Hello!"
                             in
                             Expect.pass
                         )
@@ -53,6 +67,22 @@ tests =
                                 form__Yafl__andMap_0
                                 model__Yafl__andMap_0
                                 |> Expect.equal (Result.Ok { a = 1, b = 2 })
+                        )
+                    ]
+                ]
+            , Test.describe
+                "choose"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            let
+                                unused : Platform.Cmd.Cmd (Yafl.Msg Fields.Msg)
+                                unused =
+                                    Yafl.choose holyGrail__Yafl__choose_0
+                            in
+                            Expect.pass
                         )
                     ]
                 ]
@@ -76,6 +106,25 @@ tests =
                     ]
                 ]
             , Test.describe
+                "intercept"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            let
+                                unused :
+                                    Yafl.Msg Fields.Msg
+                                    -> Maybe.Maybe String.String
+                                unused =
+                                    Yafl.intercept
+                                        myAddressedField__Yafl__intercept_0
+                            in
+                            Expect.pass
+                        )
+                    ]
+                ]
+            , Test.describe
                 "label"
                 [ Test.describe
                     "code snippet 0"
@@ -83,10 +132,9 @@ tests =
                         "0"
                         (\() ->
                             let
-                                unused : Yafl.Field model msg Yafl.NoAddress Basics.Never ()
+                                unused : Yafl.Field Fields.Model Fields.Msg Yafl.NoAddress String.String String.String
                                 unused =
-                                    myField__Yafl__label_0
-                                        |> Yafl.label "This is my field"
+                                    nameField__Yafl__label_0
                             in
                             Expect.pass
                         )
@@ -117,6 +165,24 @@ tests =
                     ]
                 ]
             , Test.describe
+                "send"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            let
+                                unused : Platform.Cmd.Cmd (Yafl.Msg Fields.Msg)
+                                unused =
+                                    Yafl.send
+                                        myAddressedField__Yafl__send_0
+                                        "Hello!"
+                            in
+                            Expect.pass
+                        )
+                    ]
+                ]
+            , Test.describe
                 "submit"
                 [ Test.describe
                     "code snippet 0"
@@ -126,7 +192,7 @@ tests =
                             Yafl.submit
                                 form__Yafl__submit_0
                                 model__Yafl__submit_0
-                                |> Expect.equal (Result.Ok ())
+                                |> Expect.equal (Result.Ok "")
                         )
                     ]
                 ]
@@ -138,7 +204,7 @@ tests =
                         "0"
                         (\() ->
                             let
-                                unused : Platform.Sub.Sub (Yafl.Msg msg)
+                                unused : Platform.Sub.Sub (Yafl.Msg Fields.Msg)
                                 unused =
                                     Yafl.subscriptions
                                         form__Yafl__subscriptions_0
@@ -170,7 +236,7 @@ tests =
                         "0"
                         (\() ->
                             let
-                                unused : List (Html.Html (Yafl.Msg msg))
+                                unused : List (Html.Html (Yafl.Msg Fields.Msg))
                                 unused =
                                     Yafl.view
                                         form__Yafl__view_0
@@ -185,7 +251,7 @@ tests =
 
 
 myField__Yafl__address_0 =
-    Yafl.succeed ()
+    Fields.fields.string
 
 
 myAddressedField__Yafl__address_0 =
@@ -202,6 +268,16 @@ model__Yafl__andMap_0 =
     Yafl.init form__Yafl__andMap_0 |> Tuple.first
 
 
+holyGrail__Yafl__choose_0 =
+    Fields.fields.string |> Yafl.address "any-string-as-long-as-it's-unique"
+
+
+myChoiceField__Yafl__choose_0 =
+    Yafl.choose
+        |> Yafl.option "Cup of a carpenter" holyGrail__Yafl__choose_0
+        |> Yafl.option "Fancy chalice" (Yafl.fail "You chose... poorly")
+
+
 form__Yafl__fail_0 =
     Yafl.fail "Oh dear!"
 
@@ -210,8 +286,12 @@ model__Yafl__fail_0 =
     form__Yafl__fail_0 |> Yafl.init |> Tuple.first
 
 
-myField__Yafl__label_0 =
-    Yafl.succeed ()
+myAddressedField__Yafl__intercept_0 =
+    Fields.fields.string |> Yafl.address "any-string-as-long-as-it's-unique"
+
+
+nameField__Yafl__label_0 =
+    Fields.fields.string |> Yafl.label "What is your name?"
 
 
 form__Yafl__map_0 =
@@ -238,8 +318,12 @@ model__Yafl__map2_0 =
     Yafl.init form__Yafl__map2_0 |> Tuple.first
 
 
+myAddressedField__Yafl__send_0 =
+    Fields.fields.string |> Yafl.address "any-string-as-long-as-it's-unique"
+
+
 form__Yafl__submit_0 =
-    Yafl.succeed ()
+    Fields.fields.string
 
 
 model__Yafl__submit_0 =
@@ -247,7 +331,7 @@ model__Yafl__submit_0 =
 
 
 form__Yafl__subscriptions_0 =
-    Yafl.succeed ()
+    Fields.fields.string
 
 
 model__Yafl__subscriptions_0 =
@@ -263,7 +347,7 @@ model__Yafl__succeed_0 =
 
 
 form__Yafl__view_0 =
-    Yafl.succeed ()
+    Fields.fields.string
 
 
 model__Yafl__view_0 =

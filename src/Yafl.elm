@@ -4,7 +4,7 @@ module Yafl exposing
     , succeed, fail, map, map2, andMap, andThen, choice, option
     , label, Feedback, Path, showFeedback
     , HasAddress, NoAddress, address, intercept, send, choose
-    , updateField, chooseField, andUpdateField, andChooseField
+    , updateField, andUpdateField, chooseField, andChooseField
     )
 
 {-| This library helps you build user input forms in Elm by creating and
@@ -38,7 +38,7 @@ composing self-contained widgets.
 
 # Updating Fields synchronously
 
-@docs updateField, chooseField, andUpdateField, andChooseField
+@docs updateField, andUpdateField, chooseField, andChooseField
 
 -}
 
@@ -110,6 +110,36 @@ type NoAddress
 
 
 {-| Widgets are used to build Fields, which can be composed into forms.
+
+Here's a basic example of a Widget that produces a `String`:
+
+    module Widgets exposing (string)
+
+    import Html as H
+    import Html.Attributes as HA
+    import Html.Events as HE
+    import Yafl exposing (Widget)
+
+    string : Widget String String String
+    string =
+        { init = ( "", Cmd.none )
+        , update = \msg _ -> ( msg, Cmd.none )
+        , view =
+            \{ label } model ->
+                [ H.label [ HA.for label ] [ H.text label ]
+                , H.input
+                    [ HA.id label
+                    , HA.type_ "text"
+                    , HA.value model
+                    , HE.onInput identity
+                    ]
+                    []
+                ]
+        , submit = Ok
+        , subscriptions = \_ -> Sub.none
+        , label = "String"
+        }
+
 -}
 type alias Widget model msg output =
     { init : ( model, Cmd msg )
@@ -164,11 +194,12 @@ update (Field field) msg model =
 
 {-| View your form.
 
-    import Yafl exposing (Msg, succeed, init, view)
+    import Yafl exposing (succeed, init, view)
     import Html exposing (Html)
+    import Fields
 
     form =
-        succeed ()
+        Fields.fields.string
 
     model =
         form
@@ -177,7 +208,7 @@ update (Field field) msg model =
 
     view form model
 
-    --: List (Html (Msg msg))
+    --: List (Html (Yafl.Msg Fields.Msg))
 
 -}
 view : Field model msg address innerMsg output -> Model model -> List (H.Html (Msg msg))
@@ -200,11 +231,11 @@ view (Field field) model =
 
 {-| Generate subscriptions for your form.
 
-    import Yafl exposing (Msg, succeed, init, subscriptions)
-
+    import Yafl exposing (succeed, init, subscriptions)
+    import Fields
 
     form =
-        succeed ()
+        Fields.fields.string
 
     model =
         form
@@ -213,7 +244,7 @@ view (Field field) model =
 
     subscriptions form model
 
-    --: Sub (Msg msg)
+    --: Sub (Yafl.Msg Fields.Msg)
 
 -}
 subscriptions : Field model msg address innerMsg output -> Model model -> Sub (Msg msg)
@@ -224,9 +255,10 @@ subscriptions (Field field) model =
 {-| Submit your form.
 
     import Yafl exposing (succeed, init, submit)
+    import Fields
 
     form =
-        succeed ()
+        Fields.fields.string
 
     model =
         form
@@ -235,7 +267,7 @@ subscriptions (Field field) model =
 
     submit form model
 
-    --> Ok ()
+    --> Ok ""
 
 -}
 submit : Field model msg address innerMsg output -> Model model -> Result (List Feedback) output
@@ -246,14 +278,15 @@ submit (Field field) model =
 {-| Add a label to a Field
 
     import Yafl exposing (label, succeed, Field, NoAddress)
+    import Fields
 
-    myField =
-        succeed ()
+    nameField =
+        Fields.fields.string
+            |> label "What is your name?"
 
-    myField
-        |> label "This is my field"
+    nameField
 
-    --: Field model msg NoAddress Never ()
+    --: Field Fields.Model Fields.Msg NoAddress String String
 
 -}
 label : String -> Field model msg address innerMsg output -> Field model msg address innerMsg output
@@ -276,14 +309,15 @@ label label_ (Field field) =
 
 {-| Add a unique identifier to a Field, which can be used to send and intercept messages to that Field.
 
-    import Yafl exposing (Field, HasAddress, NoAddress, address, succeed)
+    import Yafl exposing (Field, HasAddress, NoAddress, address, succeed, send)
+    import Fields
 
     myField =
-        succeed ()
+        Fields.fields.string
 
     myField
 
-    --: Field model msg NoAddress Never ()
+    --: Field Fields.Model Fields.Msg NoAddress String String
 
     myAddressedField =
         myField
@@ -291,7 +325,11 @@ label label_ (Field field) =
 
     myAddressedField
 
-    --: Field model msg HasAddress Never ()
+    --: Field Fields.Model Fields.Msg HasAddress String String
+
+    send myAddressedField "Hello!"
+
+    --: Cmd (Yafl.Msg Fields.Msg)
 
 -}
 address : String -> Field model msg NoAddress innerMsg output -> Field model msg HasAddress innerMsg output
@@ -300,6 +338,23 @@ address sendId_ (Field field) =
 
 
 {-| Create a `Cmd` that will select a specific `option` in a `choice` Field.
+
+    import Yafl exposing (address, choice, option, choose, fail)
+    import Fields
+
+    holyGrail =
+        Fields.fields.string
+            |> address "any-string-as-long-as-it's-unique"
+
+    myChoiceField =
+        choose
+            |> option "Cup of a carpenter" holyGrail
+            |> option "Fancy chalice" (fail "You chose... poorly")
+
+    choose holyGrail
+
+    --: Cmd (Yafl.Msg Fields.Msg)
+
 -}
 choose : Field model msg HasAddress innerMsg output -> Cmd (Msg msg)
 choose (Field field) =
@@ -311,7 +366,19 @@ choose (Field field) =
             Cmd.none
 
 
-{-| Create a `Cmd` that will send a message to a specific `option` in a `choice` Field .
+{-| Create a `Cmd` that will send a message to a specific `option` in a `choice` Field.
+
+    import Yafl exposing (address, send)
+    import Fields
+
+    myAddressedField =
+        Fields.fields.string
+            |> address "any-string-as-long-as-it's-unique"
+
+    send myAddressedField "Hello!"
+
+    --: Cmd (Yafl.Msg Fields.Msg)
+
 -}
 send : Field model msg HasAddress innerMsg output -> innerMsg -> Cmd (Msg msg)
 send (Field field) msg =
@@ -319,6 +386,18 @@ send (Field field) msg =
 
 
 {-| Intercept the top-level `Msg` sent to your form, and if it contains a message sent to the specified field, return that message.
+
+    import Yafl exposing (address, intercept)
+    import Fields
+
+    myAddressedField =
+        Fields.fields.string
+            |> address "any-string-as-long-as-it's-unique"
+
+    intercept myAddressedField
+
+    --: Yafl.Msg Fields.Msg -> Maybe String
+
 -}
 intercept : Field model msg HasAddress innerMsg output -> Msg msg -> Maybe innerMsg
 intercept (Field field) =
@@ -1014,6 +1093,24 @@ option radioLabel (Field field) (Field choice_) =
 
 
 {-| Begin a definition of the fields you want to use in your forms.
+
+    module Fields exposing (Msg, fields)
+
+    import Widgets
+    import Yafl exposing (addWidget, defineFields, endFields)
+
+    type alias Msg =
+        ( Maybe String, () )
+
+    type alias Model =
+        ( Maybe String, () )
+
+    fields : { string : Yafl.Field Model Msg Yafl.NoAddress String String }
+    fields =
+        defineFields (\string -> { string = string })
+            |> addWidget Widgets.string
+            |> endFields
+
 -}
 defineFields :
     ctor
