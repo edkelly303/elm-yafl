@@ -118,12 +118,12 @@ Here's a basic example of a Widget that produces a `String`:
     import Html as H
     import Html.Attributes as HA
     import Html.Events as HE
-    import Yafl exposing (Widget)
+    import Yafl
 
-    string : Widget String String String
+    string : Yafl.Widget String String String
     string =
         { init = ( "", Cmd.none )
-        , update = \msg _ -> ( msg, Cmd.none )
+        , update = \msg model -> ( msg, Cmd.none )
         , view =
             \{ label } model ->
                 [ H.label [ HA.for label ] [ H.text label ]
@@ -135,8 +135,8 @@ Here's a basic example of a Widget that produces a `String`:
                     ]
                     []
                 ]
-        , submit = Ok
-        , subscriptions = \_ -> Sub.none
+        , submit = \model -> Ok model
+        , subscriptions = \model -> Sub.none
         , label = "String"
         }
 
@@ -194,7 +194,7 @@ update (Field field) msg model =
 
 {-| View your form.
 
-    import Yafl exposing (succeed, init, view)
+    import Yafl
     import Html exposing (Html)
     import Fields
 
@@ -203,10 +203,10 @@ update (Field field) msg model =
 
     model =
         form
-            |> init
+            |> Yafl.init
             |> Tuple.first
 
-    view form model
+    Yafl.view form model
 
     --: List (Html (Yafl.Msg Fields.Msg))
 
@@ -231,7 +231,7 @@ view (Field field) model =
 
 {-| Generate subscriptions for your form.
 
-    import Yafl exposing (succeed, init, subscriptions)
+    import Yafl
     import Fields
 
     form =
@@ -239,10 +239,10 @@ view (Field field) model =
 
     model =
         form
-            |> init
+            |> Yafl.init
             |> Tuple.first
 
-    subscriptions form model
+    Yafl.subscriptions form model
 
     --: Sub (Yafl.Msg Fields.Msg)
 
@@ -254,7 +254,7 @@ subscriptions (Field field) model =
 
 {-| Submit your form.
 
-    import Yafl exposing (succeed, init, submit)
+    import Yafl
     import Fields
 
     form =
@@ -262,10 +262,10 @@ subscriptions (Field field) model =
 
     model =
         form
-            |> init
+            |> Yafl.init
             |> Tuple.first
 
-    submit form model
+    Yafl.submit form model
 
     --> Ok ""
 
@@ -277,16 +277,16 @@ submit (Field field) model =
 
 {-| Add a label to a Field
 
-    import Yafl exposing (label, succeed, Field, NoAddress)
+    import Yafl
     import Fields
 
     nameField =
         Fields.fields.string
-            |> label "What is your name?"
+            |> Yafl.label "What is your name?"
 
     nameField
 
-    --: Field Fields.Model Fields.Msg NoAddress String String
+    --: Yafl.Field Fields.Model Fields.Msg Yafl.NoAddress String String
 
 -}
 label : String -> Field model msg address innerMsg output -> Field model msg address innerMsg output
@@ -309,7 +309,7 @@ label label_ (Field field) =
 
 {-| Add a unique identifier to a Field, which can be used to send and intercept messages to that Field.
 
-    import Yafl exposing (Field, HasAddress, NoAddress, address, succeed, send)
+    import Yafl
     import Fields
 
     myField =
@@ -317,17 +317,17 @@ label label_ (Field field) =
 
     myField
 
-    --: Field Fields.Model Fields.Msg NoAddress String String
+    --: Yafl.Field Fields.Model Fields.Msg Yafl.NoAddress String String
 
     myAddressedField =
         myField
-            |> address "any-string-as-long-as-it's-unique"
+            |> Yafl.address "any-string-as-long-as-it's-unique"
 
     myAddressedField
 
-    --: Field Fields.Model Fields.Msg HasAddress String String
+    --: Yafl.Field Fields.Model Fields.Msg Yafl.HasAddress String String
 
-    send myAddressedField "Hello!"
+    Yafl.send myAddressedField "Hello!"
 
     --: Cmd (Yafl.Msg Fields.Msg)
 
@@ -339,19 +339,19 @@ address sendId_ (Field field) =
 
 {-| Create a `Cmd` that will select a specific `option` in a `choice` Field.
 
-    import Yafl exposing (address, choice, option, choose, fail)
+    import Yafl
     import Fields
 
     holyGrail =
         Fields.fields.string
-            |> address "any-string-as-long-as-it's-unique"
+            |> Yafl.address "any-string-as-long-as-it's-unique"
 
     myChoiceField =
-        choose
-            |> option "Cup of a carpenter" holyGrail
-            |> option "Fancy chalice" (fail "You chose... poorly")
+        Yafl.choice
+            |> Yafl.option "Cup of a carpenter" holyGrail
+            |> Yafl.option "Fancy chalice" (Yafl.fail "You chose... poorly")
 
-    choose holyGrail
+    Yafl.choose holyGrail
 
     --: Cmd (Yafl.Msg Fields.Msg)
 
@@ -368,14 +368,14 @@ choose (Field field) =
 
 {-| Create a `Cmd` that will send a message to a specific `option` in a `choice` Field.
 
-    import Yafl exposing (address, send)
+    import Yafl
     import Fields
 
     myAddressedField =
         Fields.fields.string
-            |> address "any-string-as-long-as-it's-unique"
+            |> Yafl.address "any-string-as-long-as-it's-unique"
 
-    send myAddressedField "Hello!"
+    Yafl.send myAddressedField "Hello!"
 
     --: Cmd (Yafl.Msg Fields.Msg)
 
@@ -387,14 +387,14 @@ send (Field field) msg =
 
 {-| Intercept the top-level `Msg` sent to your form, and if it contains a message sent to the specified field, return that message.
 
-    import Yafl exposing (address, intercept)
+    import Yafl
     import Fields
 
     myAddressedField =
         Fields.fields.string
-            |> address "any-string-as-long-as-it's-unique"
+            |> Yafl.address "any-string-as-long-as-it's-unique"
 
-    intercept myAddressedField
+    Yafl.intercept myAddressedField
 
     --: Yafl.Msg Fields.Msg -> Maybe String
 
@@ -458,17 +458,17 @@ andChooseField field ( model, cmd1 ) =
 
 {-| A Field that always successfully generates the value that you supply.
 
-    import Yafl exposing (succeed, init, submit)
+    import Yafl
 
     form =
-        succeed "Hurrah!"
+        Yafl.succeed "Hurrah!"
 
     model =
         form
-            |> init
+            |> Yafl.init
             |> Tuple.first
 
-    submit form model
+    Yafl.submit form model
 
     --> Ok "Hurrah!"
 
@@ -497,17 +497,17 @@ succeed f =
 
 {-| A Field that always fails on submission with the error message that you supply.
 
-    import Yafl exposing (fail, init, submit)
+    import Yafl
 
     form =
-        fail "Oh dear!"
+        Yafl.fail "Oh dear!"
 
     model =
         form
-            |> init
+            |> Yafl.init
             |> Tuple.first
 
-    submit form model
+    Yafl.submit form model
 
     --> Err [ { message = "Oh dear!", path = [ 0 ], fail = True } ]
 
@@ -600,23 +600,23 @@ locateOneOf locator model =
 
 {-| Convert the output of a Field from one type to another.
 
-    import Yafl exposing (map, init, submit, succeed)
+    import Yafl
 
     form =
-        map
+        Yafl.map
             (\bool ->
                 if bool then
                     "True"
                 else
                     "False")
-            (succeed True)
+            (Yafl.succeed True)
 
 
     model =
-        init form
+        Yafl.init form
             |> Tuple.first
 
-    submit form model
+    Yafl.submit form model
 
     --> Ok "True"
 
@@ -641,21 +641,22 @@ map f (Field field) =
 
 {-| Combine two fields.
 
-    import Yafl exposing (map2, init, submit, succeed)
+    import Yafl
+    import Fields
 
     form =
-        map2
-            (\a b -> { a = a, b = b })
-            (succeed 1)
-            (succeed 2)
+        Yafl.map2
+            (\a b -> { firstName = a, lastName = b })
+            (Fields.fields.string |> Yafl.label "First name")
+            (Fields.fields.string |> Yafl.label "Last name")
 
     model =
-        init form
+        Yafl.init form
             |> Tuple.first
 
-    submit form model
+    Yafl.submit form model
 
-    --> Ok { a = 1, b = 2 }
+    --> Ok { firstName = "", lastName = "" }
 
 -}
 map2 :
@@ -748,20 +749,22 @@ map2 f (Field field1) (Field field2) =
 
 Use in combination with `succeed`:
 
-    import Yafl exposing (succeed, andMap, init, submit)
+    import Yafl
+    import Fields
 
     form =
-        succeed (\a b -> { a = a, b = b })
-            |> andMap (succeed 1)
-            |> andMap (succeed 2)
+        Yafl.succeed (\a b c -> { firstName = a, middleName = b, lastName = c })
+            |> Yafl.andMap (Fields.fields.string |> Yafl.label "First name")
+            |> Yafl.andMap (Fields.fields.string |> Yafl.label "Middle name")
+            |> Yafl.andMap (Fields.fields.string |> Yafl.label "Last name")
 
     model =
-        init form
+        Yafl.init form
             |> Tuple.first
 
-    submit form model
+    Yafl.submit form model
 
-    --> Ok { a = 1, b = 2 }
+    --> Ok { firstName = "", middleName = "", lastName = "" }
 
 -}
 andMap :

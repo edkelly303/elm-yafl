@@ -66,7 +66,13 @@ tests =
                             Yafl.submit
                                 form__Yafl__andMap_0
                                 model__Yafl__andMap_0
-                                |> Expect.equal (Result.Ok { a = 1, b = 2 })
+                                |> Expect.equal
+                                    (Result.Ok
+                                        { firstName = ""
+                                        , middleName = ""
+                                        , lastName = ""
+                                        }
+                                    )
                         )
                     ]
                 ]
@@ -160,7 +166,8 @@ tests =
                         "0"
                         (\() ->
                             Yafl.submit form__Yafl__map2_0 model__Yafl__map2_0
-                                |> Expect.equal (Result.Ok { a = 1, b = 2 })
+                                |> Expect.equal
+                                    (Result.Ok { firstName = "", lastName = "" })
                         )
                     ]
                 ]
@@ -259,9 +266,10 @@ myAddressedField__Yafl__address_0 =
 
 
 form__Yafl__andMap_0 =
-    Yafl.succeed (\a b -> { a = a, b = b })
-        |> Yafl.andMap (Yafl.succeed 1)
-        |> Yafl.andMap (Yafl.succeed 2)
+    Yafl.succeed (\a b c -> { firstName = a, middleName = b, lastName = c })
+        |> Yafl.andMap (Fields.fields.string |> Yafl.label "First name")
+        |> Yafl.andMap (Fields.fields.string |> Yafl.label "Middle name")
+        |> Yafl.andMap (Fields.fields.string |> Yafl.label "Last name")
 
 
 model__Yafl__andMap_0 =
@@ -273,7 +281,7 @@ holyGrail__Yafl__choose_0 =
 
 
 myChoiceField__Yafl__choose_0 =
-    Yafl.choose
+    Yafl.choice
         |> Yafl.option "Cup of a carpenter" holyGrail__Yafl__choose_0
         |> Yafl.option "Fancy chalice" (Yafl.fail "You chose... poorly")
 
@@ -311,7 +319,10 @@ model__Yafl__map_0 =
 
 
 form__Yafl__map2_0 =
-    Yafl.map2 (\a b -> { a = a, b = b }) (Yafl.succeed 1) (Yafl.succeed 2)
+    Yafl.map2
+        (\a b -> { firstName = a, lastName = b })
+        (Fields.fields.string |> Yafl.label "First name")
+        (Fields.fields.string |> Yafl.label "Last name")
 
 
 model__Yafl__map2_0 =

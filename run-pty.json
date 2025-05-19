@@ -1,0 +1,95 @@
+[
+    {
+        "command": [
+            "npx",
+            "elm-watch@beta",
+            "hot"
+        ],
+        "cwd": "./examples",
+        "title": "npx elm-watch@beta hot",
+        "status": {
+            "⏳": [
+                "⏳",
+                "W"
+            ],
+            "🚨": [
+                "🚨",
+                "E"
+            ],
+            "✅": [
+                "✅",
+                "+"
+            ]
+        },
+        "defaultStatus": [
+            "⚠️",
+            "X"
+        ]
+    },
+    {
+        "command": [
+            "npx",
+            "elm-doc-preview",
+            "--port",
+            "8002"
+        ],
+        "title": "npx elm-doc-preview",
+        "status": {
+            "watching package": [
+                "✅",
+                "+"
+            ]
+        },
+        "defaultStatus": [
+            "⚠️",
+            "X"
+        ]
+    },
+    {
+        "command": [
+            "npx",
+            "elm-review",
+            "--watch",
+            "--rules",
+            "Review.Documentation.CodeSnippet",
+            "--fix-all-without-prompt"
+        ],
+        "title": "npx elm-review --watch --rules Review.Documentation.CodeSnippet --fix-all-without-prompt",
+        "status": {
+            "ELM-REVIEW ERROR": [
+                "🚨",
+                "E"
+            ],
+            "I found no": [
+                "✅",
+                "+"
+            ]
+        },
+        "defaultStatus": [
+            "⚠️",
+            "X"
+        ]
+    },
+    {
+        "command": [
+            "npx",
+            "elm-test",
+            "--watch"
+        ],
+        "title": "npx elm-test --watch",
+        "status": {
+            "TEST RUN PASSED": [
+                "✅",
+                "+"
+            ],
+            "TEST RUN FAILED": [
+                "🚨",
+                "E"
+            ]
+        },
+        "defaultStatus": [
+            "⚠️",
+            "X"
+        ]
+    }
+]

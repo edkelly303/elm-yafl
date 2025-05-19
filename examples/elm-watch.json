@@ -1,0 +1,12 @@
+{
+    "targets": {
+        "Yafl example": {
+            "inputs": [
+                "src/Main.elm"
+            ],
+            "output": "build/main.js"
+        }
+    },
+    "serve": "./build",
+    "port": 8001
+}
