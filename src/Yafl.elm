@@ -1,7 +1,10 @@
 module Yafl exposing
     ( Widget, Field, defineFields, addWidget, endFields
     , Model, Msg, init, update, ViewConfig, view, subscriptions, submit
-    , succeed, fail, map, map2, andMap, andThen, choice, option
+    , map, andThen
+    , succeed, fail
+    , map2, andMap
+    , choice, option
     , label, Feedback, Path, showFeedback
     , HasAddress, NoAddress, address, intercept, send, choose
     , updateField, andUpdateField, chooseField, andChooseField
@@ -23,7 +26,25 @@ composing self-contained widgets.
 
 # Combining Fields
 
-@docs succeed, fail, map, map2, andMap, andThen, choice, option
+
+## Converting output types
+
+@docs map, andThen
+
+
+## Succeeding and failing
+
+@docs succeed, fail
+
+
+## Building product types
+
+@docs map2, andMap
+
+
+## Building custom types
+
+@docs choice, option
 
 
 # Customizing Fields
@@ -405,6 +426,32 @@ intercept (Field field) =
 
 
 {-| Update an individual Field within your form's `Model` by supplying a message for that Field.
+
+    import Yafl
+    import Fields
+
+    myAddressedField =
+        Fields.fields.string
+            |> Yafl.address "any-string-as-long-as-it's-unique"
+
+    model =
+        myAddressedField
+            |> Yafl.init
+            |> Tuple.first
+
+    Yafl.submit myAddressedField model
+
+    --> Ok ""
+
+    updatedModel =
+        model
+            |> Yafl.updateField myAddressedField "Hello!"
+            |> Tuple.first
+
+    Yafl.submit myAddressedField updatedModel
+
+    --> Ok "Hello!"
+
 -}
 updateField : Field model msg HasAddress innerMsg output -> innerMsg -> Model model -> ( Model model, Cmd (Msg msg) )
 updateField (Field field) innerMsg model =
@@ -412,6 +459,27 @@ updateField (Field field) innerMsg model =
 
 
 {-| Like `updateField`, but works on `( model, cmd )` tuples. Useful if you're chaining multiple updates.
+
+    import Yafl
+    import Fields
+
+    myAddressedField =
+        Fields.fields.string
+            |> Yafl.address "any-string-as-long-as-it's-unique"
+
+    modelAndCmd =
+        myAddressedField
+            |> Yafl.init
+
+    updatedModelAndCmd =
+        modelAndCmd
+            |> Yafl.andUpdateField myAddressedField "Hello!"
+            |> Tuple.first
+
+    Yafl.submit myAddressedField updatedModelAndCmd
+
+    --> Ok "Hello!"
+
 -}
 andUpdateField : Field model msg HasAddress innerMsg output -> innerMsg -> ( Model model, Cmd (Msg msg) ) -> ( Model model, Cmd (Msg msg) )
 andUpdateField field innerMsg ( model, cmd1 ) =
@@ -420,6 +488,36 @@ andUpdateField field innerMsg ( model, cmd1 ) =
 
 
 {-| Select a specific `option` Field within your form's `Model`.
+
+    import Yafl
+    import Fields
+
+    myAddressedField =
+        Yafl.succeed "Hurrah!"
+            |> Yafl.address "any-string-as-long-as-it's-unique"
+
+    myChoiceField =
+        Yafl.choice
+            |> Yafl.option "Don't pick me!" (Yafl.fail "Oh no, you failed!")
+            |> Yafl.option "I'm the one!" myAddressedField
+
+    model =
+        myChoiceField
+            |> Yafl.init
+            |> Tuple.first
+
+    model
+        |> Yafl.submit myChoiceField
+
+    --> Err [ { message = "Oh no, you failed!", fail = True, path = [ 0, 0 ] } ]
+
+    model
+        |> Yafl.chooseField myAddressedField
+        |> Tuple.first
+        |> Yafl.submit myChoiceField
+
+    --> Ok "Hurrah!"
+
 -}
 chooseField : Field model msg HasAddress innerMsg output -> Model model -> ( Model model, Cmd (Msg msg) )
 chooseField (Field field) model =
@@ -436,6 +534,36 @@ chooseField (Field field) model =
 
 
 {-| Like `chooseField`, but works on `( model, cmd )` tuples. Useful if you're chaining multiple updates.
+
+    import Yafl
+    import Fields
+
+    myAddressedField =
+        Yafl.succeed "Hurrah!"
+            |> Yafl.address "any-string-as-long-as-it's-unique"
+
+    myChoiceField =
+        Yafl.choice
+            |> Yafl.option "Don't pick me!" (Yafl.fail "Oh no, you failed!")
+            |> Yafl.option "I'm the one!" myAddressedField
+
+    modelAndCmd =
+        myChoiceField
+            |> Yafl.init
+
+    modelAndCmd
+        |> Tuple.first
+        |> Yafl.submit myChoiceField
+
+    --> Err [ { message = "Oh no, you failed!", fail = True, path = [ 0, 0 ] } ]
+
+    modelAndCmd
+        |> Yafl.andChooseField myAddressedField
+        |> Tuple.first
+        |> Yafl.submit myChoiceField
+
+    --> Ok "Hurrah!"
+
 -}
 andChooseField : Field model msg HasAddress innerMsg output -> ( Model model, Cmd (Msg msg) ) -> ( Model model, Cmd (Msg msg) )
 andChooseField field ( model, cmd1 ) =
@@ -541,84 +669,26 @@ fail e =
         }
 
 
-locateOneOf : Locator -> Model model -> ( Model model, Cmd msg )
-locateOneOf locator model =
-    case model of
-        OneOf location selection options ->
-            case
-                List.Extra.findMap
-                    (\( _, optionModel ) ->
-                        if Location.isLocated locator (Location.fromModel optionModel) then
-                            Location.pathFromModel optionModel
-                                |> List.head
-
-                        else
-                            Nothing
-                    )
-                    options
-            of
-                Just selected ->
-                    ( OneOf location
-                        { selected = selected }
-                        options
-                    , Cmd.none
-                    )
-
-                Nothing ->
-                    let
-                        ( labels, models ) =
-                            List.unzip options
-
-                        ( newModels, cmds ) =
-                            models
-                                |> List.map (locateOneOf locator)
-                                |> List.unzip
-                    in
-                    ( OneOf location selection (List.Extra.zip labels newModels)
-                    , Cmd.batch cmds
-                    )
-
-        Value _ _ ->
-            ( model, Cmd.none )
-
-        Both location model1 model2 ->
-            let
-                ( newModel1, cmd1 ) =
-                    locateOneOf locator model1
-
-                ( newModel2, cmd2 ) =
-                    locateOneOf locator model2
-            in
-            ( Both location newModel1 newModel2
-            , Cmd.batch
-                [ cmd1, cmd2 ]
-            )
-
-        Empty _ ->
-            ( model, Cmd.none )
-
-
 {-| Convert the output of a Field from one type to another.
 
+A common use case for this function is to create Fields that produce custom type
+variants.
+
     import Yafl
+    import Fields
 
-    form =
-        Yafl.map
-            (\bool ->
-                if bool then
-                    "True"
-                else
-                    "False")
-            (Yafl.succeed True)
+    type MyCustomType
+        = Foo String
 
+    fooField =
+        Yafl.map Foo Fields.fields.string
 
-    model =
-        Yafl.init form
-            |> Tuple.first
+    fooField
+        |> Yafl.init
+        |> Tuple.first
+        |> Yafl.submit fooField
 
-    Yafl.submit form model
-
-    --> Ok "True"
+    --> Ok (Foo "")
 
 -}
 map :
@@ -639,16 +709,20 @@ map f (Field field) =
         }
 
 
-{-| Combine two fields.
+{-| Combine the outputs of two Fields into a new output type.
+
+You can use this to create tuples, records with two fields, custom type variants with two arguments, and so on.
+
+If you need to combine the outputs of more than two Fields, check out `andMap` instead.
 
     import Yafl
     import Fields
 
     form =
         Yafl.map2
-            (\a b -> { firstName = a, lastName = b })
-            (Fields.fields.string |> Yafl.label "First name")
-            (Fields.fields.string |> Yafl.label "Last name")
+            (\a b -> ( a, b ))
+            (Fields.fields.string)
+            (Fields.fields.string)
 
     model =
         Yafl.init form
@@ -656,7 +730,7 @@ map f (Field field) =
 
     Yafl.submit form model
 
-    --> Ok { firstName = "", lastName = "" }
+    --> Ok ( "", "" )
 
 -}
 map2 :
@@ -745,9 +819,9 @@ map2 f (Field field1) (Field field2) =
         }
 
 
-{-| Combine multiple fields. This is useful when `map2` isn't enough.
+{-| Combine multiple fields. This is useful when `Yafl.map2` isn't enough.
 
-Use in combination with `succeed`:
+Use in combination with `Yafl.succeed`.
 
     import Yafl
     import Fields
@@ -791,7 +865,38 @@ andMap (Field field1) (Field field2) =
 
 
 {-| Check the result of submitting a Field, and optionally display another
-Field. This can be very useful for validation.
+Field. This can be very useful for validation, or to ask the user for more
+information.
+
+    import Yafl
+    import Fields
+
+    -- Example 1: validating user input
+
+    Fields.fields.string
+        |> Yafl.label "Enter the first name of a Beatle"
+        |> Yafl.andThen
+            (\name ->
+                if List.member name [ "John", "Paul", "George", "Ringo" ] then
+                    Yafl.succeed name
+                else
+                    Yafl.fail "Invalid Beatle"
+            )
+
+    -- Example 2: Asking the user for more information
+
+    Fields.fields.string
+        |> Yafl.label "What would you like to say?"
+        |> Yafl.andThen
+            (\words ->
+                if words == "Hello" then
+                    Fields.fields.string
+                        |> Yafl.label "Who are you saying 'Hello' to?"
+                        |> Yafl.map (\moreWords -> words ++ " " ++ moreWords)
+                else
+                    Yafl.succeed words
+            )
+
 -}
 andThen :
     (output -> Field model msg address innerMsg2 output2)
@@ -1237,6 +1342,80 @@ addWidget widget builder =
     }
 
 
+{-| Finalize the definition of the Fields you want to use in your forms.
+-}
+endFields :
+    { apply :
+        (acc -> empty -> empty -> empty -> empty -> empty -> acc)
+        -> { blankModel : appender1, blankMsg : appender, ctor : a }
+        -> getters
+        -> setters
+        -> getters1
+        -> setters1
+        -> appender2
+        -> { c | ctor : b }
+    , ctor : a
+    , fields : () -> appender2
+    , modelBlanks : () -> appender1
+    , modelGetters : { appendToGetters : () -> getters1, focus : focus3 }
+    , modelSetters : { appendToSetters : () -> setters1, focus : focus2 }
+    , msgBlanks : () -> appender
+    , msgGetters : { appendToGetters : () -> getters, focus : focus1 }
+    , msgSetters : { appendToSetters : () -> setters, focus : focus }
+    }
+    -> b
+endFields builder =
+    let
+        apply =
+            endFolder5 builder.apply
+
+        msgGetters =
+            NT.endGetters builder.msgGetters
+
+        msgSetters =
+            NT.endSetters builder.msgSetters
+
+        modelGetters =
+            NT.endGetters builder.modelGetters
+
+        modelSetters =
+            NT.endSetters builder.modelSetters
+
+        fields =
+            NT.endAppender builder.fields
+
+        blankMsg =
+            NT.endAppender builder.msgBlanks
+
+        blankModel =
+            NT.endAppender builder.modelBlanks
+    in
+    apply
+        { ctor = builder.ctor
+        , blankMsg = blankMsg
+        , blankModel = blankModel
+        }
+        msgGetters
+        msgSetters
+        modelGetters
+        modelSetters
+        fields
+        |> .ctor
+
+
+
+{-
+   d8888b.  .d8b.  d8888b. db   dD      .88b  d88.  .d8b.   d888b  d888888b  .o88b.
+   88  `8D d8' `8b 88  `8D 88 ,8P'      88'YbdP`88 d8' `8b 88' Y8b   `88'   d8P  Y8
+   88   88 88ooo88 88oobY' 88,8P        88  88  88 88ooo88 88         88    8P
+   88   88 88~~~88 88`8b   88`8b        88  88  88 88~~~88 88  ooo    88    8b
+   88  .8D 88   88 88 `88. 88 `88.      88  88  88 88   88 88. ~8~   .88.   Y8b  d8
+   Y8888D' YP   YP 88   YD YP   YD      YP  YP  YP YP   YP  Y888P  Y888888P  `Y88P'
+
+
+-}
+
+
 applier :
     (msg -> Maybe innerMsg)
     -> (Maybe innerMsg -> b -> msg)
@@ -1496,78 +1675,61 @@ internalUpdate update_ msg model =
             ( model, Cmd.none )
 
 
-{-| Finalize the definition of the Fields you want to use in your forms.
--}
-endFields :
-    { apply :
-        (acc -> empty -> empty -> empty -> empty -> empty -> acc)
-        -> { blankModel : appender1, blankMsg : appender, ctor : a }
-        -> getters
-        -> setters
-        -> getters1
-        -> setters1
-        -> appender2
-        -> { c | ctor : b }
-    , ctor : a
-    , fields : () -> appender2
-    , modelBlanks : () -> appender1
-    , modelGetters : { appendToGetters : () -> getters1, focus : focus3 }
-    , modelSetters : { appendToSetters : () -> setters1, focus : focus2 }
-    , msgBlanks : () -> appender
-    , msgGetters : { appendToGetters : () -> getters, focus : focus1 }
-    , msgSetters : { appendToSetters : () -> setters, focus : focus }
-    }
-    -> b
-endFields builder =
-    let
-        apply =
-            endFolder5 builder.apply
+locateOneOf : Locator -> Model model -> ( Model model, Cmd msg )
+locateOneOf locator model =
+    case model of
+        OneOf location selection options ->
+            case
+                List.Extra.findMap
+                    (\( _, optionModel ) ->
+                        if Location.isLocated locator (Location.fromModel optionModel) then
+                            Location.pathFromModel optionModel
+                                |> List.head
 
-        msgGetters =
-            NT.endGetters builder.msgGetters
+                        else
+                            Nothing
+                    )
+                    options
+            of
+                Just selected ->
+                    ( OneOf location
+                        { selected = selected }
+                        options
+                    , Cmd.none
+                    )
 
-        msgSetters =
-            NT.endSetters builder.msgSetters
+                Nothing ->
+                    let
+                        ( labels, models ) =
+                            List.unzip options
 
-        modelGetters =
-            NT.endGetters builder.modelGetters
+                        ( newModels, cmds ) =
+                            models
+                                |> List.map (locateOneOf locator)
+                                |> List.unzip
+                    in
+                    ( OneOf location selection (List.Extra.zip labels newModels)
+                    , Cmd.batch cmds
+                    )
 
-        modelSetters =
-            NT.endSetters builder.modelSetters
+        Value _ _ ->
+            ( model, Cmd.none )
 
-        fields =
-            NT.endAppender builder.fields
+        Both location model1 model2 ->
+            let
+                ( newModel1, cmd1 ) =
+                    locateOneOf locator model1
 
-        blankMsg =
-            NT.endAppender builder.msgBlanks
+                ( newModel2, cmd2 ) =
+                    locateOneOf locator model2
+            in
+            ( Both location newModel1 newModel2
+            , Cmd.batch
+                [ cmd1, cmd2 ]
+            )
 
-        blankModel =
-            NT.endAppender builder.modelBlanks
-    in
-    apply
-        { ctor = builder.ctor
-        , blankMsg = blankMsg
-        , blankModel = blankModel
-        }
-        msgGetters
-        msgSetters
-        modelGetters
-        modelSetters
-        fields
-        |> .ctor
-
-
-
-{-
-   d8888b.  .d8b.  d8888b. db   dD      .88b  d88.  .d8b.   d888b  d888888b  .o88b.
-   88  `8D d8' `8b 88  `8D 88 ,8P'      88'YbdP`88 d8' `8b 88' Y8b   `88'   d8P  Y8
-   88   88 88ooo88 88oobY' 88,8P        88  88  88 88ooo88 88         88    8P
-   88   88 88~~~88 88`8b   88`8b        88  88  88 88~~~88 88  ooo    88    8b
-   88  .8D 88   88 88 `88. 88 `88.      88  88  88 88   88 88. ~8~   .88.   Y8b  d8
-   Y8888D' YP   YP 88   YD YP   YD      YP  YP  YP YP   YP  Y888P  Y888888P  `Y88P'
-
-
--}
+        Empty _ ->
+            ( model, Cmd.none )
 
 
 folder5 :
