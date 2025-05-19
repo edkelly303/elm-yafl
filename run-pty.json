@@ -22,8 +22,8 @@
             ]
         },
         "defaultStatus": [
-            "⚠️",
-            "X"
+            "⏳",
+            "W"
         ]
     },
     {
@@ -41,8 +41,8 @@
             ]
         },
         "defaultStatus": [
-            "⚠️",
-            "X"
+            "⏳",
+            "W"
         ]
     },
     {
@@ -66,8 +66,8 @@
             ]
         },
         "defaultStatus": [
-            "⚠️",
-            "X"
+            "⏳",
+            "W"
         ]
     },
     {
@@ -85,11 +85,15 @@
             "TEST RUN FAILED": [
                 "🚨",
                 "E"
+            ],
+            "`elm make` failed with exit code 1.": [
+                "⚠️",
+                "X"
             ]
         },
         "defaultStatus": [
-            "⚠️",
-            "X"
+            "⏳",
+            "W"
         ]
     }
 ]
