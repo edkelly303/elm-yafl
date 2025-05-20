@@ -382,7 +382,7 @@ main =
                                     Just "Boney M" ->
                                         Cmd.batch
                                             [ Y.send likesBonesField True
-                                            , Y.choose likesBonesField
+                                            , Y.select likesBonesField
                                             ]
 
                                     _ ->

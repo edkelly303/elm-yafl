@@ -7,8 +7,8 @@ module Yafl exposing
     , map2, andMap
     , choice, option
     , label, Feedback, Path, showFeedback
-    , HasAddress, NoAddress, address, intercept, send, choose
-    , updateField, andUpdateField, chooseField, andChooseField
+    , HasAddress, NoAddress, address, intercept, send, select
+    , updateField, andUpdateField, selectField, andSelectField
     )
 
 {-| This library helps you build user input forms in Elm by creating and
@@ -253,12 +253,12 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 
 # Communicating between Fields
 
-@docs HasAddress, NoAddress, address, intercept, send, choose
+@docs HasAddress, NoAddress, address, intercept, send, select
 
 
 # Updating Fields synchronously
 
-@docs updateField, andUpdateField, chooseField, andChooseField
+@docs updateField, andUpdateField, selectField, andSelectField
 
 -}
 
@@ -553,13 +553,13 @@ address sendId_ (Field field) =
             |> Yafl.option "Cup of a carpenter" holyGrail
             |> Yafl.option "Fancy chalice" (Yafl.fail "You chose... poorly")
 
-    Yafl.choose holyGrail
+    Yafl.select holyGrail
 
     --: Cmd (Yafl.Msg Fields.Msg)
 
 -}
-choose : Field model msg HasAddress innerMsg output -> Cmd (Msg msg)
-choose (Field field) =
+select : Field model msg HasAddress innerMsg output -> Cmd (Msg msg)
+select (Field field) =
     case field.maybeAddress of
         Just address_ ->
             Task.perform identity (Task.succeed (OptionSelected (ByAddress address_)))
@@ -712,15 +712,15 @@ andUpdateField field innerMsg ( model, cmd1 ) =
     --> Err [ { message = "Oh no, you failed!", fail = True, path = [ 0, 0 ] } ]
 
     model
-        |> Yafl.chooseField myAddressedField
+        |> Yafl.selectField myAddressedField
         |> Tuple.first
         |> Yafl.submit myChoiceField
 
     --> Ok "Hurrah!"
 
 -}
-chooseField : Field model msg HasAddress innerMsg output -> Model model -> ( Model model, Cmd (Msg msg) )
-chooseField (Field field) model =
+selectField : Field model msg HasAddress innerMsg output -> Model model -> ( Model model, Cmd (Msg msg) )
+selectField (Field field) model =
     case field.maybeAddress of
         Just address_ ->
             let
@@ -733,7 +733,7 @@ chooseField (Field field) model =
             ( model, Cmd.none )
 
 
-{-| Like `chooseField`, but works on `( model, cmd )` tuples. Useful if you're chaining multiple updates.
+{-| Like `selectField`, but works on `( model, cmd )` tuples. Useful if you're chaining multiple updates.
 
     import Yafl
     import Fields
@@ -758,16 +758,16 @@ chooseField (Field field) model =
     --> Err [ { message = "Oh no, you failed!", fail = True, path = [ 0, 0 ] } ]
 
     modelAndCmd
-        |> Yafl.andChooseField myAddressedField
+        |> Yafl.andSelectField myAddressedField
         |> Tuple.first
         |> Yafl.submit myChoiceField
 
     --> Ok "Hurrah!"
 
 -}
-andChooseField : Field model msg HasAddress innerMsg output -> ( Model model, Cmd (Msg msg) ) -> ( Model model, Cmd (Msg msg) )
-andChooseField field ( model, cmd1 ) =
-    chooseField field model
+andSelectField : Field model msg HasAddress innerMsg output -> ( Model model, Cmd (Msg msg) ) -> ( Model model, Cmd (Msg msg) )
+andSelectField field ( model, cmd1 ) =
+    selectField field model
         |> Tuple.mapSecond (\cmd2 -> Cmd.batch [ cmd1, cmd2 ])
 
 

@@ -117,39 +117,6 @@ tests =
                     ]
                 ]
             , Test.describe
-                "andChooseField"
-                [ Test.describe
-                    "code snippet 0"
-                    [ Test.test
-                        "0"
-                        (\() ->
-                            modelAndCmd__Yafl__andChooseField_0
-                                |> Tuple.first
-                                |> Yafl.submit
-                                    myChoiceField__Yafl__andChooseField_0
-                                |> Expect.equal
-                                    (Result.Err
-                                        [ { message = "Oh no, you failed!"
-                                          , fail = Basics.True
-                                          , path = [ 0, 0 ]
-                                          }
-                                        ]
-                                    )
-                        )
-                    , Test.test
-                        "1"
-                        (\() ->
-                            modelAndCmd__Yafl__andChooseField_0
-                                |> Yafl.andChooseField
-                                    myAddressedField__Yafl__andChooseField_0
-                                |> Tuple.first
-                                |> Yafl.submit
-                                    myChoiceField__Yafl__andChooseField_0
-                                |> Expect.equal (Result.Ok "Hurrah!")
-                        )
-                    ]
-                ]
-            , Test.describe
                 "andMap"
                 [ Test.describe
                     "code snippet 0"
@@ -170,6 +137,39 @@ tests =
                     ]
                 ]
             , Test.describe
+                "andSelectField"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            modelAndCmd__Yafl__andSelectField_0
+                                |> Tuple.first
+                                |> Yafl.submit
+                                    myChoiceField__Yafl__andSelectField_0
+                                |> Expect.equal
+                                    (Result.Err
+                                        [ { message = "Oh no, you failed!"
+                                          , fail = Basics.True
+                                          , path = [ 0, 0 ]
+                                          }
+                                        ]
+                                    )
+                        )
+                    , Test.test
+                        "1"
+                        (\() ->
+                            modelAndCmd__Yafl__andSelectField_0
+                                |> Yafl.andSelectField
+                                    myAddressedField__Yafl__andSelectField_0
+                                |> Tuple.first
+                                |> Yafl.submit
+                                    myChoiceField__Yafl__andSelectField_0
+                                |> Expect.equal (Result.Ok "Hurrah!")
+                        )
+                    ]
+                ]
+            , Test.describe
                 "andUpdateField"
                 [ Test.describe
                     "code snippet 0"
@@ -186,54 +186,6 @@ tests =
                                             "World"
                                         )
                                     )
-                        )
-                    ]
-                ]
-            , Test.describe
-                "choose"
-                [ Test.describe
-                    "code snippet 0"
-                    [ Test.test
-                        "0"
-                        (\() ->
-                            let
-                                unused : Platform.Cmd.Cmd (Yafl.Msg Fields.Msg)
-                                unused =
-                                    Yafl.choose holyGrail__Yafl__choose_0
-                            in
-                            Expect.pass
-                        )
-                    ]
-                ]
-            , Test.describe
-                "chooseField"
-                [ Test.describe
-                    "code snippet 0"
-                    [ Test.test
-                        "0"
-                        (\() ->
-                            model__Yafl__chooseField_0
-                                |> Yafl.submit
-                                    myChoiceField__Yafl__chooseField_0
-                                |> Expect.equal
-                                    (Result.Err
-                                        [ { message = "Oh no, you failed!"
-                                          , fail = Basics.True
-                                          , path = [ 0, 0 ]
-                                          }
-                                        ]
-                                    )
-                        )
-                    , Test.test
-                        "1"
-                        (\() ->
-                            model__Yafl__chooseField_0
-                                |> Yafl.chooseField
-                                    myAddressedField__Yafl__chooseField_0
-                                |> Tuple.first
-                                |> Yafl.submit
-                                    myChoiceField__Yafl__chooseField_0
-                                |> Expect.equal (Result.Ok "Hurrah!")
                         )
                     ]
                 ]
@@ -332,6 +284,54 @@ tests =
                         (\() ->
                             Yafl.submit form__Yafl__map2_0 model__Yafl__map2_0
                                 |> Expect.equal (Result.Ok ( "", "" ))
+                        )
+                    ]
+                ]
+            , Test.describe
+                "select"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            let
+                                unused : Platform.Cmd.Cmd (Yafl.Msg Fields.Msg)
+                                unused =
+                                    Yafl.select holyGrail__Yafl__select_0
+                            in
+                            Expect.pass
+                        )
+                    ]
+                ]
+            , Test.describe
+                "selectField"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            model__Yafl__selectField_0
+                                |> Yafl.submit
+                                    myChoiceField__Yafl__selectField_0
+                                |> Expect.equal
+                                    (Result.Err
+                                        [ { message = "Oh no, you failed!"
+                                          , fail = Basics.True
+                                          , path = [ 0, 0 ]
+                                          }
+                                        ]
+                                    )
+                        )
+                    , Test.test
+                        "1"
+                        (\() ->
+                            model__Yafl__selectField_0
+                                |> Yafl.selectField
+                                    myAddressedField__Yafl__selectField_0
+                                |> Tuple.first
+                                |> Yafl.submit
+                                    myChoiceField__Yafl__selectField_0
+                                |> Expect.equal (Result.Ok "Hurrah!")
                         )
                     ]
                 ]
@@ -490,20 +490,6 @@ myAddressedField__Yafl__address_0 =
     myField__Yafl__address_0 |> Yafl.address "any-string-as-long-as-it's-unique"
 
 
-myAddressedField__Yafl__andChooseField_0 =
-    Yafl.succeed "Hurrah!" |> Yafl.address "any-string-as-long-as-it's-unique"
-
-
-myChoiceField__Yafl__andChooseField_0 =
-    Yafl.choice
-        |> Yafl.option "Don't pick me!" (Yafl.fail "Oh no, you failed!")
-        |> Yafl.option "I'm the one!" myAddressedField__Yafl__andChooseField_0
-
-
-modelAndCmd__Yafl__andChooseField_0 =
-    myChoiceField__Yafl__andChooseField_0 |> Yafl.init
-
-
 form__Yafl__andMap_0 =
     Yafl.succeed (\a b c -> { firstName = a, middleName = b, lastName = c })
         |> Yafl.andMap (Fields.fields.string |> Yafl.label "First name")
@@ -513,6 +499,20 @@ form__Yafl__andMap_0 =
 
 model__Yafl__andMap_0 =
     Yafl.init form__Yafl__andMap_0 |> Tuple.first
+
+
+myAddressedField__Yafl__andSelectField_0 =
+    Yafl.succeed "Hurrah!" |> Yafl.address "any-string-as-long-as-it's-unique"
+
+
+myChoiceField__Yafl__andSelectField_0 =
+    Yafl.choice
+        |> Yafl.option "Don't pick me!" (Yafl.fail "Oh no, you failed!")
+        |> Yafl.option "I'm the one!" myAddressedField__Yafl__andSelectField_0
+
+
+modelAndCmd__Yafl__andSelectField_0 =
+    myChoiceField__Yafl__andSelectField_0 |> Yafl.init
 
 
 type Foo__Yafl__andUpdateField_0
@@ -540,30 +540,6 @@ updatedModel__Yafl__andUpdateField_0 =
         |> Yafl.andUpdateField firstField__Yafl__andUpdateField_0 "Hello"
         |> Yafl.andUpdateField secondField__Yafl__andUpdateField_0 "World"
         |> Tuple.first
-
-
-holyGrail__Yafl__choose_0 =
-    Fields.fields.string |> Yafl.address "any-string-as-long-as-it's-unique"
-
-
-myChoiceField__Yafl__choose_0 =
-    Yafl.choice
-        |> Yafl.option "Cup of a carpenter" holyGrail__Yafl__choose_0
-        |> Yafl.option "Fancy chalice" (Yafl.fail "You chose... poorly")
-
-
-myAddressedField__Yafl__chooseField_0 =
-    Yafl.succeed "Hurrah!" |> Yafl.address "any-string-as-long-as-it's-unique"
-
-
-myChoiceField__Yafl__chooseField_0 =
-    Yafl.choice
-        |> Yafl.option "Don't pick me!" (Yafl.fail "Oh no, you failed!")
-        |> Yafl.option "I'm the one!" myAddressedField__Yafl__chooseField_0
-
-
-model__Yafl__chooseField_0 =
-    myChoiceField__Yafl__chooseField_0 |> Yafl.init |> Tuple.first
 
 
 form__Yafl__fail_0 =
@@ -596,6 +572,30 @@ form__Yafl__map2_0 =
 
 model__Yafl__map2_0 =
     Yafl.init form__Yafl__map2_0 |> Tuple.first
+
+
+holyGrail__Yafl__select_0 =
+    Fields.fields.string |> Yafl.address "any-string-as-long-as-it's-unique"
+
+
+myChoiceField__Yafl__select_0 =
+    Yafl.choice
+        |> Yafl.option "Cup of a carpenter" holyGrail__Yafl__select_0
+        |> Yafl.option "Fancy chalice" (Yafl.fail "You chose... poorly")
+
+
+myAddressedField__Yafl__selectField_0 =
+    Yafl.succeed "Hurrah!" |> Yafl.address "any-string-as-long-as-it's-unique"
+
+
+myChoiceField__Yafl__selectField_0 =
+    Yafl.choice
+        |> Yafl.option "Don't pick me!" (Yafl.fail "Oh no, you failed!")
+        |> Yafl.option "I'm the one!" myAddressedField__Yafl__selectField_0
+
+
+model__Yafl__selectField_0 =
+    myChoiceField__Yafl__selectField_0 |> Yafl.init |> Tuple.first
 
 
 myAddressedField__Yafl__send_0 =
