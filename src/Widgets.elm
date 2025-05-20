@@ -15,7 +15,7 @@ import Yafl
 string : Yafl.Widget String String String
 string =
     { init = ( "", Cmd.none )
-    , update = \msg model -> ( msg, Cmd.none )
+    , update = \msg _ -> ( msg, Cmd.none )
     , view =
         \{ label } model ->
             [ H.label [ HA.for label ] [ H.text label ]
@@ -27,7 +27,7 @@ string =
                 ]
                 []
             ]
-    , subscriptions = \model -> Sub.none
+    , subscriptions = \_ -> Sub.none
     , submit = \model -> Ok model
     , label = "String"
     }
@@ -76,7 +76,7 @@ int =
                     [ H.text "+" ]
                 ]
             ]
-    , subscriptions = \model -> Sub.none
+    , subscriptions = \_ -> Sub.none
     , submit = \model -> Ok model
     , label = "Int"
     }

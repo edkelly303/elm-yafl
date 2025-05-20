@@ -58,6 +58,7 @@ config =
     , NoPrematureLetComputation.rule
     , NoUnused.CustomTypeConstructors.rule []
     , NoUnused.CustomTypeConstructorArgs.rule
+        |> Rule.ignoreErrorsForFiles [ "tests/DocumentationCodeSnippetTest.elm" ]
     , NoUnused.Dependencies.rule
     , NoUnused.Exports.rule
         |> Rule.ignoreErrorsForFiles ["src/Visualize.elm"]

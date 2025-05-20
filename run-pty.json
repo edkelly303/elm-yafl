@@ -49,6 +49,28 @@
         "command": [
             "npx",
             "elm-review",
+            "--watch"
+        ],
+        "title": "npx elm-review",
+        "status": {
+            "ELM-REVIEW ERROR": [
+                "🚨",
+                "E"
+            ],
+            "I found no": [
+                "✅",
+                "+"
+            ]
+        },
+        "defaultStatus": [
+            "⏳",
+            "W"
+        ]
+    },
+    {
+        "command": [
+            "npx",
+            "elm-review",
             "--watch",
             "--rules",
             "Review.Documentation.CodeSnippet",
