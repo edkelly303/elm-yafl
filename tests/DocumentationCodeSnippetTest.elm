@@ -117,9 +117,15 @@ tests =
                         "0"
                         (\() ->
                             Yafl.submit
-                                myAddressedField__Yafl__andUpdateField_0
-                                updatedModelAndCmd__Yafl__andUpdateField_0
-                                |> Expect.equal (Result.Ok "Hello!")
+                                fooField__Yafl__andUpdateField_0
+                                updatedModel__Yafl__andUpdateField_0
+                                |> Expect.equal
+                                    (Result.Ok
+                                        (Foo__Yafl__andUpdateField_0
+                                            "Hello"
+                                            "World"
+                                        )
+                                    )
                         )
                     ]
                 ]
@@ -325,17 +331,21 @@ tests =
                         "0"
                         (\() ->
                             Yafl.submit
-                                myAddressedField__Yafl__updateField_0
+                                fooField__Yafl__updateField_0
                                 model__Yafl__updateField_0
-                                |> Expect.equal (Result.Ok "")
+                                |> Expect.equal
+                                    (Result.Ok (Foo__Yafl__updateField_0 "" ""))
                         )
                     , Test.test
                         "1"
                         (\() ->
                             Yafl.submit
-                                myAddressedField__Yafl__updateField_0
+                                fooField__Yafl__updateField_0
                                 updatedModel__Yafl__updateField_0
-                                |> Expect.equal (Result.Ok "Hello!")
+                                |> Expect.equal
+                                    (Result.Ok
+                                        (Foo__Yafl__updateField_0 "Hello!" "")
+                                    )
                         )
                     ]
                 ]
@@ -394,17 +404,30 @@ model__Yafl__andMap_0 =
     Yafl.init form__Yafl__andMap_0 |> Tuple.first
 
 
-myAddressedField__Yafl__andUpdateField_0 =
-    Fields.fields.string |> Yafl.address "any-string-as-long-as-it's-unique"
+type Foo__Yafl__andUpdateField_0
+    = Foo__Yafl__andUpdateField_0 String.String String.String
 
 
-modelAndCmd__Yafl__andUpdateField_0 =
-    myAddressedField__Yafl__andUpdateField_0 |> Yafl.init
+fooField__Yafl__andUpdateField_0 =
+    Yafl.map2
+        Foo__Yafl__andUpdateField_0
+        firstField__Yafl__andUpdateField_0
+        secondField__Yafl__andUpdateField_0
 
 
-updatedModelAndCmd__Yafl__andUpdateField_0 =
-    modelAndCmd__Yafl__andUpdateField_0
-        |> Yafl.andUpdateField myAddressedField__Yafl__andUpdateField_0 "Hello!"
+firstField__Yafl__andUpdateField_0 =
+    Fields.fields.string |> Yafl.address "a-unique-string"
+
+
+secondField__Yafl__andUpdateField_0 =
+    Fields.fields.string |> Yafl.address "another-unique-string"
+
+
+updatedModel__Yafl__andUpdateField_0 =
+    fooField__Yafl__andUpdateField_0
+        |> Yafl.init
+        |> Yafl.andUpdateField firstField__Yafl__andUpdateField_0 "Hello"
+        |> Yafl.andUpdateField secondField__Yafl__andUpdateField_0 "World"
         |> Tuple.first
 
 
@@ -492,17 +515,32 @@ model__Yafl__succeed_0 =
     form__Yafl__succeed_0 |> Yafl.init |> Tuple.first
 
 
-myAddressedField__Yafl__updateField_0 =
-    Fields.fields.string |> Yafl.address "any-string-as-long-as-it's-unique"
+type Foo__Yafl__updateField_0
+    = Foo__Yafl__updateField_0 String.String String.String
+
+
+fooField__Yafl__updateField_0 =
+    Yafl.map2
+        Foo__Yafl__updateField_0
+        firstField__Yafl__updateField_0
+        secondField__Yafl__updateField_0
+
+
+firstField__Yafl__updateField_0 =
+    Fields.fields.string |> Yafl.address "a-unique-string"
+
+
+secondField__Yafl__updateField_0 =
+    Fields.fields.string |> Yafl.address "another-unique-string"
 
 
 model__Yafl__updateField_0 =
-    myAddressedField__Yafl__updateField_0 |> Yafl.init |> Tuple.first
+    fooField__Yafl__updateField_0 |> Yafl.init |> Tuple.first
 
 
 updatedModel__Yafl__updateField_0 =
     model__Yafl__updateField_0
-        |> Yafl.updateField myAddressedField__Yafl__updateField_0 "Hello!"
+        |> Yafl.updateField firstField__Yafl__updateField_0 "Hello!"
         |> Tuple.first
 
 

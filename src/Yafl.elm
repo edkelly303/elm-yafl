@@ -430,27 +430,37 @@ intercept (Field field) =
     import Yafl
     import Fields
 
-    myAddressedField =
+    type Foo
+        = Foo String String
+
+    fooField =
+        Yafl.map2 Foo firstField secondField
+
+    firstField =
         Fields.fields.string
-            |> Yafl.address "any-string-as-long-as-it's-unique"
+            |> Yafl.address "a-unique-string"
+
+    secondField =
+        Fields.fields.string
+            |> Yafl.address "another-unique-string"
 
     model =
-        myAddressedField
+        fooField
             |> Yafl.init
             |> Tuple.first
 
-    Yafl.submit myAddressedField model
+    Yafl.submit fooField model
 
-    --> Ok ""
+    --> Ok (Foo "" "")
 
     updatedModel =
         model
-            |> Yafl.updateField myAddressedField "Hello!"
+            |> Yafl.updateField firstField "Hello!"
             |> Tuple.first
 
-    Yafl.submit myAddressedField updatedModel
+    Yafl.submit fooField updatedModel
 
-    --> Ok "Hello!"
+    --> Ok (Foo "Hello!" "")
 
 -}
 updateField : Field model msg HasAddress innerMsg output -> innerMsg -> Model model -> ( Model model, Cmd (Msg msg) )
@@ -462,23 +472,32 @@ updateField (Field field) innerMsg model =
 
     import Yafl
     import Fields
+    import Cmd.Extra
 
-    myAddressedField =
+    type Foo
+        = Foo String String
+
+    fooField =
+        Yafl.map2 Foo firstField secondField
+
+    firstField =
         Fields.fields.string
-            |> Yafl.address "any-string-as-long-as-it's-unique"
+            |> Yafl.address "a-unique-string"
 
-    modelAndCmd =
-        myAddressedField
+    secondField =
+        Fields.fields.string
+            |> Yafl.address "another-unique-string"
+
+    updatedModel =
+        fooField
             |> Yafl.init
-
-    updatedModelAndCmd =
-        modelAndCmd
-            |> Yafl.andUpdateField myAddressedField "Hello!"
+            |> Yafl.andUpdateField firstField "Hello"
+            |> Yafl.andUpdateField secondField "World"
             |> Tuple.first
 
-    Yafl.submit myAddressedField updatedModelAndCmd
+    Yafl.submit fooField updatedModel
 
-    --> Ok "Hello!"
+    --> Ok (Foo "Hello" "World")
 
 -}
 andUpdateField : Field model msg HasAddress innerMsg output -> innerMsg -> ( Model model, Cmd (Msg msg) ) -> ( Model model, Cmd (Msg msg) )
