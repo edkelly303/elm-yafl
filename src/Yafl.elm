@@ -204,7 +204,7 @@ In addition to the [`Field`](#Field)s that you define based on your
 [`fail`](#fail), which can be useful in various ways when
 used with other combinators such as [`andMap`](#andMap) and
 [`andThen`](#andThen). You may be familiar with similar functions from packages
-such as [`elm/json`](/packages/elm/json/latest/Json-Decode#succeed).
+such as [`elm/json`](http://package.elm-lang.org/packages/elm/json/latest/Json-Decode#succeed).
 
 The views of these fields return an empty Html element. When
 submitted, `succeed` always returns an `Ok`, while `fail` always returns an
@@ -343,8 +343,8 @@ type NoAddress
 
 
 {-| The `Widget` type is very similar to the record type that you would supply
-to [`Browser.element`](/packages/elm/browser/latest/Browser#element) to create
-an Elm [`Program`](/packages/elm/core/latest/Platform#Program).
+to [`Browser.element`](http://package.elm-lang.org/packages/elm/browser/latest/Browser#element) to create
+an Elm [`Program`](http://package.elm-lang.org/packages/elm/core/latest/Platform#Program).
 -}
 type alias Widget model msg output =
     { init : ( model, Cmd msg )
