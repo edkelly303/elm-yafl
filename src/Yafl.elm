@@ -214,6 +214,35 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 
 ## Building custom types
 
+    import Yafl
+    import Fields
+
+    type MyCustomType
+        = Foo String
+        | Bar Int
+
+    myCustomTypeField =
+        Yafl.choice
+            |> Yafl.option "Foo" fooField
+            |> Yafl.option "Bar" barField
+
+    fooField =
+        Fields.fields.string 
+            |> Yafl.map Foo
+
+    barField =
+        Fields.fields.int 
+            |> Yafl.map Bar
+
+    model = 
+        myCustomTypeField
+            |> Yafl.init
+            |> Tuple.first
+    
+    Yafl.submit myCustomTypeField model
+
+    --> Ok (Foo "")
+
 @docs choice, option
 
 

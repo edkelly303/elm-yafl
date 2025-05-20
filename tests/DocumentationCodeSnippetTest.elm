@@ -65,6 +65,18 @@ tests =
                                 |> Expect.equal (Result.Ok 0)
                         )
                     ]
+                , Test.describe
+                    "code snippet 1"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            Yafl.submit
+                                myCustomTypeField__Yafl__Header_1
+                                model__Yafl__Header_1
+                                |> Expect.equal
+                                    (Result.Ok (Foo__Yafl__Header_1 ""))
+                        )
+                    ]
                 ]
             , Test.describe
                 "address"
@@ -445,6 +457,29 @@ init__Yafl__Header_0 =
 
 model__Yafl__Header_0 =
     Tuple.first init__Yafl__Header_0
+
+
+type MyCustomType__Yafl__Header_1
+    = Foo__Yafl__Header_1 String.String
+    | Bar__Yafl__Header_1 Basics.Int
+
+
+myCustomTypeField__Yafl__Header_1 =
+    Yafl.choice
+        |> Yafl.option "Foo" fooField__Yafl__Header_1
+        |> Yafl.option "Bar" barField__Yafl__Header_1
+
+
+fooField__Yafl__Header_1 =
+    Fields.fields.string |> Yafl.map Foo__Yafl__Header_1
+
+
+barField__Yafl__Header_1 =
+    Fields.fields.int |> Yafl.map Bar__Yafl__Header_1
+
+
+model__Yafl__Header_1 =
+    myCustomTypeField__Yafl__Header_1 |> Yafl.init |> Tuple.first
 
 
 myField__Yafl__address_0 =
