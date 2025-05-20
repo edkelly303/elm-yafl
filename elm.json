@@ -12,7 +12,7 @@
         "edkelly303/elm-nested-tuples": "1.0.2 <= v < 2.0.0",
         "elm/core": "1.0.0 <= v < 2.0.0",
         "elm/html": "1.0.0 <= v < 2.0.0",
-        "elmcraft/core-extra": "2.1.0 <= v < 3.0.0"
+        "elmcraft/core-extra": "2.2.0 <= v < 3.0.0"
     },
     "test-dependencies": {
         "alex-tan/elm-tree-diagram": "1.0.0 <= v < 2.0.0",
