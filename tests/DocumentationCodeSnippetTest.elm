@@ -170,6 +170,90 @@ tests =
                     ]
                 ]
             , Test.describe
+                "andThen"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            let
+                                unused : Yafl.Field Fields.Model Fields.Msg Yafl.NoAddress String.String String.String
+                                unused =
+                                    Fields.fields.string
+                                        |> Yafl.label
+                                            "Enter the first name of a Beatle"
+                                        |> Yafl.andThen
+                                            (\name ->
+                                                if
+                                                    List.member
+                                                        name
+                                                        [ "John"
+                                                        , "Paul"
+                                                        , "George"
+                                                        , "Ringo"
+                                                        ]
+                                                then
+                                                    Yafl.succeed name
+
+                                                else
+                                                    Yafl.fail "Invalid Beatle"
+                                            )
+                            in
+                            Expect.pass
+                        )
+                    , Test.test
+                        "1"
+                        (\() ->
+                            let
+                                unused : Yafl.Field Fields.Model Fields.Msg Yafl.NoAddress String.String String.String
+                                unused =
+                                    Fields.fields.string
+                                        |> Yafl.label
+                                            "What would you like to say?"
+                                        |> Yafl.andThen
+                                            (\words ->
+                                                if words == "Hello" then
+                                                    Fields.fields.string
+                                                        |> Yafl.label
+                                                            "Who are you saying 'Hello' to?"
+                                                        |> Yafl.map
+                                                            (\moreWords ->
+                                                                words
+                                                                    ++ " "
+                                                                    ++ moreWords
+                                                            )
+
+                                                else
+                                                    Yafl.succeed words
+                                            )
+                            in
+                            Expect.pass
+                        )
+                    , Test.test
+                        "2"
+                        (\() ->
+                            let
+                                unused : Yafl.Field Fields.Model Fields.Msg Yafl.NoAddress String.String Basics.Float
+                                unused =
+                                    Fields.fields.string
+                                        |> Yafl.label
+                                            "Enter a floating-point number"
+                                        |> Yafl.andThen
+                                            (\string ->
+                                                case String.toFloat string of
+                                                    Maybe.Just float ->
+                                                        Yafl.succeed float
+
+                                                    Maybe.Nothing ->
+                                                        Yafl.fail
+                                                            "That's not a valid float"
+                                            )
+                            in
+                            Expect.pass
+                        )
+                    ]
+                ]
+            , Test.describe
                 "andUpdateField"
                 [ Test.describe
                     "code snippet 0"

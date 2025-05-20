@@ -5,8 +5,7 @@ import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
 import Widgets
-import Yafl as Y
-
+import Yafl
 
 
 {- Goal: create a form that will allow a user to create a value of the type
@@ -56,7 +55,7 @@ type FunFact
 -}
 
 
-boolWidget : Y.Widget Bool Bool Bool
+boolWidget : Yafl.Widget Bool Bool Bool
 boolWidget =
     { init = ( False, Cmd.none )
     , update =
@@ -95,17 +94,17 @@ boolWidget =
 
 
 fields =
-    Y.defineFields
+    Yafl.defineFields
         (\bool int string ->
             { bool = bool
             , int = int
             , string = string
             }
         )
-        |> Y.addWidget boolWidget
-        |> Y.addWidget Widgets.int
-        |> Y.addWidget Widgets.string
-        |> Y.endFields
+        |> Yafl.addWidget boolWidget
+        |> Yafl.addWidget Widgets.int
+        |> Yafl.addWidget Widgets.string
+        |> Yafl.endFields
 
 
 
@@ -163,11 +162,11 @@ type alias FormModel =
 -}
 
 
-nameField : Y.Field FormModel FormMsg Y.HasAddress String String
+nameField : Yafl.Field FormModel FormMsg Yafl.HasAddress String String
 nameField =
     fields.string
-        |> Y.label "What is your dog's name?"
-        |> Y.address "name-field"
+        |> Yafl.label "What is your dog's name?"
+        |> Yafl.address "name-field"
 
 
 
@@ -185,11 +184,11 @@ nameField =
 -}
 
 
-dogField : Y.Field FormModel FormMsg Y.NoAddress Never Dog
+dogField : Yafl.Field FormModel FormMsg Yafl.NoAddress Never Dog
 dogField =
-    Y.succeed Dog
-        |> Y.andMap nameField
-        |> Y.andMap funFactField
+    Yafl.succeed Dog
+        |> Yafl.andMap nameField
+        |> Yafl.andMap funFactField
 
 
 
@@ -199,12 +198,12 @@ dogField =
 -}
 
 
-funFactField : Y.Field FormModel FormMsg Y.NoAddress Never FunFact
+funFactField : Yafl.Field FormModel FormMsg Yafl.NoAddress Never FunFact
 funFactField =
-    Y.choice
-        |> Y.label "A fun fact about your dog is:"
-        |> Y.option "They have fleas" hasFleasField
-        |> Y.option "They like bones" likesBonesField
+    Yafl.choice
+        |> Yafl.label "A fun fact about your dog is:"
+        |> Yafl.option "They have fleas" hasFleasField
+        |> Yafl.option "They like bones" likesBonesField
 
 
 
@@ -218,12 +217,12 @@ funFactField =
 -}
 
 
-likesBonesField : Y.Field FormModel FormMsg Y.HasAddress Bool FunFact
+likesBonesField : Yafl.Field FormModel FormMsg Yafl.HasAddress Bool FunFact
 likesBonesField =
     fields.bool
-        |> Y.map LikesBones
-        |> Y.label "Do they _really_ like bones?"
-        |> Y.address "likes-bones-field"
+        |> Yafl.map LikesBones
+        |> Yafl.label "Do they _really_ like bones?"
+        |> Yafl.address "likes-bones-field"
 
 
 
@@ -238,48 +237,48 @@ likesBonesField =
 -}
 
 
-hasFleasField : Y.Field FormModel FormMsg Y.NoAddress Widgets.IntMsg FunFact
+hasFleasField : Yafl.Field FormModel FormMsg Yafl.NoAddress Widgets.IntMsg FunFact
 hasFleasField =
     fields.int
-        |> Y.label "How many fleas do they have?"
-        |> Y.showFeedback viewFeedback
-        |> Y.andThen
+        |> Yafl.label "How many fleas do they have?"
+        |> Yafl.showFeedback viewFeedback
+        |> Yafl.andThen
             (\numberOfFleas ->
                 if numberOfFleas < 1 then
-                    Y.fail "They must have at least one?!"
-                        |> Y.showFeedback viewFeedback
+                    Yafl.fail "They must have at least one?!"
+                        |> Yafl.showFeedback viewFeedback
 
                 else if numberOfFleas < 10 then
-                    Y.choice
-                        |> Y.label "Hmm, that's not very many, did you check their belly?"
-                        |> Y.option "Yes, that's really all the fleas they have" (Y.succeed True)
-                        |> Y.option "No, I'll check the belly..." (Y.succeed False)
-                        |> Y.andThen
+                    Yafl.choice
+                        |> Yafl.label "Hmm, that's not very many, did you check their belly?"
+                        |> Yafl.option "Yes, that's really all the fleas they have" (Yafl.succeed True)
+                        |> Yafl.option "No, I'll check the belly..." (Yafl.succeed False)
+                        |> Yafl.andThen
                             (\yes ->
                                 if yes then
-                                    Y.succeed (HasFleas numberOfFleas)
+                                    Yafl.succeed (HasFleas numberOfFleas)
 
                                 else
                                     fields.int
-                                        |> Y.label "Ok, how many extra fleas did you find on their belly?"
-                                        |> Y.showFeedback viewFeedback
-                                        |> Y.andThen
+                                        |> Yafl.label "Ok, how many extra fleas did you find on their belly?"
+                                        |> Yafl.showFeedback viewFeedback
+                                        |> Yafl.andThen
                                             (\extraFleas ->
                                                 if extraFleas < 0 then
-                                                    Y.fail "C'mon, you can't have negative fleas!"
-                                                        |> Y.showFeedback viewFeedback
+                                                    Yafl.fail "C'mon, you can't have negative fleas!"
+                                                        |> Yafl.showFeedback viewFeedback
 
                                                 else
-                                                    Y.succeed (HasFleas (numberOfFleas + extraFleas))
+                                                    Yafl.succeed (HasFleas (numberOfFleas + extraFleas))
                                             )
                             )
 
                 else
-                    Y.succeed (HasFleas numberOfFleas)
+                    Yafl.succeed (HasFleas numberOfFleas)
             )
 
 
-viewFeedback : List Y.Feedback -> H.Html msg
+viewFeedback : List Yafl.Feedback -> H.Html msg
 viewFeedback feedback =
     case feedback of
         [] ->
@@ -309,21 +308,21 @@ viewFeedback feedback =
 -}
 
 
-main_ : Program () (Y.Model FormModel) (Y.Msg FormMsg)
+main_ : Program () (Yafl.Model FormModel) (Yafl.Msg FormMsg)
 main_ =
     Browser.element
         { init =
             \() ->
-                Y.init dogField
+                Yafl.init dogField
         , update =
             \msg model ->
-                Y.update dogField msg model
+                Yafl.update dogField msg model
         , view =
             \model ->
-                H.form [] (Y.view dogField model)
+                H.form [] (Yafl.view dogField model)
         , subscriptions =
             \model ->
-                Y.subscriptions dogField model
+                Yafl.subscriptions dogField model
         }
 
 
@@ -351,12 +350,12 @@ main_ =
 
 
 type Msg
-    = FormUpdated (Y.Msg FormMsg)
+    = FormUpdated (Yafl.Msg FormMsg)
     | FormSubmitted
 
 
 type Model
-    = EditingForm (Y.Model FormModel)
+    = EditingForm (Yafl.Model FormModel)
     | ViewingDog Dog
 
 
@@ -365,7 +364,7 @@ main =
     Browser.element
         { init =
             \() ->
-                Y.init dogField
+                Yafl.init dogField
                     |> Tuple.mapFirst EditingForm
                     |> Tuple.mapSecond (Cmd.map FormUpdated)
         , update =
@@ -378,18 +377,18 @@ main =
                                 -- M", then we automatically select the
                                 -- `LikesBones` variant and set the `Bool`
                                 -- within it to `True`
-                                case Y.intercept nameField formMsg of
+                                case Yafl.intercept nameField formMsg of
                                     Just "Boney M" ->
                                         Cmd.batch
-                                            [ Y.send likesBonesField True
-                                            , Y.select likesBonesField
+                                            [ Yafl.send likesBonesField True
+                                            , Yafl.select likesBonesField
                                             ]
 
                                     _ ->
                                         Cmd.none
 
                             ( newFormModel, cmd ) =
-                                Y.update dogField formMsg formModel
+                                Yafl.update dogField formMsg formModel
                         in
                         ( EditingForm newFormModel
                         , [ cmd, prettySureThisGuyLikesBonesCmd ]
@@ -398,7 +397,7 @@ main =
                         )
 
                     ( FormSubmitted, EditingForm formModel ) ->
-                        ( case Y.submit dogField formModel of
+                        ( case Yafl.submit dogField formModel of
                             Ok dog ->
                                 ViewingDog dog
 
@@ -414,7 +413,7 @@ main =
                 case model of
                     EditingForm formModel ->
                         H.form [ HE.onSubmit FormSubmitted ]
-                            ((Y.view dogField formModel
+                            ((Yafl.view dogField formModel
                                 |> List.map (H.map FormUpdated)
                              )
                                 ++ [ H.button [] [ H.text "Submit" ] ]
@@ -438,9 +437,10 @@ main =
             \model ->
                 case model of
                     EditingForm formModel ->
-                        Y.subscriptions dogField formModel
+                        Yafl.subscriptions dogField formModel
                             |> Sub.map FormUpdated
 
                     ViewingDog _ ->
                         Sub.none
         }
+

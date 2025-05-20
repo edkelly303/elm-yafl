@@ -1,33 +1,33 @@
 module Yafl exposing
     ( Widget
     , Field, defineFields, addWidget, endFields
-    , Model, Msg, init, update, ViewConfig, view, subscriptions, submit
+    , Model, Msg, init, update, view, ViewConfig, subscriptions, submit, Feedback, Path
     , succeed, fail
     , map, andThen
     , map2, andMap
     , choice, option
-    , label, Feedback, Path, showFeedback
+    , label, showFeedback
     , HasAddress, NoAddress, address, intercept, send, select
     , updateField, andUpdateField, selectField, andSelectField
     )
 
 {-| This library helps you build user input forms in Elm by creating and
-composing self-contained widgets.
+composing self-contained [`Widget`](#Widget)s.
 
 
-# Creating `Widget`s
+# Creating Widgets
 
-`Widget`s are the basic building blocks of this package. Each `Widget` is
+[`Widget`](#Widget)s are the basic building blocks of this package. Each widget is
 effectively a little Elm application, with its own `init`, `update`, `view` and
 `subscriptions` functions, plus a couple of extra features.
 
-This package doesn't supply any prebuilt `Widget`s. Every app is unique, and
-it's unlikely that a prebuilt `Widget` would precisely fit your use case. But
+This package doesn't supply any prebuilt widgets. Every app is unique, and
+it's unlikely that a prebuilt widget would precisely fit your use case. But
 the point is, this package gives you the power to create _any_ types of
-`Widget`s you choose, and compose them together very easily with minimal
+widgets you choose, and compose them together very easily with minimal
 boilerplate.
 
-Nevertheless, we'll provide some code samples for a few simple `Widgets` that we
+Nevertheless, we'll provide some code samples for a few simple widgets that we
 can use in the code snippets in these docs.
 
     module Widgets exposing (int, string)
@@ -108,15 +108,15 @@ can use in the code snippets in these docs.
 @docs Widget
 
 
-# Turning `Widget`s into `Field`s
+# Turning Widgets into Fields
 
-Before we can use our `Widget`s to create a form, we need to convert them into
-`Field`s. This conversion process effectively combines the internal `model` and
+Before we can use our [`Widget`](#Widget)s to create a form, we need to convert them into
+[`Field`](#Field)s. This conversion process effectively combines the internal `model` and
 `msg` types of each widget to create composite types that we can use as the
 top-level `model` and `msg` for the entire form.
 
-We perform this conversion using three functions: `defineFields`, `addWidget`,
-and `endFields`. The type signatures for these three functions are extremely
+We perform this conversion using three functions: [`defineFields`](#defineFields), [`addWidget`](#addWidget),
+and [`endFields`](#endFields). The type signatures for these three functions are extremely
 terrifying, but fortunately we don't need to understand them - just follow the
 example below:
 
@@ -148,9 +148,9 @@ example below:
 @docs Field, defineFields, addWidget, endFields
 
 
-# Turning Fields into Forms
+# Turning Fields into forms
 
-Once we've defined our `Field`s, we can start the fun part: making forms!
+Once we've defined our [`Field`](#Field)s, we can start the fun part: making forms!
 
 Imagine we just want a simple form that allows a user to choose an `Int`:
 
@@ -191,13 +191,24 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 
     --> Ok 0
 
-@docs Model, Msg, init, update, ViewConfig, view, subscriptions, submit
+@docs Model, Msg, init, update, view, ViewConfig, subscriptions, submit, Feedback, Path
 
 
 # Combining Fields
 
 
 ## Succeeding and failing
+
+In addition to the [`Field`](#Field)s that you define based on your
+[`Widget`](#Widget)s, the package also provides [`succeed`](#succeed) and
+[`fail`](#fail), which can be useful in various ways when
+used with other combinators such as [`andMap`](#andMap) and
+[`andThen`](#andThen). You may be familiar with similar functions from packages
+such as [`elm/json`](/packages/elm/json/latest/Json-Decode#succeed).
+
+The views of these fields return an empty Html element. When
+submitted, `succeed` always returns an `Ok`, while `fail` always returns an
+`Err`.
 
 @docs succeed, fail
 
@@ -227,18 +238,18 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
             |> Yafl.option "Bar" barField
 
     fooField =
-        Fields.fields.string 
+        Fields.fields.string
             |> Yafl.map Foo
 
     barField =
-        Fields.fields.int 
+        Fields.fields.int
             |> Yafl.map Bar
 
-    model = 
+    model =
         myCustomTypeField
             |> Yafl.init
             |> Tuple.first
-    
+
     Yafl.submit myCustomTypeField model
 
     --> Ok (Foo "")
@@ -248,7 +259,7 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 
 # Customizing Fields
 
-@docs label, Feedback, Path, showFeedback
+@docs label, showFeedback
 
 
 # Communicating between Fields
@@ -284,13 +295,13 @@ type alias Msg msg =
     Internal.Msg msg
 
 
-{-| An internal data type used to track the location of a field within the form.
+{-| An internal data type used to track the location of a [`Field`](#Field) within the form.
 -}
 type alias Path =
     Internal.Path
 
 
-{-| Forms are composed of Fields - this is the main data type we'll be using in this package.
+{-| Forms are composed of `Field`s - this is the main data type we'll be using in this package.
 -}
 type Field model msg address innerMsg output
     = Field
@@ -317,22 +328,23 @@ type Field model msg address innerMsg output
         }
 
 
-{-| Indicates that a Field has been given an `address`, and can therefore be
+{-| Indicates that a [`Field`](#Field) has been given an `address`, and can therefore be
 used with `intercept`, `send`, etc. See the docs for `address`.
 -}
 type HasAddress
     = HasAddress Never
 
 
-{-| Indicates that a Field has not been given an `address`. See the docs for
+{-| Indicates that a [`Field`](#Field) has not been given an `address`. See the docs for
 `address`.
 -}
 type NoAddress
     = NoAddress Never
 
 
-{-| The Widget type is very similar to the record type that you would supply to
-`Browser.element` to create an Elm `Program`.
+{-| The `Widget` type is very similar to the record type that you would supply
+to [`Browser.element`](/packages/elm/browser/latest/Browser#element) to create
+an Elm [`Program`](/packages/elm/core/latest/Platform#Program).
 -}
 type alias Widget model msg output =
     { init : ( model, Cmd msg )
@@ -344,7 +356,7 @@ type alias Widget model msg output =
     }
 
 
-{-| Configuration passed into the `view` function for each Field in your form.
+{-| Configuration passed into the view of each [`Field`](#Field) in your form.
 -}
 type alias ViewConfig =
     { label : String
@@ -352,7 +364,7 @@ type alias ViewConfig =
     }
 
 
-{-| Feedback produced when running the `submit` function on your form returns errors.
+{-| Feedback produced when running the [`submit`](#submit) function on your form returns errors.
 -}
 type alias Feedback =
     { message : String, fail : Bool, path : Path }
@@ -869,13 +881,15 @@ fail e =
         }
 
 
-{-| Convert the output of a Field from one type to another.
+{-| Convert the output of a [`Field`](#Field) from one type to another.
 
-A common use case for this function is to create Fields that produce custom type
-variants.
+A common use case for this function is to create `Field`s that produce custom
+type variants.
 
     import Yafl
     import Fields
+
+    -- Example 1: Creating a custom type variant
 
     type MyCustomType
         = Foo String
@@ -909,11 +923,13 @@ map f (Field field) =
         }
 
 
-{-| Combine the outputs of two Fields into a new output type.
+{-| Combine the outputs of two [`Fields`](#Field) into a new output type.
 
-You can use this to create tuples, records with two fields, custom type variants with two arguments, and so on.
+You can use this to create tuples, records with two fields, custom type variants
+with two arguments, and so on.
 
-If you need to combine the outputs of more than two Fields, check out `andMap` instead.
+If you need to combine the outputs of more than two fields, check out
+[`andMap`](#andMap) instead.
 
     import Yafl
     import Fields
@@ -1019,9 +1035,9 @@ map2 f (Field field1) (Field field2) =
         }
 
 
-{-| Combine multiple fields. This is useful when `Yafl.map2` isn't enough.
+{-| Combine multiple fields. This is useful when [`map2`](#map2) isn't enough.
 
-Use in combination with `Yafl.succeed`.
+Use in combination with [`succeed`](#succeed).
 
     import Yafl
     import Fields
@@ -1064,14 +1080,18 @@ andMap (Field field1) (Field field2) =
         }
 
 
-{-| Check the result of submitting a Field, and optionally display another
-Field. This can be very useful for validation, or to ask the user for more
-information.
+{-| Check the result of submitting a [`Field`](#Field), and optionally display 
+another `Field`. This can be very useful for validation, or to ask the user for 
+more information, or to convert an existing [`Widget`](#Widget) to return a 
+different output type.
 
-    import Yafl
+The [`succeed`](#succeed) and [`fail`](#fail) functions are often useful in 
+combination with this function.
+
     import Fields
+    import Yafl
 
-    -- Example 1: validating user input
+    -- Example 1: Validating a field's output
 
     Fields.fields.string
         |> Yafl.label "Enter the first name of a Beatle"
@@ -1079,11 +1099,14 @@ information.
             (\name ->
                 if List.member name [ "John", "Paul", "George", "Ringo" ] then
                     Yafl.succeed name
+
                 else
                     Yafl.fail "Invalid Beatle"
             )
 
-    -- Example 2: Asking the user for more information
+    --: Yafl.Field Fields.Model Fields.Msg Yafl.NoAddress String String
+
+    -- Example 2: Asking the user for additional information
 
     Fields.fields.string
         |> Yafl.label "What would you like to say?"
@@ -1093,9 +1116,28 @@ information.
                     Fields.fields.string
                         |> Yafl.label "Who are you saying 'Hello' to?"
                         |> Yafl.map (\moreWords -> words ++ " " ++ moreWords)
+
                 else
                     Yafl.succeed words
             )
+
+    --: Yafl.Field Fields.Model Fields.Msg Yafl.NoAddress String String
+
+    -- Example 3: Repurposing an existing widget
+
+    Fields.fields.string
+            |> Yafl.label "Enter a floating-point number"
+            |> Yafl.andThen
+                (\string ->
+                    case String.toFloat string of
+                        Just float ->
+                            Yafl.succeed float
+
+                        Nothing ->
+                            Yafl.fail "That's not a valid float"
+                )
+
+    --: Yafl.Field Fields.Model Fields.Msg Yafl.NoAddress String Float
 
 -}
 andThen :
@@ -1223,7 +1265,8 @@ andThen f (Field field) =
         }
 
 
-{-| Provide a view function to display the feedback generated when a Field's `submit` function returns errors.
+{-| Provide a view function to display the [`Feedback`](#Feedback) generated 
+when a [`Field`](#Field)'s `submit` function returns errors.
 -}
 showFeedback :
     (List Feedback -> H.Html (Msg msg))
@@ -1242,7 +1285,7 @@ showFeedback render (Field field) =
         }
 
 
-{-| Begin defining a `choice` between multiple `options`.
+{-| Begin defining a `choice` between multiple [`option`](#option)s.
 -}
 choice : Field model msg NoAddress Never output
 choice =
@@ -1259,7 +1302,28 @@ choice =
         }
 
 
-{-| Add an option to the Fields of a `choice`.
+{-| Add an option to a [`choice`](#choice). 
+
+The option will render as an HTML radio input in the view, so you need to 
+provide a `String` to serve as a label, plus a `Field` that returns the actual 
+type you want as output. 
+
+All the `options` of a given `choice` must return the same output type, 
+although their internal `model` and `msg` types can be different.
+
+If the user selects the radio button for this `option`, then the `Field`'s view 
+will be rendered underneath the fieldset containing the radio buttons.
+
+    import Yafl
+    
+    Yafl.choice
+        |> Yafl.option 
+            "This is the label for the radio button" 
+            (Fields.fields.int 
+                |> Yafl.label "This is a label for the `int` field"
+            )
+    
+
 -}
 option :
     String
