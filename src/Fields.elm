@@ -4,16 +4,20 @@ import Widgets
 import Yafl exposing (addWidget, defineFields, endFields)
 
 
-type alias Msg =
-    ( Maybe String, () )
-
-
 type alias Model =
-    ( Maybe String, () )
+    ( Maybe String, ( Maybe Int, () ) )
 
 
-fields : { string : Yafl.Field Model Msg Yafl.NoAddress String String }
+type alias Msg =
+    ( Maybe String, ( Maybe Widgets.IntMsg, () ) )
+
+
+fields :
+    { string : Yafl.Field Model Msg Yafl.NoAddress String String
+    , int : Yafl.Field Model Msg Yafl.NoAddress Widgets.IntMsg Int
+    }
 fields =
-    defineFields (\string -> { string = string })
+    defineFields (\string int -> { string = string, int = int })
         |> addWidget Widgets.string
+        |> addWidget Widgets.int
         |> endFields

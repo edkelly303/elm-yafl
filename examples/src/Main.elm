@@ -124,7 +124,7 @@ fields =
 
 type alias FormMsg =
     ( Maybe Bool
-    , ( Maybe String
+    , ( Maybe Widgets.IntMsg
       , ( Maybe String
         , ()
         )
@@ -134,7 +134,7 @@ type alias FormMsg =
 
 type alias FormModel =
     ( Maybe Bool
-    , ( Maybe String
+    , ( Maybe Int
       , ( Maybe String
         , ()
         )
@@ -238,7 +238,7 @@ likesBonesField =
 -}
 
 
-hasFleasField : Y.Field FormModel FormMsg Y.NoAddress String FunFact
+hasFleasField : Y.Field FormModel FormMsg Y.NoAddress Widgets.IntMsg FunFact
 hasFleasField =
     fields.int
         |> Y.label "How many fleas do they have?"

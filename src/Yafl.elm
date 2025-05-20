@@ -1,8 +1,9 @@
 module Yafl exposing
-    ( Widget, Field, defineFields, addWidget, endFields
+    ( Widget
+    , Field, defineFields, addWidget, endFields
     , Model, Msg, init, update, ViewConfig, view, subscriptions, submit
-    , map, andThen
     , succeed, fail
+    , map, andThen
     , map2, andMap
     , choice, option
     , label, Feedback, Path, showFeedback
@@ -14,12 +15,181 @@ module Yafl exposing
 composing self-contained widgets.
 
 
-# Widgets and Fields
+# Creating `Widget`s
 
-@docs Widget, Field, defineFields, addWidget, endFields
+`Widget`s are the basic building blocks of this package. Each `Widget` is
+effectively a little Elm application, with its own `init`, `update`, `view` and
+`subscriptions` functions, plus a couple of extra features.
+
+This package doesn't supply any prebuilt `Widget`s. Every app is unique, and
+it's unlikely that a prebuilt `Widget` would precisely fit your use case. But
+the point is, this package gives you the power to create _any_ types of
+`Widget`s you choose, and compose them together very easily with minimal
+boilerplate.
+
+Nevertheless, we'll provide some code samples for a few simple `Widgets` that we
+can use in the code snippets in these docs.
+
+    module Widgets exposing (int, string)
+
+    import Html as H
+    import Html.Attributes as HA
+    import Html.Events as HE
+    import Yafl
+
+
+    {- A basic Widget that produces a String. Its internal
+       Model and Msg types are also Strings.
+    -}
+    string : Yafl.Widget String String String
+    string =
+        { init = ( "", Cmd.none )
+        , update = \msg model -> ( msg, Cmd.none )
+        , view =
+            \{ label } model ->
+                [ H.label [ HA.for label ] [ H.text label ]
+                , H.input
+                    [ HA.id label
+                    , HA.type_ "text"
+                    , HA.value model
+                    , HE.onInput identity
+                    ]
+                    []
+                ]
+        , subscriptions = \model -> Sub.none
+        , submit = \model -> Ok model
+        , label = "String"
+        }
+
+    {- A Widget that produces an Int. This is basically
+       the 'Counter' example from the Elm Guide.
+    -}
+    type IntMsg
+        = Increment
+        | Decrement
+
+    int : Yafl.Widget Int IntMsg Int
+    int =
+        { init = ( 0, Cmd.none )
+        , update =
+            \msg model ->
+                ( case msg of
+                    Increment ->
+                        model + 1
+
+                    Decrement ->
+                        model - 1
+                , Cmd.none
+                )
+        , view =
+            \{ label } model ->
+                [ H.label [ HA.for label ] [ H.text label ]
+                , H.span []
+                    [ H.button
+                        [ HA.id label
+                        , HA.type_ "button"
+                        , HE.onClick Decrement
+                        ]
+                        [ H.text "-" ]
+                    , H.text (String.fromInt model)
+                    , H.button
+                        [ HA.id label
+                        , HA.type_ "button"
+                        , HE.onClick Increment
+                        ]
+                        [ H.text "+" ]
+                    ]
+                ]
+        , subscriptions = \model -> Sub.none
+        , submit = \model -> Ok model
+        , label = "Int"
+        }
+
+@docs Widget
+
+
+# Turning `Widget`s into `Field`s
+
+Before we can use our `Widget`s to create a form, we need to convert them into
+`Field`s. This conversion process effectively combines the internal `model` and
+`msg` types of each widget to create composite types that we can use as the
+top-level `model` and `msg` for the entire form.
+
+We perform this conversion using three functions: `defineFields`, `addWidget`,
+and `endFields`. The type signatures for these three functions are extremely
+terrifying, but fortunately we don't need to understand them - just follow the
+example below:
+
+    module Fields exposing (Model, Msg, fields)
+
+    import Widgets
+    import Yafl exposing (addWidget, defineFields, endFields)
+
+    fields =
+        defineFields
+            (\string int ->
+                { string = string
+                , int = int
+                }
+            )
+            |> addWidget Widgets.string
+            |> addWidget Widgets.int
+            |> endFields
+
+    {- This gives us the following Model and Msg types for
+       our form:
+    -}
+    type alias Model =
+        ( Maybe String, ( Maybe Int, () ) )
+
+    type alias Msg =
+        ( Maybe String, ( Maybe Widgets.IntMsg, () ) )
+
+@docs Field, defineFields, addWidget, endFields
 
 
 # Turning Fields into Forms
+
+Once we've defined our `Field`s, we can start the fun part: making forms!
+
+Imagine we just want a simple form that allows a user to choose an `Int`:
+
+    import Yafl
+    import Fields
+    import Html exposing (Html)
+
+    -- We can turn any Field into a form:
+
+    form =
+        Fields.fields.int
+
+    -- Initialize it with `Yafl.init` to get a (model, cmd)
+    -- tuple:
+
+    init =
+        Yafl.init form
+
+    init
+
+    --: ( Yafl.Model Fields.Model, Cmd (Yafl.Msg Fields.Msg) )
+
+    -- The form's model can then be passed to `Yafl.view`,
+    -- `Yafl.update`, `Yafl.subscriptions` and `Yafl.submit`:
+
+    model =
+        Tuple.first init
+
+    Yafl.view form model
+
+    --: List (Html (Yafl.Msg Fields.Msg))
+
+    Yafl.subscriptions form model
+
+    --: Sub (Yafl.Msg Fields.Msg)
+
+    Yafl.submit form model
+
+    --> Ok 0
 
 @docs Model, Msg, init, update, ViewConfig, view, subscriptions, submit
 
@@ -27,14 +197,14 @@ composing self-contained widgets.
 # Combining Fields
 
 
-## Converting output types
-
-@docs map, andThen
-
-
 ## Succeeding and failing
 
 @docs succeed, fail
+
+
+## Converting output types
+
+@docs map, andThen
 
 
 ## Building product types
@@ -118,49 +288,22 @@ type Field model msg address innerMsg output
         }
 
 
-{-| Indicates that a Field has been given an `address`, and can therefore be used with `intercept`, `send`, etc. See the docs for `address`.
+{-| Indicates that a Field has been given an `address`, and can therefore be
+used with `intercept`, `send`, etc. See the docs for `address`.
 -}
 type HasAddress
     = HasAddress Never
 
 
-{-| Indicates that a Field has not been given an `address`. See the docs for `address`.
+{-| Indicates that a Field has not been given an `address`. See the docs for
+`address`.
 -}
 type NoAddress
     = NoAddress Never
 
 
-{-| Widgets are used to build Fields, which can be composed into forms.
-
-Here's a basic example of a Widget that produces a `String`:
-
-    module Widgets exposing (string)
-
-    import Html as H
-    import Html.Attributes as HA
-    import Html.Events as HE
-    import Yafl
-
-    string : Yafl.Widget String String String
-    string =
-        { init = ( "", Cmd.none )
-        , update = \msg model -> ( msg, Cmd.none )
-        , view =
-            \{ label } model ->
-                [ H.label [ HA.for label ] [ H.text label ]
-                , H.input
-                    [ HA.id label
-                    , HA.type_ "text"
-                    , HA.value model
-                    , HE.onInput identity
-                    ]
-                    []
-                ]
-        , submit = \model -> Ok model
-        , subscriptions = \model -> Sub.none
-        , label = "String"
-        }
-
+{-| The Widget type is very similar to the record type that you would supply to
+`Browser.element` to create an Elm `Program`.
 -}
 type alias Widget model msg output =
     { init : ( model, Cmd msg )
@@ -200,6 +343,15 @@ type alias Feedback =
 
 
 {-| Initialize your form
+
+    import Yafl
+    import Fields
+
+    Fields.fields.int
+        |> Yafl.init
+
+    --: ( Yafl.Model Fields.Model, Cmd (Yafl.Msg Fields.Msg) )
+
 -}
 init : Field model msg address innerMsg output -> ( Model model, Cmd (Msg msg) )
 init (Field field) =
@@ -216,8 +368,8 @@ update (Field field) msg model =
 {-| View your form.
 
     import Yafl
-    import Html exposing (Html)
     import Fields
+    import Html exposing (Html)
 
     form =
         Fields.fields.string
@@ -1220,24 +1372,6 @@ option radioLabel (Field field) (Field choice_) =
 
 
 {-| Begin a definition of the fields you want to use in your forms.
-
-    module Fields exposing (Msg, fields)
-
-    import Widgets
-    import Yafl exposing (addWidget, defineFields, endFields)
-
-    type alias Msg =
-        ( Maybe String, () )
-
-    type alias Model =
-        ( Maybe String, () )
-
-    fields : { string : Yafl.Field Model Msg Yafl.NoAddress String String }
-    fields =
-        defineFields (\string -> { string = string })
-            |> addWidget Widgets.string
-            |> endFields
-
 -}
 defineFields :
     ctor

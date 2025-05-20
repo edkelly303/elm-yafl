@@ -19,6 +19,54 @@ tests =
         [ Test.describe
             "Yafl"
             [ Test.describe
+                "module header"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            let
+                                unused : ( Yafl.Model Fields.Model, Platform.Cmd.Cmd (Yafl.Msg Fields.Msg) )
+                                unused =
+                                    init__Yafl__Header_0
+                            in
+                            Expect.pass
+                        )
+                    , Test.test
+                        "1"
+                        (\() ->
+                            let
+                                unused : List (Html.Html (Yafl.Msg Fields.Msg))
+                                unused =
+                                    Yafl.view
+                                        form__Yafl__Header_0
+                                        model__Yafl__Header_0
+                            in
+                            Expect.pass
+                        )
+                    , Test.test
+                        "2"
+                        (\() ->
+                            let
+                                unused : Platform.Sub.Sub (Yafl.Msg Fields.Msg)
+                                unused =
+                                    Yafl.subscriptions
+                                        form__Yafl__Header_0
+                                        model__Yafl__Header_0
+                            in
+                            Expect.pass
+                        )
+                    , Test.test
+                        "3"
+                        (\() ->
+                            Yafl.submit
+                                form__Yafl__Header_0
+                                model__Yafl__Header_0
+                                |> Expect.equal (Result.Ok 0)
+                        )
+                    ]
+                ]
+            , Test.describe
                 "address"
                 [ Test.describe
                     "code snippet 0"
@@ -197,6 +245,22 @@ tests =
                     ]
                 ]
             , Test.describe
+                "init"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            let
+                                unused : ( Yafl.Model Fields.Model, Platform.Cmd.Cmd (Yafl.Msg Fields.Msg) )
+                                unused =
+                                    Fields.fields.int |> Yafl.init
+                            in
+                            Expect.pass
+                        )
+                    ]
+                ]
+            , Test.describe
                 "intercept"
                 [ Test.describe
                     "code snippet 0"
@@ -369,6 +433,18 @@ tests =
                 ]
             ]
         ]
+
+
+form__Yafl__Header_0 =
+    Fields.fields.int
+
+
+init__Yafl__Header_0 =
+    Yafl.init form__Yafl__Header_0
+
+
+model__Yafl__Header_0 =
+    Tuple.first init__Yafl__Header_0
 
 
 myField__Yafl__address_0 =
