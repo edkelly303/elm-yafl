@@ -46,10 +46,10 @@ can use in the code snippets in these docs.
         { init = ( "", Cmd.none )
         , update = \msg model -> ( msg, Cmd.none )
         , view =
-            \{ label } model ->
-                [ H.label [ HA.for label ] [ H.text label ]
+            \{ label, id } model ->
+                [ H.label [ HA.for id ] [ H.text label ]
                 , H.input
-                    [ HA.id label
+                    [ HA.id id
                     , HA.type_ "text"
                     , HA.value model
                     , HE.onInput identity
@@ -82,19 +82,17 @@ can use in the code snippets in these docs.
                 , Cmd.none
                 )
         , view =
-            \{ label } model ->
-                [ H.label [ HA.for label ] [ H.text label ]
-                , H.span []
+            \{ label, id } model ->
+                [ H.label [ HA.for id ] [ H.text label ]
+                , H.span [ HA.id id ]
                     [ H.button
-                        [ HA.id label
-                        , HA.type_ "button"
+                        [ HA.type_ "button"
                         , HE.onClick Decrement
                         ]
                         [ H.text "-" ]
                     , H.text (String.fromInt model)
                     , H.button
-                        [ HA.id label
-                        , HA.type_ "button"
+                        [ HA.type_ "button"
                         , HE.onClick Increment
                         ]
                         [ H.text "+" ]
@@ -276,9 +274,9 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
-import Internal as Internal exposing (Locator(..), MaybeAddress, Model(..), Msg(..), Path)
+import Internal exposing (Locator(..), MaybeAddress, Model(..), Msg(..), Path)
 import List.Extra
-import Location as Location
+import Location
 import NestedTuple as NT
 import Task
 
@@ -360,6 +358,7 @@ type alias Widget model msg output =
 -}
 type alias ViewConfig =
     { label : String
+    , id : String
     , feedback : List Feedback
     }
 
@@ -439,6 +438,7 @@ view (Field field) model =
     field.view
         { label = field.label
         , feedback = feedback
+        , id = Location.fromModel model |> Location.toString
         }
         model
 
@@ -881,6 +881,11 @@ fail e =
         }
 
 
+{-| Like `fail`, except it will display the error message on a _different_
+Field. This can be useful in multi-field validation, when you have an error that
+results from a combination of several fields, but you only want to display the
+error message on one specific field.
+-}
 failAt : Field model msg HasAddress innerMsg1 output1 -> String -> Field model msg address2 innerMsg2 output2
 failAt (Field failField) e =
     Field
@@ -1030,8 +1035,8 @@ map2 f (Field field1) (Field field2) =
             \config model ->
                 case model of
                     Both _ model1 model2 ->
-                        field1.view { config | label = field1.label } model1
-                            ++ field2.view { config | label = field2.label } model2
+                        field1.view { config | label = field1.label, id = Location.fromModel model1 |> Location.toString } model1
+                            ++ field2.view { config | label = field2.label, id = Location.fromModel model1 |> Location.toString } model2
 
                     _ ->
                         []
@@ -1114,8 +1119,8 @@ andMap (Field field1) (Field field2) =
                 \config model ->
                     case model of
                         Both _ model1 model2 ->
-                            field2.view { config | label = field2.label } model2
-                                ++ field1.view { config | label = field1.label } model1
+                            field2.view { config | label = field2.label, id = Location.fromModel model1 |> Location.toString } model2
+                                ++ field1.view { config | label = field1.label, id = Location.fromModel model2 |> Location.toString } model1
 
                         _ ->
                             []
@@ -1244,14 +1249,14 @@ andThen f (Field field) =
             \config model ->
                 case model of
                     Both _ model1 model2 ->
-                        field.view { config | label = field.label } model1
+                        field.view { config | label = field.label, id = Location.fromModel model1 |> Location.toString } model1
                             ++ (case field.submit model1 of
                                     Ok output ->
                                         let
                                             (Field field2) =
                                                 f output
                                         in
-                                        field2.view { config | label = field2.label } model2
+                                        field2.view { config | label = field2.label, id = Location.fromModel model2 |> Location.toString } model2
 
                                     Err _ ->
                                         []
@@ -1451,12 +1456,17 @@ option radioLabel (Field field) (Field choice_) =
                             labels =
                                 List.map Tuple.first (List.reverse choiceModels) ++ [ fieldLabel ]
                         in
-                        H.fieldset [] (H.legend [] [ H.text config.label ] :: List.indexedMap radio labels)
+                        H.fieldset [HA.id (Location.toString location)] (H.legend [] [ H.text config.label ] :: List.indexedMap radio labels)
                             :: (if meta.selected == List.length choiceModels then
-                                    field.view { config | label = field.label } fieldModel
+                                    field.view { config | label = field.label, id = Location.fromModel fieldModel |> Location.toString } fieldModel
 
                                 else
-                                    choice_.view { config | label = choice_.label } (OneOf location meta choiceModels)
+                                    choice_.view
+                                        { config
+                                            | label = choice_.label
+                                            , id = "WHAT GOES HERE?" -- CHECK THIS?!!!
+                                        }
+                                        (OneOf location meta choiceModels)
                                         |> List.drop 1
                                )
 

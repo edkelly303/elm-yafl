@@ -30,10 +30,10 @@ stringWidget =
     { init = ( "", Cmd.none )
     , update = \msg _ -> ( msg, Cmd.none )
     , view =
-        \{ label } model ->
-            [ H.label [ HA.for label ] [ H.text label ]
+        \{ label, id } model ->
+            [ H.label [ HA.for id ] [ H.text label ]
             , H.input
-                [ HA.id label
+                [ HA.id id
                 , HA.type_ "text"
                 , HA.value model
                 , HE.onInput identity
@@ -53,10 +53,10 @@ boolWidget =
         \msg _ ->
             ( msg, Cmd.none )
     , view =
-        \{ label } model ->
-            [ H.label [ HA.for label ] [ H.text label ]
+        \{ label, id } model ->
+            [ H.label [ HA.for id ] [ H.text label ]
             , H.input
-                [ HA.id label
+                [ HA.id id
                 , HA.type_ "checkbox"
                 , HA.checked model
                 , HE.onCheck identity

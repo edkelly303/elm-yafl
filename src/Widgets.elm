@@ -17,10 +17,10 @@ string =
     { init = ( "", Cmd.none )
     , update = \msg _ -> ( msg, Cmd.none )
     , view =
-        \{ label } model ->
-            [ H.label [ HA.for label ] [ H.text label ]
+        \{ label, id } model ->
+            [ H.label [ HA.for id ] [ H.text label ]
             , H.input
-                [ HA.id label
+                [ HA.id id
                 , HA.type_ "text"
                 , HA.value model
                 , HE.onInput identity
@@ -58,19 +58,17 @@ int =
             , Cmd.none
             )
     , view =
-        \{ label } model ->
-            [ H.label [ HA.for label ] [ H.text label ]
-            , H.span []
+        \{ label, id } model ->
+            [ H.label [ HA.for id ] [ H.text label ]
+            , H.span [ HA.id id ]
                 [ H.button
-                    [ HA.id label
-                    , HA.type_ "button"
+                    [ HA.type_ "button"
                     , HE.onClick Decrement
                     ]
                     [ H.text "-" ]
                 , H.text (String.fromInt model)
                 , H.button
-                    [ HA.id label
-                    , HA.type_ "button"
+                    [ HA.type_ "button"
                     , HE.onClick Increment
                     ]
                     [ H.text "+" ]

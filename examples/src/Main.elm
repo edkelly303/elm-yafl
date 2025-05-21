@@ -6,7 +6,7 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Widgets
 import Yafl
-
+import Visualize
 
 
 {- Goal: create a form that will allow a user to create a value of the type
@@ -63,10 +63,10 @@ boolWidget =
         \msg _ ->
             ( msg, Cmd.none )
     , view =
-        \{ label } model ->
-            [ H.label [ HA.for label ] [ H.text label ]
+        \{ label, id } model ->
+            [ H.label [ HA.for id ] [ H.text label ]
             , H.input
-                [ HA.id label
+                [ HA.id id
                 , HA.type_ "checkbox"
                 , HA.checked model
                 , HE.onCheck identity
@@ -417,7 +417,8 @@ main =
                             ((Yafl.view dogField formModel
                                 |> List.map (H.map FormUpdated)
                              )
-                                ++ [ H.button [] [ H.text "Submit" ] ]
+                                ++ [ H.button [] [ H.text "Submit" ]
+                                , Visualize.draw formModel ]
                             )
 
                     ViewingDog dog ->
