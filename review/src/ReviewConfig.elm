@@ -1,16 +1,5 @@
 module ReviewConfig exposing (config)
 
-{-| Do not rename the ReviewConfig module or the config function, because
-`elm-review` will look for these.
-
-To add packages that contain rules, add them to this review project using
-
-    `elm install author/packagename`
-
-when inside the directory containing this file.
-
--}
-
 import Docs.NoMissing exposing (exposedModules, onlyExposed)
 import Docs.ReviewAtDocs
 import Docs.ReviewLinksAndSections
@@ -38,6 +27,20 @@ import Simplify
 
 config : List Rule
 config =
+    List.concat
+        [ docs
+        , unused
+        , simplify
+        , snippets
+        ]
+        |> ignoreDocSnippets
+
+
+ignoreDocSnippets =
+    List.map (Rule.ignoreErrorsForFiles [ "tests/DocumentationCodeSnippetTest.elm" ])
+
+
+docs =
     [ Docs.NoMissing.rule
         { document = onlyExposed
         , from = exposedModules
@@ -45,27 +48,40 @@ config =
     , Docs.ReviewLinksAndSections.rule
     , Docs.ReviewAtDocs.rule
     , Docs.UpToDateReadmeLinks.rule
-    , NoConfusingPrefixOperator.rule
+    ]
+
+
+misc =
+    [ NoConfusingPrefixOperator.rule
     , NoDebug.Log.rule
     , NoDebug.TodoOrToString.rule
         |> Rule.ignoreErrorsForDirectories [ "tests/" ]
     , NoExposingEverything.rule
     , NoImportingEverything.rule []
     , NoMissingTypeAnnotation.rule
-        |> Rule.ignoreErrorsForFiles [ "tests/DocumentationCodeSnippetTest.elm" ]
     , NoMissingTypeExpose.rule
     , NoSimpleLetBody.rule
     , NoPrematureLetComputation.rule
-    , NoUnused.CustomTypeConstructors.rule []
+    ]
+
+
+unused =
+    [ NoUnused.CustomTypeConstructors.rule []
     , NoUnused.CustomTypeConstructorArgs.rule
-        |> Rule.ignoreErrorsForFiles [ "tests/DocumentationCodeSnippetTest.elm" ]
     , NoUnused.Dependencies.rule
-    , NoUnused.Exports.rule
-        |> Rule.ignoreErrorsForFiles ["src/Visualize.elm"]
     , NoUnused.Parameters.rule
     , NoUnused.Patterns.rule
     , NoUnused.Variables.rule
-        |> Rule.ignoreErrorsForFiles [ "tests/DocumentationCodeSnippetTest.elm" ]
-    , Simplify.rule Simplify.defaults
-    , Review.Documentation.CodeSnippet.check
+    , NoUnused.Exports.rule
+        |> Rule.ignoreErrorsForFiles [ "src/Visualize.elm" ]
+    ]
+
+
+simplify =
+    [ Simplify.rule Simplify.defaults
+    ]
+
+
+snippets =
+    [ Review.Documentation.CodeSnippet.check
     ]
