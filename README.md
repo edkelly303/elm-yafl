@@ -352,7 +352,7 @@ While writing `elm-any-type-forms`, I blundered into the discovery that both
 product and sum types could be represented using nested tuples. But I didn't
 come up with a comfortable way to work with nested tuples until much later, when
 I distilled the core ideas into my
-[`elm-nested-tuples`](https://package.elm-lang.org/packages/edkelly303/elm-nested-tupes/latest)
+[`elm-nested-tuples`](https://package.elm-lang.org/packages/edkelly303/elm-nested-tuples/latest)
 package. 
 
 As a result, the codebase for `elm-any-type-forms` is extremely difficult to
