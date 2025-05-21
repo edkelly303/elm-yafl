@@ -315,7 +315,7 @@ completely insane - in some cases, they are literally hundreds of lines of code.
 
 In fact, the type annotations got so long that the Elm 0.19.1 compiler refused
 to allow me to publish the package, so I had to use an earlier compiler version
-to get it (thank you Dillon Kearns for teaching me this trick!)
+to get it published (thank you Dillon Kearns for teaching me this trick!)
 
 If you misused any of these functions, the compiler would often spend several
 seconds printing out literally thousands of lines of error messages, which
