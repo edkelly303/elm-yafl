@@ -8,6 +8,7 @@ import Widgets
 import Yafl
 
 
+
 {- Goal: create a form that will allow a user to create a value of the type
    below:
 -}
@@ -443,4 +444,3 @@ main =
                     ViewingDog _ ->
                         Sub.none
         }
-

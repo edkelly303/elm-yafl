@@ -1080,12 +1080,12 @@ andMap (Field field1) (Field field2) =
         }
 
 
-{-| Check the result of submitting a [`Field`](#Field), and optionally display 
-another `Field`. This can be very useful for validation, or to ask the user for 
-more information, or to convert an existing [`Widget`](#Widget) to return a 
+{-| Check the result of submitting a [`Field`](#Field), and optionally display
+another `Field`. This can be very useful for validation, or to ask the user for
+more information, or to convert an existing [`Widget`](#Widget) to return a
 different output type.
 
-The [`succeed`](#succeed) and [`fail`](#fail) functions are often useful in 
+The [`succeed`](#succeed) and [`fail`](#fail) functions are often useful in
 combination with this function.
 
     import Fields
@@ -1265,7 +1265,7 @@ andThen f (Field field) =
         }
 
 
-{-| Provide a view function to display the [`Feedback`](#Feedback) generated 
+{-| Provide a view function to display the [`Feedback`](#Feedback) generated
 when a [`Field`](#Field)'s `submit` function returns errors.
 -}
 showFeedback :
@@ -1302,27 +1302,26 @@ choice =
         }
 
 
-{-| Add an option to a [`choice`](#choice). 
+{-| Add an option to a [`choice`](#choice).
 
-The option will render as an HTML radio input in the view, so you need to 
-provide a `String` to serve as a label, plus a `Field` that returns the actual 
-type you want as output. 
+The option will render as an HTML radio input in the view, so you need to
+provide a `String` to serve as a label, plus a `Field` that returns the actual
+type you want as output.
 
-All the `options` of a given `choice` must return the same output type, 
+All the `options` of a given `choice` must return the same output type,
 although their internal `model` and `msg` types can be different.
 
-If the user selects the radio button for this `option`, then the `Field`'s view 
+If the user selects the radio button for this `option`, then the `Field`'s view
 will be rendered underneath the fieldset containing the radio buttons.
 
     import Yafl
-    
+
     Yafl.choice
-        |> Yafl.option 
-            "This is the label for the radio button" 
-            (Fields.fields.int 
+        |> Yafl.option
+            "This is the label for the radio button"
+            (Fields.fields.int
                 |> Yafl.label "This is a label for the `int` field"
             )
-    
 
 -}
 option :
