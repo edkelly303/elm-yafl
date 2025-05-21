@@ -18,8 +18,13 @@ send `Cmd`s and receive `Sub`s, just like a full-scale Elm `Program`. This gives
 you a lot of flexibility to design rich user interface components, because you
 have the full power of the Elm architecture at your disposal. 
 
-`Field`s can be composed using standard functional combinators such as `map`,
-`map2`, `andMap` and `andThen`. These combinators make it easy to create forms
+`Field`s can be transformed and composed using standard functional combinators such as 
+[`map`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/latest/Yafl#map),
+[`map2`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/latest/Yafl#map2), 
+[`andMap`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/latest/Yafl#andMap) 
+and 
+[`andThen`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/latest/Yafl#andThen). 
+These combinators make it easy to create forms
 for complex data structures by composing simpler `Field`s, without too much
 wiring or boilerplate.
 
@@ -38,8 +43,8 @@ wiring or boilerplate.
     starting-point.
 * The `Msg` and `Model` types for your forms can look a bit unusual, as they are
   built on nested tuples like `( Maybe String, ( Maybe Int, () ) )`. 
-  * They are a lot less weird than certain other form packages, [cough]
-    `edkelly303/elm-any-type-forms` [cough]. More on this later!
+  * They are a lot less weird than the types used in certain other form packages
+    written by me. More on this later!
 * The type signatures of some of the functions for converting `Widget`s to
   `Field`s are quite terrifying
   * But you don't need to understand the types (I certainly don't), and in
@@ -194,7 +199,7 @@ isAdmin --: Yafl.Field FormModel FormMsg Yafl.NoAddress Bool Bool
 
 ### Step 4: Compose the `Field`s to create a form
 
-We can use a combination of `succeed` and `andMap` to compose our `Field`s into
+We can use a combination of [`succeed`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/latest/Yafl#succeed) and `andMap` to compose our `Field`s into
 a `User` type:
 
 ```elm
@@ -314,7 +319,9 @@ seconds printing out literally thousands of lines of error messages, which
 was... somewhat offputting for most users?
 
 In `elm-yafl`, there are only three functions that have crazy type signatures:
-`defineFields`, `addWidget` and `endFields` - and the longest is _only_ 81 lines
+[`defineFields`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/latest/Yafl#defineFields), 
+[`addWidget`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/latest/Yafl#addWidget) and 
+[`endFields`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/latest/Yafl#endFields) - and the longest is _only_ 81 lines
 of code. 
 
 These functions only need to be used once per project, and they are
