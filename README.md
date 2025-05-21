@@ -18,15 +18,15 @@ send `Cmd`s and receive `Sub`s, just like a full-scale Elm `Program`. This gives
 you a lot of flexibility to design rich user interface components, because you
 have the full power of the Elm architecture at your disposal. 
 
-`Field`s can be transformed and composed using standard functional combinators such as 
+`Field`s can be transformed and composed using standard functional combinators
+such as
 [`map`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#map),
-[`map2`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#map2), 
-[`andMap`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#andMap) 
-and 
-[`andThen`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#andThen). 
-These combinators make it easy to create forms
-for complex data structures by composing simpler `Field`s, without too much
-wiring or boilerplate.
+[`map2`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#map2),
+[`andMap`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#andMap)
+and
+[`andThen`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#andThen).
+These combinators make it easy to create forms for complex data structures by
+composing simpler `Field`s, without too much wiring or boilerplate.
 
 ## What's nice about it?
 
@@ -199,8 +199,11 @@ isAdmin --: Yafl.Field FormModel FormMsg Yafl.NoAddress Bool Bool
 
 ### Step 4: Compose the `Field`s to create a form
 
-We can use a combination of [`succeed`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#succeed) and `andMap` to compose our `Field`s into
-a `User` type:
+We can use a combination of
+[`succeed`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#succeed)
+and
+[`andMap`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#andMap)
+to compose our `Field`s into a `User` type:
 
 ```elm
 import Example exposing (..)
@@ -319,10 +322,11 @@ seconds printing out literally thousands of lines of error messages, which
 was... somewhat offputting for most users?
 
 In `elm-yafl`, there are only three functions that have crazy type signatures:
-[`defineFields`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#defineFields), 
-[`addWidget`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#addWidget) and 
-[`endFields`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#endFields) - and the longest is _only_ 81 lines
-of code. 
+[`defineFields`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#defineFields),
+[`addWidget`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#addWidget)
+and
+[`endFields`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#endFields)
+- and the longest is _only_ 81 lines of code. 
 
 These functions only need to be used once per project, and they are
 designed to be difficult to misuse, so it's less likely that users will be
@@ -341,6 +345,23 @@ other through message passing. At the top level of your app, you can
 messages that a field is sending to itself, and then
 [`send`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#send)
 messages to another field via the Elm runtime.
+
+### 4. Implementation complexity
+
+While writing `elm-any-type-forms`, I blundered into the discovery that both
+product and sum types could be represented using nested tuples. But I didn't
+come up with a comfortable way to work with nested tuples until much later, when
+I distilled the core ideas into my
+[`elm-nested-tuples`](https://package.elm-lang.org/packages/edkelly303/elm-nested-tupes/latest)
+package. 
+
+As a result, the codebase for `elm-any-type-forms` is extremely difficult to
+work with. It's also 9,500 lines of code in one main file, with literally
+thousands of lines of type annotations.
+
+By contrast, `elm-yafl` builds on `elm-nested-tuples`, which reduces the
+complexity significantly. It also comes in at just over 2,000 lines of code
+including type annotations and documentation.
 
 ### Trade-offs
 
