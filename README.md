@@ -325,8 +325,8 @@ In `elm-yafl`, there are only three functions that have crazy type signatures:
 [`defineFields`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#defineFields),
 [`addWidget`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#addWidget)
 and
-[`endFields`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#endFields)
-- and the longest is _only_ 81 lines of code. 
+[`endFields`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#endFields), 
+and the longest is _only_ 81 lines of code. 
 
 These functions only need to be used once per project, and they are
 designed to be difficult to misuse, so it's less likely that users will be
