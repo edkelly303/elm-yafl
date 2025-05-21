@@ -1,6 +1,7 @@
 module Location exposing
     ( fromModel
     , isLocated
+    , locatorFromModel
     , new
     , pathFromModel
     , toLocator
@@ -96,3 +97,8 @@ toLocator location =
 
         Addressed _ address_ ->
             ByAddress address_
+
+
+locatorFromModel : Model model -> Locator
+locatorFromModel =
+    fromModel >> toLocator

@@ -2,7 +2,7 @@ module Yafl exposing
     ( Widget
     , Field, defineFields, addWidget, endFields
     , Model, Msg, init, update, view, ViewConfig, subscriptions, submit, Feedback, Path
-    , succeed, fail
+    , succeed, fail, failAt
     , map, andThen
     , map2, andMap
     , choice, option
@@ -210,7 +210,7 @@ The views of these fields return an empty Html element. When
 submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 `Err`.
 
-@docs succeed, fail
+@docs succeed, fail, failAt
 
 
 ## Converting output types
@@ -276,9 +276,9 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
-import Internal exposing (Locator(..), MaybeAddress, Model(..), Msg(..), Path)
+import Internal as Internal exposing (Locator(..), MaybeAddress, Model(..), Msg(..), Path)
 import List.Extra
-import Location
+import Location as Location
 import NestedTuple as NT
 import Task
 
@@ -367,7 +367,7 @@ type alias ViewConfig =
 {-| Feedback produced when running the [`submit`](#submit) function on your form returns errors.
 -}
 type alias Feedback =
-    { message : String, fail : Bool, path : Path }
+    { message : String, fail : Bool, locator : Locator }
 
 
 
@@ -721,7 +721,7 @@ andUpdateField field innerMsg ( model, cmd1 ) =
     model
         |> Yafl.submit myChoiceField
 
-    --> Err [ { message = "Oh no, you failed!", fail = True, path = [ 0, 0 ] } ]
+    --> Err [ { message = "Oh no, you failed!", fail = True, locator = [ 0, 0 ] } ]
 
     model
         |> Yafl.selectField myAddressedField
@@ -767,7 +767,7 @@ selectField (Field field) model =
         |> Tuple.first
         |> Yafl.submit myChoiceField
 
-    --> Err [ { message = "Oh no, you failed!", fail = True, path = [ 0, 0 ] } ]
+    --> Err [ { message = "Oh no, you failed!", fail = True, locator = [ 0, 0 ] } ]
 
     modelAndCmd
         |> Yafl.andSelectField myAddressedField
@@ -849,7 +849,7 @@ succeed f =
 
     Yafl.submit form model
 
-    --> Err [ { message = "Oh dear!", path = [ 0 ], fail = True } ]
+    --> Err [ { message = "Oh dear!", locator = [ 0 ], fail = True } ]
 
 -}
 fail : String -> Field model msg address innerMsg output
@@ -871,8 +871,45 @@ fail e =
                 Err
                     [ { message = e
                       , fail = True
-                      , path = Location.pathFromModel model
+                      , locator = Location.fromModel model |> Location.toLocator
                       }
+                    ]
+        , send = \_ _ -> Noop
+        , intercept = \_ _ -> Nothing
+        , label = ""
+        , maybeAddress = Nothing
+        }
+
+
+failAt : Field model msg HasAddress innerMsg1 output1 -> String -> Field model msg address2 innerMsg2 output2
+failAt (Field failField) e =
+    Field
+        { init = \path maybeAddress -> ( Empty (Location.new path maybeAddress), Cmd.none )
+        , update =
+            \msg model ->
+                case msg of
+                    OptionSelected locator ->
+                        locateOneOf locator model
+
+                    _ ->
+                        ( model, Cmd.none )
+        , view = \_ _ -> []
+        , subscriptions = \_ -> Sub.none
+        , submit =
+            \model ->
+                Err
+                    [ case failField.maybeAddress of
+                        Just address_ ->
+                            { message = e
+                            , fail = True
+                            , locator = ByAddress address_
+                            }
+
+                        Nothing ->
+                            { message = "FATAL ERROR in `failAt` function"
+                            , fail = True
+                            , locator = Location.locatorFromModel model
+                            }
                     ]
         , send = \_ _ -> Noop
         , intercept = \_ _ -> Nothing
@@ -1027,7 +1064,12 @@ map2 f (Field field1) (Field field2) =
                                 Err (errs2 ++ errs1)
 
                     _ ->
-                        Err [ { message = "weird map2 error", fail = True, path = [] } ]
+                        Err
+                            [ { message = "weird map2 error"
+                              , fail = True
+                              , locator = Location.locatorFromModel model
+                              }
+                            ]
         , send = \_ msg -> never msg
         , intercept = \_ _ -> Nothing
         , label = ""
@@ -1254,7 +1296,7 @@ andThen f (Field field) =
                     _ ->
                         Err
                             [ { message = "Fatal error, expecting a `Both` node"
-                              , path = Location.pathFromModel model
+                              , locator = Location.locatorFromModel model
                               , fail = True
                               }
                             ]
@@ -1279,7 +1321,7 @@ showFeedback render (Field field) =
                 \config model ->
                     let
                         relevantFeedback =
-                            List.filter (\f -> f.path == Location.pathFromModel model) config.feedback
+                            List.filter (\f -> Location.isLocated f.locator (Location.fromModel model)) config.feedback
                     in
                     field.view config model ++ [ render relevantFeedback ]
         }
@@ -1721,9 +1763,26 @@ applier msgGetter msgSetter modelGetter modelSetter fieldType acc =
                             |> Maybe.map
                                 (\mdl ->
                                     fieldType.submit mdl
-                                        |> Result.mapError (\errs -> List.map (\err -> { message = err, fail = True, path = [] }) errs)
+                                        |> Result.mapError
+                                            (\errs ->
+                                                List.map
+                                                    (\err ->
+                                                        { message = err
+                                                        , fail = True
+                                                        , locator = ByPath []
+                                                        }
+                                                    )
+                                                    errs
+                                            )
                                 )
-                            |> Maybe.withDefault (Err [ { message = "error in `applier` function", fail = True, path = [] } ])
+                            |> Maybe.withDefault
+                                (Err
+                                    [ { message = "error in `applier` function"
+                                      , fail = True
+                                      , locator = ByPath []
+                                      }
+                                    ]
+                                )
                 , subscriptions =
                     \model ->
                         Maybe.map fieldType.subscriptions (modelGetter model)
@@ -1774,11 +1833,8 @@ wrapWithTrees args =
                     location =
                         Location.fromModel model
 
-                    path =
-                        Location.toPath location
-
                     relevantFeedback =
-                        List.filter (\f -> f.path == path) config.feedback
+                        List.filter (\f -> Location.isLocated f.locator location) config.feedback
 
                     ( model_, mapper ) =
                         case model of
@@ -1795,7 +1851,16 @@ wrapWithTrees args =
                 case model of
                     Value location model_ ->
                         args.submit model_
-                            |> Result.mapError (\errs -> List.map (\err -> { err | path = Location.toPath location }) errs)
+                            |> Result.mapError
+                                (\errs ->
+                                    List.map
+                                        (\err ->
+                                            { err
+                                                | locator = Location.toLocator location
+                                            }
+                                        )
+                                        errs
+                                )
 
                     _ ->
                         Err []
