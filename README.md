@@ -38,8 +38,8 @@ wiring or boilerplate.
     starting-point.
 * The `Msg` and `Model` types for your forms can look a bit unusual, as they are
   built on nested tuples like `( Maybe String, ( Maybe Int, () ) )`. 
-  * They are a lot less weird than certain other form packages, <cough>
-    `edkelly303/elm-any-type-forms` </cough>. More on this later!
+  * They are a lot less weird than certain other form packages, [cough]
+    `edkelly303/elm-any-type-forms` [cough]. More on this later!
 * The type signatures of some of the functions for converting `Widget`s to
   `Field`s are quite terrifying
   * But you don't need to understand the types (I certainly don't), and in
