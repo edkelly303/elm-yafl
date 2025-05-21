@@ -49,7 +49,8 @@
         "command": [
             "npx",
             "elm-review",
-            "--watch"
+            "--watch",
+            "--debug"
         ],
         "title": "npx elm-review",
         "status": {
@@ -74,7 +75,8 @@
             "--watch",
             "--rules",
             "Review.Documentation.CodeSnippet",
-            "--fix-all-without-prompt"
+            "--fix-all-without-prompt",
+            "--debug"
         ],
         "title": "npx elm-review --watch --rules Review.Documentation.CodeSnippet --fix-all-without-prompt",
         "status": {

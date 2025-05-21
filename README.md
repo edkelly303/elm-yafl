@@ -8,9 +8,9 @@ I would *not* recommend using it in production.
 ## What does it do?
 
 This package allows you to create
-[`Widget`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/latest/Yafl#Widget)s,
+[`Widget`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#Widget)s,
 which are essentially miniature Elm applications, and convert them into
-[`Field`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/latest/Yafl#Field)s
+[`Field`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#Field)s
 which can then be composed to create HTML forms.
 
 `Widget`s can use _any_ Elm types as their `Msg` and `Model` types, and they can
@@ -19,11 +19,11 @@ you a lot of flexibility to design rich user interface components, because you
 have the full power of the Elm architecture at your disposal. 
 
 `Field`s can be transformed and composed using standard functional combinators such as 
-[`map`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/latest/Yafl#map),
-[`map2`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/latest/Yafl#map2), 
-[`andMap`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/latest/Yafl#andMap) 
+[`map`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#map),
+[`map2`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#map2), 
+[`andMap`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#andMap) 
 and 
-[`andThen`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/latest/Yafl#andThen). 
+[`andThen`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#andThen). 
 These combinators make it easy to create forms
 for complex data structures by composing simpler `Field`s, without too much
 wiring or boilerplate.
@@ -199,7 +199,7 @@ isAdmin --: Yafl.Field FormModel FormMsg Yafl.NoAddress Bool Bool
 
 ### Step 4: Compose the `Field`s to create a form
 
-We can use a combination of [`succeed`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/latest/Yafl#succeed) and `andMap` to compose our `Field`s into
+We can use a combination of [`succeed`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#succeed) and `andMap` to compose our `Field`s into
 a `User` type:
 
 ```elm
@@ -319,9 +319,9 @@ seconds printing out literally thousands of lines of error messages, which
 was... somewhat offputting for most users?
 
 In `elm-yafl`, there are only three functions that have crazy type signatures:
-[`defineFields`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/latest/Yafl#defineFields), 
-[`addWidget`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/latest/Yafl#addWidget) and 
-[`endFields`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/latest/Yafl#endFields) - and the longest is _only_ 81 lines
+[`defineFields`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#defineFields), 
+[`addWidget`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#addWidget) and 
+[`endFields`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#endFields) - and the longest is _only_ 81 lines
 of code. 
 
 These functions only need to be used once per project, and they are
@@ -337,9 +337,9 @@ option was to create a custom field from scratch.
 
 With `elm-yafl`, we now have a mechanism for fields to communicate with each
 other through message passing. At the top level of your app, you can
-[`intercept`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/latest/Yafl#intercept)
+[`intercept`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#intercept)
 messages that a field is sending to itself, and then
-[`send`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/latest/Yafl#send)
+[`send`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#send)
 messages to another field via the Elm runtime.
 
 ### Trade-offs
