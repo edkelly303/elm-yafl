@@ -9,6 +9,7 @@ module Yafl exposing
     , label, showFeedback
     , HasAddress, NoAddress, address, intercept, send, select
     , updateField, andUpdateField, selectField, andSelectField
+    , toDOT
     )
 
 {-| This library helps you build user input forms in Elm by creating and
@@ -269,13 +270,20 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 @docs updateField, andUpdateField, selectField, andSelectField
 
+
+# Debugging
+
+@docs toDOT
+
 -}
 
+import Dict
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
 import List.Extra
 import NestedTuple as NT
+import Regex
 import Task
 
 
@@ -299,9 +307,79 @@ type alias MaybeAddress =
 -}
 type Model model
     = Value Location model
-    | Both Location (Model model) (Model model)
-    | OneOf Location { selected : Int } (List ( String, Model model ))
+    | Map2 Location (Model model) (Model model)
+    | Choice Location { selected : Int } (List ( String, Model model ))
     | Empty Location
+
+
+{-| Convert a `Model` value into a Graphviz DOT String, which you can visualize
+using a tool such as <https://dreampuf.github.io/GraphvizOnline>
+-}
+toDOT : (model -> String) -> Model model -> String
+toDOT debugToString model =
+    let
+        escape str =
+            str
+                |> String.replace "\\" "\\\\"
+                |> String.replace "\"" "\\\""
+                |> String.replace "\\n" "\\\\n"
+                |> String.replace "\\r" "\\\\r"
+                |> String.replace "\\t" "\\\\t"
+                |> String.replace "\\b" "\\\\b"
+                |> String.replace "\\f" "\\\\f"
+
+        regex =
+            Regex.fromString "(?<=Just )[^,]+"
+                |> Maybe.withDefault Regex.never
+
+        match val =
+            Regex.find regex (escape (debugToString val)) |> List.map .match |> List.head |> Maybe.withDefault ""
+
+        toPathsAndLabels model_ =
+            case model_ of
+                Value loc val ->
+                    [ ( locationToPath loc, "\"Value: " ++ match val ++ "\"" ) ]
+
+                Map2 loc m1 m2 ->
+                    ( locationToPath loc, "Map2" ) :: toPathsAndLabels m1 ++ toPathsAndLabels m2
+
+                Choice loc _ ms ->
+                    ( locationToPath loc, "Choice" ) :: List.concatMap (\( _, m ) -> toPathsAndLabels m) ms
+
+                Empty loc ->
+                    [ ( locationToPath loc, "Empty" ) ]
+
+        pathDict =
+            model
+                |> toPathsAndLabels
+                |> List.indexedMap (\i ( p, l ) -> ( p, ( String.fromInt i, l ) ))
+                |> Dict.fromList
+
+        node i l =
+            i ++ " [ label = " ++ l ++ "]\n"
+
+        edge n1 n2 =
+            n1 ++ " -- " ++ n2 ++ "\n"
+
+        ( nodes, edges ) =
+            Dict.foldl
+                (\path ( index, label_ ) list ->
+                    ( node index label_
+                    , case Dict.get (List.drop 1 path) pathDict of
+                        Just ( parentIndex, _ ) ->
+                            edge parentIndex index
+
+                        Nothing ->
+                            ""
+                    )
+                        :: list
+                )
+                []
+                pathDict
+                |> List.unzip
+                |> Tuple.mapBoth (List.sort >> String.concat) (List.sort >> String.concat)
+    in
+    "strict graph {\n" ++ nodes ++ edges ++ "}"
 
 
 {-| The top-level message type for your form.
@@ -1030,7 +1108,7 @@ map2 f (Field field1) (Field field2) =
                     ( model2, cmd2 ) =
                         field2.init (1 :: path) field2.maybeAddress
                 in
-                ( Both (newLocation path maybeAddress) model1 model2
+                ( Map2 (newLocation path maybeAddress) model1 model2
                 , Cmd.batch
                     [ cmd1
                     , cmd2
@@ -1039,7 +1117,7 @@ map2 f (Field field1) (Field field2) =
         , update =
             \msg model ->
                 case model of
-                    Both location model1 model2 ->
+                    Map2 location model1 model2 ->
                         let
                             ( newModel1, cmd1 ) =
                                 field1.update msg model1
@@ -1047,7 +1125,7 @@ map2 f (Field field1) (Field field2) =
                             ( newModel2, cmd2 ) =
                                 field2.update msg model2
                         in
-                        ( Both location newModel1 newModel2
+                        ( Map2 location newModel1 newModel2
                         , Cmd.batch
                             [ cmd1, cmd2 ]
                         )
@@ -1057,7 +1135,7 @@ map2 f (Field field1) (Field field2) =
         , view =
             \config model ->
                 case model of
-                    Both _ model1 model2 ->
+                    Map2 _ model1 model2 ->
                         field1.view { config | label = field1.label, id = locationFromModel model1 |> locationToString } model1
                             ++ field2.view { config | label = field2.label, id = locationFromModel model1 |> locationToString } model2
 
@@ -1066,7 +1144,7 @@ map2 f (Field field1) (Field field2) =
         , subscriptions =
             \model ->
                 case model of
-                    Both _ model1 model2 ->
+                    Map2 _ model1 model2 ->
                         Sub.batch
                             [ field1.subscriptions model1
                             , field2.subscriptions model2
@@ -1077,7 +1155,7 @@ map2 f (Field field1) (Field field2) =
         , submit =
             \model ->
                 case model of
-                    Both _ model1 model2 ->
+                    Map2 _ model1 model2 ->
                         case ( field1.submit model1, field2.submit model2 ) of
                             ( Ok output1, Ok output2 ) ->
                                 Ok (f output1 output2)
@@ -1141,7 +1219,7 @@ andMap (Field field1) (Field field2) =
             | view =
                 \config model ->
                     case model of
-                        Both _ model1 model2 ->
+                        Map2 _ model1 model2 ->
                             field2.view { config | label = field2.label, id = locationFromModel model1 |> locationToString } model2
                                 ++ field1.view { config | label = field1.label, id = locationFromModel model2 |> locationToString } model1
 
@@ -1234,13 +1312,13 @@ andThen f (Field field) =
                             Err _ ->
                                 ( Empty (newLocation (1 :: path) Nothing), Cmd.none )
                 in
-                ( Both (newLocation path maybeAddress) model1 model2
+                ( Map2 (newLocation path maybeAddress) model1 model2
                 , Cmd.batch [ cmd1, cmd2 ]
                 )
         , update =
             \msg model ->
                 case model of
-                    Both location model1 model2 ->
+                    Map2 location model1 model2 ->
                         let
                             ( newModel1, cmd1 ) =
                                 field.update msg model1
@@ -1262,7 +1340,7 @@ andThen f (Field field) =
                                     Err _ ->
                                         ( model2, Cmd.none )
                         in
-                        ( Both location newModel1 newModel2
+                        ( Map2 location newModel1 newModel2
                         , Cmd.batch [ cmd1, cmd2 ]
                         )
 
@@ -1271,7 +1349,7 @@ andThen f (Field field) =
         , view =
             \config model ->
                 case model of
-                    Both _ model1 model2 ->
+                    Map2 _ model1 model2 ->
                         field.view { config | label = field.label, id = locationFromModel model1 |> locationToString } model1
                             ++ (case field.submit model1 of
                                     Ok output ->
@@ -1290,7 +1368,7 @@ andThen f (Field field) =
         , subscriptions =
             \model ->
                 case model of
-                    Both _ model1 model2 ->
+                    Map2 _ model1 model2 ->
                         Sub.batch
                             [ field.subscriptions model1
                             , case field.submit model1 of
@@ -1310,7 +1388,7 @@ andThen f (Field field) =
         , submit =
             \model ->
                 case model of
-                    Both _ model1 model2 ->
+                    Map2 _ model1 model2 ->
                         field.submit model1
                             |> Result.andThen
                                 (\output ->
@@ -1360,7 +1438,7 @@ showFeedback render (Field field) =
 choice : Field model msg NoAddress Never output
 choice =
     Field
-        { init = \path maybeAddress -> ( OneOf (newLocation path maybeAddress) { selected = 0 } [], Cmd.none )
+        { init = \path maybeAddress -> ( Choice (newLocation path maybeAddress) { selected = 0 } [], Cmd.none )
         , update = \_ model -> ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
@@ -1404,12 +1482,12 @@ option radioLabel (Field field) (Field choice_) =
         { init =
             \path _ ->
                 case choice_.init path choice_.maybeAddress of
-                    ( OneOf location selection options, choiceCmd ) ->
+                    ( Choice location selection options, choiceCmd ) ->
                         let
                             ( fieldModel, fieldCmd ) =
                                 field.init (List.length options :: path) field.maybeAddress
                         in
-                        ( OneOf location selection (( radioLabel, fieldModel ) :: options)
+                        ( Choice location selection (( radioLabel, fieldModel ) :: options)
                         , Cmd.batch [ choiceCmd, fieldCmd ]
                         )
 
@@ -1418,7 +1496,7 @@ option radioLabel (Field field) (Field choice_) =
         , update =
             \msg model ->
                 case model of
-                    OneOf location selection ((( fieldLabel, fieldModel ) :: choiceLabelsAndModels) as options) ->
+                    Choice location selection ((( fieldLabel, fieldModel ) :: choiceLabelsAndModels) as options) ->
                         let
                             fallback =
                                 let
@@ -1426,11 +1504,11 @@ option radioLabel (Field field) (Field choice_) =
                                         field.update msg fieldModel
 
                                     ( newChoiceModels, choiceCmd ) =
-                                        choice_.update msg (OneOf location selection choiceLabelsAndModels)
+                                        choice_.update msg (Choice location selection choiceLabelsAndModels)
                                 in
                                 case newChoiceModels of
-                                    OneOf _ _ options2 ->
-                                        ( OneOf location selection (( fieldLabel, newFieldModel ) :: options2)
+                                    Choice _ _ options2 ->
+                                        ( Choice location selection (( fieldLabel, newFieldModel ) :: options2)
                                         , Cmd.batch [ choiceCmd, fieldCmd ]
                                         )
 
@@ -1441,7 +1519,7 @@ option radioLabel (Field field) (Field choice_) =
                             OptionSelected locator ->
                                 case List.Extra.find (\( _, optionModel ) -> isLocated locator (locationFromModel optionModel)) options of
                                     Just ( _, optionModel ) ->
-                                        ( OneOf location
+                                        ( Choice location
                                             { selected =
                                                 pathFromModel optionModel
                                                     |> List.head
@@ -1462,7 +1540,7 @@ option radioLabel (Field field) (Field choice_) =
         , view =
             \config model ->
                 case model of
-                    OneOf location meta (( fieldLabel, fieldModel ) :: choiceModels) ->
+                    Choice location meta (( fieldLabel, fieldModel ) :: choiceModels) ->
                         let
                             radio idx lbl =
                                 H.label [ HA.class "yafl-radio-option" ]
@@ -1489,7 +1567,7 @@ option radioLabel (Field field) (Field choice_) =
                                             | label = choice_.label
                                             , id = "WHAT GOES HERE?" -- CHECK THIS?!!!
                                         }
-                                        (OneOf location meta choiceModels)
+                                        (Choice location meta choiceModels)
                                         |> List.drop 1
                                )
 
@@ -1498,9 +1576,9 @@ option radioLabel (Field field) (Field choice_) =
         , subscriptions =
             \model ->
                 case model of
-                    OneOf location meta (( _, fieldModel ) :: options) ->
+                    Choice location meta (( _, fieldModel ) :: options) ->
                         Sub.batch
-                            [ choice_.subscriptions (OneOf location meta options)
+                            [ choice_.subscriptions (Choice location meta options)
                             , field.subscriptions fieldModel
                             ]
 
@@ -1509,12 +1587,12 @@ option radioLabel (Field field) (Field choice_) =
         , submit =
             \model ->
                 case model of
-                    OneOf location meta (( _, fieldModel ) :: options) ->
+                    Choice location meta (( _, fieldModel ) :: options) ->
                         if meta.selected == List.length options then
                             field.submit fieldModel
 
                         else
-                            choice_.submit (OneOf location meta options)
+                            choice_.submit (Choice location meta options)
 
                     _ ->
                         Err []
@@ -1956,7 +2034,7 @@ internalUpdate update_ msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        Both location model1 model2 ->
+        Map2 location model1 model2 ->
             let
                 ( newModel1, cmd1 ) =
                     internalUpdate update_ msg model1
@@ -1964,11 +2042,11 @@ internalUpdate update_ msg model =
                 ( newModel2, cmd2 ) =
                     internalUpdate update_ msg model2
             in
-            ( Both location newModel1 newModel2
+            ( Map2 location newModel1 newModel2
             , Cmd.batch [ cmd1, cmd2 ]
             )
 
-        OneOf location selection options ->
+        Choice location selection options ->
             let
                 fallback =
                     let
@@ -1980,7 +2058,7 @@ internalUpdate update_ msg model =
                                 |> List.map (internalUpdate update_ msg)
                                 |> List.unzip
                     in
-                    ( OneOf location selection (List.Extra.zip labels newModels)
+                    ( Choice location selection (List.Extra.zip labels newModels)
                     , Cmd.batch cmds
                     )
             in
@@ -2004,7 +2082,7 @@ internalUpdate update_ msg model =
                             options
                     of
                         Just selected ->
-                            ( OneOf location { selected = selected } options
+                            ( Choice location { selected = selected } options
                             , Cmd.none
                             )
 
@@ -2021,7 +2099,7 @@ internalUpdate update_ msg model =
 locateOneOf : Locator -> Model model -> ( Model model, Cmd msg )
 locateOneOf locator model =
     case model of
-        OneOf location selection options ->
+        Choice location selection options ->
             case
                 List.Extra.findMap
                     (\( _, optionModel ) ->
@@ -2035,7 +2113,7 @@ locateOneOf locator model =
                     options
             of
                 Just selected ->
-                    ( OneOf location
+                    ( Choice location
                         { selected = selected }
                         options
                     , Cmd.none
@@ -2051,14 +2129,14 @@ locateOneOf locator model =
                                 |> List.map (locateOneOf locator)
                                 |> List.unzip
                     in
-                    ( OneOf location selection (List.Extra.zip labels newModels)
+                    ( Choice location selection (List.Extra.zip labels newModels)
                     , Cmd.batch cmds
                     )
 
         Value _ _ ->
             ( model, Cmd.none )
 
-        Both location model1 model2 ->
+        Map2 location model1 model2 ->
             let
                 ( newModel1, cmd1 ) =
                     locateOneOf locator model1
@@ -2066,7 +2144,7 @@ locateOneOf locator model =
                 ( newModel2, cmd2 ) =
                     locateOneOf locator model2
             in
-            ( Both location newModel1 newModel2
+            ( Map2 location newModel1 newModel2
             , Cmd.batch
                 [ cmd1, cmd2 ]
             )
@@ -2132,10 +2210,10 @@ locationFromModel model =
         Value loc _ ->
             loc
 
-        Both loc _ _ ->
+        Map2 loc _ _ ->
             loc
 
-        OneOf loc _ _ ->
+        Choice loc _ _ ->
             loc
 
         Empty loc ->
