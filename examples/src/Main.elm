@@ -8,6 +8,7 @@ import Widgets
 import Yafl
 
 
+
 {- Goal: create a form that will allow a user to create a value of the type
    below:
 -}
@@ -417,7 +418,8 @@ main =
                                 |> List.map (H.map FormUpdated)
                              )
                                 ++ [ H.button [] [ H.text "Submit" ]
-                                , H.pre [] [H.text (Yafl.toDOT Debug.toString formModel) ]]
+                                   , H.pre [] [ H.text (Yafl.toDOT Debug.toString formModel) ]
+                                   ]
                             )
 
                     ViewingDog dog ->
