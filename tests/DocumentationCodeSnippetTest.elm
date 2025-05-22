@@ -268,7 +268,7 @@ tests =
                                     (Result.Err
                                         [ { message = "Oh no, you failed!"
                                           , fail = Basics.True
-                                          , path = [ 0, 0 ]
+                                          , locator = Yafl.ByPath [ 0, 0 ]
                                           }
                                         ]
                                     )
@@ -401,7 +401,7 @@ tests =
                                 |> Expect.equal
                                     (Result.Err
                                         [ { message = "Oh dear!"
-                                          , path = [ 0 ]
+                                          , locator = Yafl.ByPath [ 0 ]
                                           , fail = Basics.True
                                           }
                                         ]
@@ -518,7 +518,7 @@ tests =
                                     (Result.Err
                                         [ { message = "Oh no, you failed!"
                                           , fail = Basics.True
-                                          , path = [ 0, 0 ]
+                                          , locator = Yafl.ByPath [ 0, 0 ]
                                           }
                                         ]
                                     )

@@ -2,8 +2,6 @@ module Visualize exposing (draw)
 
 import Html as H
 import Html.Attributes as HA
-import Internal
-import Location
 import Svg
 import Svg.Attributes
 import TreeDiagram
@@ -31,7 +29,7 @@ draw tree =
 
 showLocation : Internal.Location -> List String
 showLocation location =
-    Location.toString location
+    Location.locationToString location
         :: (case Location.toMaybeAddress location of
                 Nothing ->
                     []

@@ -1,7 +1,7 @@
 module Yafl exposing
     ( Widget
     , Field, defineFields, addWidget, endFields
-    , Model, Msg, init, update, view, ViewConfig, subscriptions, submit, Feedback, Path
+    , Model, Msg, init, update, view, ViewConfig, subscriptions, submit, Feedback, Path, Locator(..)
     , succeed, fail, failAt
     , map, andThen
     , map2, andMap
@@ -189,7 +189,7 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 
     --> Ok 0
 
-@docs Model, Msg, init, update, view, ViewConfig, subscriptions, submit, Feedback, Path
+@docs Model, Msg, init, update, view, ViewConfig, subscriptions, submit, Feedback, Path, Locator
 
 
 # Combining Fields
@@ -274,29 +274,48 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
-import Internal exposing (Locator(..), MaybeAddress, Model(..), Msg(..), Path)
 import List.Extra
-import Location
 import NestedTuple as NT
 import Task
 
 
+{-| Internal type, we probably don't need to expose this...
+-}
+type Locator
+    = ByPath Path
+    | ByAddress String
+
+
+type Location
+    = Located Path
+    | Addressed Path String
+
+
+type alias MaybeAddress =
+    Maybe String
+
+
 {-| The top-level model type for your form.
 -}
-type alias Model model =
-    Internal.Model model
+type Model model
+    = Value Location model
+    | Both Location (Model model) (Model model)
+    | OneOf Location { selected : Int } (List ( String, Model model ))
+    | Empty Location
 
 
 {-| The top-level message type for your form.
 -}
-type alias Msg msg =
-    Internal.Msg msg
+type Msg msg
+    = ValueChanged Locator msg
+    | OptionSelected Locator
+    | Noop
 
 
 {-| An internal data type used to track the location of a [`Field`](#Field) within the form.
 -}
 type alias Path =
-    Internal.Path
+    List Int
 
 
 {-| Forms are composed of `Field`s - this is the main data type we'll be using in this package.
@@ -438,7 +457,7 @@ view (Field field) model =
     field.view
         { label = field.label
         , feedback = feedback
-        , id = Location.fromModel model |> Location.toString
+        , id = locationFromModel model |> locationToString
         }
         model
 
@@ -457,6 +476,10 @@ view (Field field) model =
             |> Tuple.first
 
     Yafl.subscriptions form model
+
+    --: Sub (Yafl.Msg Fields.Msg)
+
+    model
 
     --: Sub (Yafl.Msg Fields.Msg)
 
@@ -721,7 +744,7 @@ andUpdateField field innerMsg ( model, cmd1 ) =
     model
         |> Yafl.submit myChoiceField
 
-    --> Err [ { message = "Oh no, you failed!", fail = True, locator = [ 0, 0 ] } ]
+    --> Err [ { message = "Oh no, you failed!", fail = True, locator = Yafl.ByPath [ 0, 0 ] } ]
 
     model
         |> Yafl.selectField myAddressedField
@@ -767,7 +790,7 @@ selectField (Field field) model =
         |> Tuple.first
         |> Yafl.submit myChoiceField
 
-    --> Err [ { message = "Oh no, you failed!", fail = True, locator = [ 0, 0 ] } ]
+    --> Err [ { message = "Oh no, you failed!", fail = True, locator = Yafl.ByPath [ 0, 0 ] } ]
 
     modelAndCmd
         |> Yafl.andSelectField myAddressedField
@@ -816,7 +839,7 @@ andSelectField field ( model, cmd1 ) =
 succeed : output -> Field model msg address innerMsg output
 succeed f =
     Field
-        { init = \path maybeAddress -> ( Empty (Location.new path maybeAddress), Cmd.none )
+        { init = \path maybeAddress -> ( Empty (newLocation path maybeAddress), Cmd.none )
         , update =
             \msg model ->
                 case msg of
@@ -849,13 +872,13 @@ succeed f =
 
     Yafl.submit form model
 
-    --> Err [ { message = "Oh dear!", locator = [ 0 ], fail = True } ]
+    --> Err [ { message = "Oh dear!", locator = Yafl.ByPath [ 0 ], fail = True } ]
 
 -}
 fail : String -> Field model msg address innerMsg output
 fail e =
     Field
-        { init = \path maybeAddress -> ( Empty (Location.new path maybeAddress), Cmd.none )
+        { init = \path maybeAddress -> ( Empty (newLocation path maybeAddress), Cmd.none )
         , update =
             \msg model ->
                 case msg of
@@ -871,7 +894,7 @@ fail e =
                 Err
                     [ { message = e
                       , fail = True
-                      , locator = Location.fromModel model |> Location.toLocator
+                      , locator = locationFromModel model |> locationToLocator
                       }
                     ]
         , send = \_ _ -> Noop
@@ -889,7 +912,7 @@ error message on one specific field.
 failAt : Field model msg HasAddress innerMsg1 output1 -> String -> Field model msg address2 innerMsg2 output2
 failAt (Field failField) e =
     Field
-        { init = \path maybeAddress -> ( Empty (Location.new path maybeAddress), Cmd.none )
+        { init = \path maybeAddress -> ( Empty (newLocation path maybeAddress), Cmd.none )
         , update =
             \msg model ->
                 case msg of
@@ -913,7 +936,7 @@ failAt (Field failField) e =
                         Nothing ->
                             { message = "FATAL ERROR in `failAt` function"
                             , fail = True
-                            , locator = Location.locatorFromModel model
+                            , locator = locatorFromModel model
                             }
                     ]
         , send = \_ _ -> Noop
@@ -1007,7 +1030,7 @@ map2 f (Field field1) (Field field2) =
                     ( model2, cmd2 ) =
                         field2.init (1 :: path) field2.maybeAddress
                 in
-                ( Both (Location.new path maybeAddress) model1 model2
+                ( Both (newLocation path maybeAddress) model1 model2
                 , Cmd.batch
                     [ cmd1
                     , cmd2
@@ -1035,8 +1058,8 @@ map2 f (Field field1) (Field field2) =
             \config model ->
                 case model of
                     Both _ model1 model2 ->
-                        field1.view { config | label = field1.label, id = Location.fromModel model1 |> Location.toString } model1
-                            ++ field2.view { config | label = field2.label, id = Location.fromModel model1 |> Location.toString } model2
+                        field1.view { config | label = field1.label, id = locationFromModel model1 |> locationToString } model1
+                            ++ field2.view { config | label = field2.label, id = locationFromModel model1 |> locationToString } model2
 
                     _ ->
                         []
@@ -1072,7 +1095,7 @@ map2 f (Field field1) (Field field2) =
                         Err
                             [ { message = "weird map2 error"
                               , fail = True
-                              , locator = Location.locatorFromModel model
+                              , locator = locatorFromModel model
                               }
                             ]
         , send = \_ msg -> never msg
@@ -1119,8 +1142,8 @@ andMap (Field field1) (Field field2) =
                 \config model ->
                     case model of
                         Both _ model1 model2 ->
-                            field2.view { config | label = field2.label, id = Location.fromModel model1 |> Location.toString } model2
-                                ++ field1.view { config | label = field1.label, id = Location.fromModel model2 |> Location.toString } model1
+                            field2.view { config | label = field2.label, id = locationFromModel model1 |> locationToString } model2
+                                ++ field1.view { config | label = field1.label, id = locationFromModel model2 |> locationToString } model1
 
                         _ ->
                             []
@@ -1209,9 +1232,9 @@ andThen f (Field field) =
                                 field2.init (1 :: path) field2.maybeAddress
 
                             Err _ ->
-                                ( Empty (Location.new (1 :: path) Nothing), Cmd.none )
+                                ( Empty (newLocation (1 :: path) Nothing), Cmd.none )
                 in
-                ( Both (Location.new path maybeAddress) model1 model2
+                ( Both (newLocation path maybeAddress) model1 model2
                 , Cmd.batch [ cmd1, cmd2 ]
                 )
         , update =
@@ -1231,7 +1254,7 @@ andThen f (Field field) =
                                         in
                                         case model2 of
                                             Empty _ ->
-                                                field2.init (1 :: Location.pathFromModel model) field2.maybeAddress
+                                                field2.init (1 :: pathFromModel model) field2.maybeAddress
 
                                             _ ->
                                                 field2.update msg model2
@@ -1249,14 +1272,14 @@ andThen f (Field field) =
             \config model ->
                 case model of
                     Both _ model1 model2 ->
-                        field.view { config | label = field.label, id = Location.fromModel model1 |> Location.toString } model1
+                        field.view { config | label = field.label, id = locationFromModel model1 |> locationToString } model1
                             ++ (case field.submit model1 of
                                     Ok output ->
                                         let
                                             (Field field2) =
                                                 f output
                                         in
-                                        field2.view { config | label = field2.label, id = Location.fromModel model2 |> Location.toString } model2
+                                        field2.view { config | label = field2.label, id = locationFromModel model2 |> locationToString } model2
 
                                     Err _ ->
                                         []
@@ -1301,7 +1324,7 @@ andThen f (Field field) =
                     _ ->
                         Err
                             [ { message = "Fatal error, expecting a `Both` node"
-                              , locator = Location.locatorFromModel model
+                              , locator = locatorFromModel model
                               , fail = True
                               }
                             ]
@@ -1326,7 +1349,7 @@ showFeedback render (Field field) =
                 \config model ->
                     let
                         relevantFeedback =
-                            List.filter (\f -> Location.isLocated f.locator (Location.fromModel model)) config.feedback
+                            List.filter (\f -> isLocated f.locator (locationFromModel model)) config.feedback
                     in
                     field.view config model ++ [ render relevantFeedback ]
         }
@@ -1337,7 +1360,7 @@ showFeedback render (Field field) =
 choice : Field model msg NoAddress Never output
 choice =
     Field
-        { init = \path maybeAddress -> ( OneOf (Location.new path maybeAddress) { selected = 0 } [], Cmd.none )
+        { init = \path maybeAddress -> ( OneOf (newLocation path maybeAddress) { selected = 0 } [], Cmd.none )
         , update = \_ model -> ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
@@ -1416,11 +1439,11 @@ option radioLabel (Field field) (Field choice_) =
                         in
                         case msg of
                             OptionSelected locator ->
-                                case List.Extra.find (\( _, optionModel ) -> Location.isLocated locator (Location.fromModel optionModel)) options of
+                                case List.Extra.find (\( _, optionModel ) -> isLocated locator (locationFromModel optionModel)) options of
                                     Just ( _, optionModel ) ->
                                         ( OneOf location
                                             { selected =
-                                                Location.pathFromModel optionModel
+                                                pathFromModel optionModel
                                                     |> List.head
                                                     |> Maybe.withDefault 0
                                             }
@@ -1446,7 +1469,7 @@ option radioLabel (Field field) (Field choice_) =
                                     [ H.input
                                         [ HA.type_ "radio"
                                         , HA.name config.label
-                                        , HE.onClick (OptionSelected (ByPath (idx :: Location.toPath location)))
+                                        , HE.onClick (OptionSelected (ByPath (idx :: locationToPath location)))
                                         , HA.checked (meta.selected == idx)
                                         ]
                                         []
@@ -1456,9 +1479,9 @@ option radioLabel (Field field) (Field choice_) =
                             labels =
                                 List.map Tuple.first (List.reverse choiceModels) ++ [ fieldLabel ]
                         in
-                        H.fieldset [HA.id (Location.toString location)] (H.legend [] [ H.text config.label ] :: List.indexedMap radio labels)
+                        H.fieldset [ HA.id (locationToString location) ] (H.legend [] [ H.text config.label ] :: List.indexedMap radio labels)
                             :: (if meta.selected == List.length choiceModels then
-                                    field.view { config | label = field.label, id = Location.fromModel fieldModel |> Location.toString } fieldModel
+                                    field.view { config | label = field.label, id = locationFromModel fieldModel |> locationToString } fieldModel
 
                                 else
                                     choice_.view
@@ -1828,12 +1851,12 @@ wrapWithTrees args =
             \path maybeAddress ->
                 let
                     location =
-                        Location.new path maybeAddress
+                        newLocation path maybeAddress
                 in
                 args.init
                     |> Tuple.mapBoth
                         (\model -> Value location model)
-                        (\cmd -> Cmd.map (ValueChanged (Location.toLocator location)) cmd)
+                        (\cmd -> Cmd.map (ValueChanged (locationToLocator location)) cmd)
         , update =
             \msg model ->
                 internalUpdate args.update msg model
@@ -1841,15 +1864,15 @@ wrapWithTrees args =
             \config model ->
                 let
                     location =
-                        Location.fromModel model
+                        locationFromModel model
 
                     relevantFeedback =
-                        List.filter (\f -> Location.isLocated f.locator location) config.feedback
+                        List.filter (\f -> isLocated f.locator location) config.feedback
 
                     ( model_, mapper ) =
                         case model of
                             Value _ model__ ->
-                                ( model__, ValueChanged (Location.toLocator location) )
+                                ( model__, ValueChanged (locationToLocator location) )
 
                             _ ->
                                 ( args.blankModel, always Noop )
@@ -1866,7 +1889,7 @@ wrapWithTrees args =
                                     List.map
                                         (\err ->
                                             { err
-                                                | locator = Location.toLocator location
+                                                | locator = locationToLocator location
                                             }
                                         )
                                         errs
@@ -1879,7 +1902,7 @@ wrapWithTrees args =
                 case model of
                     Value location model_ ->
                         args.subscriptions model_
-                            |> Sub.map (ValueChanged (Location.toLocator location))
+                            |> Sub.map (ValueChanged (locationToLocator location))
 
                     _ ->
                         Sub.none
@@ -1918,13 +1941,13 @@ internalUpdate update_ msg model =
         Value location innerModel ->
             case msg of
                 ValueChanged locator innerMsg ->
-                    if Location.isLocated locator location then
+                    if isLocated locator location then
                         let
                             ( newModel, cmd ) =
                                 update_ innerMsg innerModel
                         in
                         ( Value location newModel
-                        , Cmd.map (ValueChanged (Location.toLocator location)) cmd
+                        , Cmd.map (ValueChanged (locationToLocator location)) cmd
                         )
 
                     else
@@ -1968,11 +1991,11 @@ internalUpdate update_ msg model =
                             (\( _, optionModel ) ->
                                 let
                                     optionLocation =
-                                        Location.fromModel optionModel
+                                        locationFromModel optionModel
                                 in
-                                if Location.isLocated locator optionLocation then
+                                if isLocated locator optionLocation then
                                     optionLocation
-                                        |> Location.toPath
+                                        |> locationToPath
                                         |> List.head
 
                                 else
@@ -2002,8 +2025,8 @@ locateOneOf locator model =
             case
                 List.Extra.findMap
                     (\( _, optionModel ) ->
-                        if Location.isLocated locator (Location.fromModel optionModel) then
-                            Location.pathFromModel optionModel
+                        if isLocated locator (locationFromModel optionModel) then
+                            pathFromModel optionModel
                                 |> List.head
 
                         else
@@ -2082,3 +2105,84 @@ end ender prev =
 endFolder5 : ((acc -> empty -> empty -> empty -> empty -> empty -> acc) -> folder5) -> folder5
 endFolder5 =
     end (\acc _ _ _ _ _ -> acc)
+
+
+locationToString : Location -> String
+locationToString location =
+    location
+        |> locationToPath
+        |> List.reverse
+        |> List.map String.fromInt
+        |> String.join "."
+
+
+newLocation : Path -> Maybe String -> Location
+newLocation path maybeAddress =
+    case maybeAddress of
+        Nothing ->
+            Located path
+
+        Just address_ ->
+            Addressed path address_
+
+
+locationFromModel : Model model -> Location
+locationFromModel model =
+    case model of
+        Value loc _ ->
+            loc
+
+        Both loc _ _ ->
+            loc
+
+        OneOf loc _ _ ->
+            loc
+
+        Empty loc ->
+            loc
+
+
+pathFromModel : Model model -> Path
+pathFromModel =
+    locationFromModel >> locationToPath
+
+
+locationToPath : Location -> Path
+locationToPath location =
+    case location of
+        Located path_ ->
+            path_
+
+        Addressed path_ _ ->
+            path_
+
+
+isLocated : Locator -> Location -> Bool
+isLocated locator location =
+    case ( locator, location ) of
+        ( ByPath path1, Located path2 ) ->
+            path1 == path2
+
+        ( ByPath path1, Addressed path2 _ ) ->
+            path1 == path2
+
+        ( ByAddress address1, Addressed _ address2 ) ->
+            address1 == address2
+
+        ( ByAddress _, Located _ ) ->
+            False
+
+
+locationToLocator : Location -> Locator
+locationToLocator location =
+    case location of
+        Located path ->
+            ByPath path
+
+        Addressed _ address_ ->
+            ByAddress address_
+
+
+locatorFromModel : Model model -> Locator
+locatorFromModel =
+    locationFromModel >> locationToLocator
