@@ -312,14 +312,14 @@ The `FormModel` type would remain exactly the same.
 ### 2. API type complexity and hideous error messages
 
 In `elm-any-type-forms`, the type signatures of many of the functions are
-completely insane - in some cases, they are literally hundreds of lines of code.
+completely insane - in some cases, they are hundreds of lines of code.
 
 In fact, the type annotations got so long that the Elm 0.19.1 compiler refused
 to allow me to publish the package, so I had to use an earlier compiler version
 to get it published (thank you Dillon Kearns for teaching me this trick!)
 
 If you misused any of these functions, the compiler would often spend several
-seconds printing out literally thousands of lines of error messages, which
+seconds printing out thousands of lines of error messages, which
 was... somewhat offputting for most users?
 
 In `elm-yafl`, there are only three functions that have crazy type signatures:
