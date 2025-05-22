@@ -238,6 +238,7 @@ main =
         , subscriptions = \model -> Yafl.subscriptions user model
         }
 
+
 -- DOC TESTS
 main --: Program () (Yafl.Model FormModel) (Yafl.Msg FormMsg )
 ```
@@ -256,8 +257,8 @@ had some serious shortcomings:
 
 ### 1. Userland type complexity
 
-With `elm-any-type-forms`, the types of the forms became more complex every time
-you added a new field. For a type as simple as:
+With `elm-any-type-forms`, the types of the forms quickly became very complex.
+For a type as simple as:
 
 ```elm
 type Foo
