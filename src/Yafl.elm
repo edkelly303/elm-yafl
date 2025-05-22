@@ -2224,6 +2224,8 @@ locatorFromModel =
 
 {-| Convert a `Model` value into a Graphviz DOT String, which you can visualize
 using a tool such as <https://dreampuf.github.io/GraphvizOnline>
+
+As the first argument, you should pass in `Debug.toString`.
 -}
 toDOT : (model -> String) -> Model model -> String
 toDOT debugToString model =
