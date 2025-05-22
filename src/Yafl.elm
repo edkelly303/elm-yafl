@@ -312,76 +312,6 @@ type Model model
     | Empty Location
 
 
-{-| Convert a `Model` value into a Graphviz DOT String, which you can visualize
-using a tool such as <https://dreampuf.github.io/GraphvizOnline>
--}
-toDOT : (model -> String) -> Model model -> String
-toDOT debugToString model =
-    let
-        escape str =
-            str
-                |> String.replace "\\" "\\\\"
-                |> String.replace "\"" "\\\""
-                |> String.replace "\\n" "\\\\n"
-                |> String.replace "\\r" "\\\\r"
-                |> String.replace "\\t" "\\\\t"
-                |> String.replace "\\b" "\\\\b"
-                |> String.replace "\\f" "\\\\f"
-
-        regex =
-            Regex.fromString "(?<=Just )[^,]+"
-                |> Maybe.withDefault Regex.never
-
-        match val =
-            Regex.find regex (escape (debugToString val)) |> List.map .match |> List.head |> Maybe.withDefault ""
-
-        toPathsAndLabels model_ =
-            case model_ of
-                Value loc val ->
-                    [ ( locationToPath loc, "\"Value: " ++ match val ++ "\"" ) ]
-
-                Map2 loc m1 m2 ->
-                    ( locationToPath loc, "Map2" ) :: toPathsAndLabels m1 ++ toPathsAndLabels m2
-
-                Choice loc _ ms ->
-                    ( locationToPath loc, "Choice" ) :: List.concatMap (\( _, m ) -> toPathsAndLabels m) ms
-
-                Empty loc ->
-                    [ ( locationToPath loc, "Empty" ) ]
-
-        pathDict =
-            model
-                |> toPathsAndLabels
-                |> List.indexedMap (\i ( p, l ) -> ( p, ( String.fromInt i, l ) ))
-                |> Dict.fromList
-
-        node i l =
-            i ++ " [ label = " ++ l ++ "]\n"
-
-        edge n1 n2 =
-            n1 ++ " -- " ++ n2 ++ "\n"
-
-        ( nodes, edges ) =
-            Dict.foldl
-                (\path ( index, label_ ) list ->
-                    ( node index label_
-                    , case Dict.get (List.drop 1 path) pathDict of
-                        Just ( parentIndex, _ ) ->
-                            edge parentIndex index
-
-                        Nothing ->
-                            ""
-                    )
-                        :: list
-                )
-                []
-                pathDict
-                |> List.unzip
-                |> Tuple.mapBoth (List.sort >> String.concat) (List.sort >> String.concat)
-    in
-    "strict graph {\n" ++ nodes ++ edges ++ "}"
-
-
 {-| The top-level message type for your form.
 -}
 type Msg msg
@@ -2185,6 +2115,19 @@ endFolder5 =
     end (\acc _ _ _ _ _ -> acc)
 
 
+
+{-
+   db       .d88b.   .o88b.  .d8b.  d888888b d888888b  .d88b.  d8b   db
+   88      .8P  Y8. d8P  Y8 d8' `8b `~~88~~'   `88'   .8P  Y8. 888o  88
+   88      88    88 8P      88ooo88    88       88    88    88 88V8o 88
+   88      88    88 8b      88~~~88    88       88    88    88 88 V8o88
+   88booo. `8b  d8' Y8b  d8 88   88    88      .88.   `8b  d8' 88  V888
+   Y88888P  `Y88P'   `Y88P' YP   YP    YP    Y888888P  `Y88P'  VP   V8P
+
+
+-}
+
+
 locationToString : Location -> String
 locationToString location =
     location
@@ -2264,3 +2207,86 @@ locationToLocator location =
 locatorFromModel : Model model -> Locator
 locatorFromModel =
     locationFromModel >> locationToLocator
+
+
+
+{-
+    d888b  d8888b.  .d8b.  d8888b. db   db db    db d888888b d88888D
+   88' Y8b 88  `8D d8' `8b 88  `8D 88   88 88    88   `88'   YP  d8'
+   88      88oobY' 88ooo88 88oodD' 88ooo88 Y8    8P    88       d8'
+   88  ooo 88`8b   88~~~88 88~~~   88~~~88 `8b  d8'    88      d8'
+   88. ~8~ 88 `88. 88   88 88      88   88  `8bd8'    .88.    d8' db
+    Y888P  88   YD YP   YP 88      YP   YP    YP    Y888888P d88888P
+
+
+-}
+
+
+{-| Convert a `Model` value into a Graphviz DOT String, which you can visualize
+using a tool such as <https://dreampuf.github.io/GraphvizOnline>
+-}
+toDOT : (model -> String) -> Model model -> String
+toDOT debugToString model =
+    let
+        escape str =
+            str
+                |> String.replace "\\" "\\\\"
+                |> String.replace "\"" "\\\""
+                |> String.replace "\\n" "\\\\n"
+                |> String.replace "\\r" "\\\\r"
+                |> String.replace "\\t" "\\\\t"
+                |> String.replace "\\b" "\\\\b"
+                |> String.replace "\\f" "\\\\f"
+
+        regex =
+            Regex.fromString "(?<=Just )[^,]+"
+                |> Maybe.withDefault Regex.never
+
+        match val =
+            Regex.find regex (escape (debugToString val)) |> List.map .match |> List.head |> Maybe.withDefault ""
+
+        toPathsAndLabels model_ =
+            case model_ of
+                Value loc val ->
+                    [ ( locationToPath loc, "\"Value: " ++ match val ++ "\"" ) ]
+
+                Map2 loc m1 m2 ->
+                    ( locationToPath loc, "Map2" ) :: toPathsAndLabels m1 ++ toPathsAndLabels m2
+
+                Choice loc _ ms ->
+                    ( locationToPath loc, "Choice" ) :: List.concatMap (\( _, m ) -> toPathsAndLabels m) ms
+
+                Empty loc ->
+                    [ ( locationToPath loc, "Empty" ) ]
+
+        pathDict =
+            model
+                |> toPathsAndLabels
+                |> List.indexedMap (\i ( p, l ) -> ( p, ( String.fromInt i, l ) ))
+                |> Dict.fromList
+
+        node i l =
+            i ++ " [ label = " ++ l ++ "]\n"
+
+        edge n1 n2 =
+            n1 ++ " -- " ++ n2 ++ "\n"
+
+        ( nodes, edges ) =
+            Dict.foldl
+                (\path ( index, label_ ) list ->
+                    ( node index label_
+                    , case Dict.get (List.drop 1 path) pathDict of
+                        Just ( parentIndex, _ ) ->
+                            edge parentIndex index
+
+                        Nothing ->
+                            ""
+                    )
+                        :: list
+                )
+                []
+                pathDict
+                |> List.unzip
+                |> Tuple.mapBoth (List.sort >> String.concat) (List.sort >> String.concat)
+    in
+    "strict graph {\n" ++ nodes ++ edges ++ "}"
