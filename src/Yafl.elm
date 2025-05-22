@@ -307,9 +307,14 @@ type alias MaybeAddress =
 -}
 type Model model
     = Value Location model
-    | Map2 Location (Model model) (Model model)
+    | Both ProductType Location (Model model) (Model model)
     | Choice Location { selected : Int } (List ( String, Model model ))
     | Empty Location
+
+
+type ProductType
+    = Map2
+    | AndThen
 
 
 {-| The top-level message type for your form.
@@ -1038,7 +1043,7 @@ map2 f (Field field1) (Field field2) =
                     ( model2, cmd2 ) =
                         field2.init (1 :: path) field2.maybeAddress
                 in
-                ( Map2 (newLocation path maybeAddress) model1 model2
+                ( Both Map2 (newLocation path maybeAddress) model1 model2
                 , Cmd.batch
                     [ cmd1
                     , cmd2
@@ -1047,7 +1052,7 @@ map2 f (Field field1) (Field field2) =
         , update =
             \msg model ->
                 case model of
-                    Map2 location model1 model2 ->
+                    Both typ location model1 model2 ->
                         let
                             ( newModel1, cmd1 ) =
                                 field1.update msg model1
@@ -1055,7 +1060,7 @@ map2 f (Field field1) (Field field2) =
                             ( newModel2, cmd2 ) =
                                 field2.update msg model2
                         in
-                        ( Map2 location newModel1 newModel2
+                        ( Both typ location newModel1 newModel2
                         , Cmd.batch
                             [ cmd1, cmd2 ]
                         )
@@ -1065,7 +1070,7 @@ map2 f (Field field1) (Field field2) =
         , view =
             \config model ->
                 case model of
-                    Map2 _ model1 model2 ->
+                    Both typ _ model1 model2 ->
                         field1.view { config | label = field1.label, id = locationFromModel model1 |> locationToString } model1
                             ++ field2.view { config | label = field2.label, id = locationFromModel model1 |> locationToString } model2
 
@@ -1074,7 +1079,7 @@ map2 f (Field field1) (Field field2) =
         , subscriptions =
             \model ->
                 case model of
-                    Map2 _ model1 model2 ->
+                    Both typ _ model1 model2 ->
                         Sub.batch
                             [ field1.subscriptions model1
                             , field2.subscriptions model2
@@ -1085,7 +1090,7 @@ map2 f (Field field1) (Field field2) =
         , submit =
             \model ->
                 case model of
-                    Map2 _ model1 model2 ->
+                    Both typ _ model1 model2 ->
                         case ( field1.submit model1, field2.submit model2 ) of
                             ( Ok output1, Ok output2 ) ->
                                 Ok (f output1 output2)
@@ -1149,7 +1154,7 @@ andMap (Field field1) (Field field2) =
             | view =
                 \config model ->
                     case model of
-                        Map2 _ model1 model2 ->
+                        Both typ _ model1 model2 ->
                             field2.view { config | label = field2.label, id = locationFromModel model1 |> locationToString } model2
                                 ++ field1.view { config | label = field1.label, id = locationFromModel model2 |> locationToString } model1
 
@@ -1231,24 +1236,31 @@ andThen f (Field field) =
                         field.init (0 :: path) field.maybeAddress
 
                     ( model2, cmd2 ) =
+                        let
+                            path2 =
+                                1 :: path
+                        in
                         case field.submit model1 of
                             Ok output ->
                                 let
                                     (Field field2) =
                                         f output
                                 in
-                                field2.init (1 :: path) field2.maybeAddress
+                                field2.init path2 field2.maybeAddress
 
                             Err _ ->
-                                ( Empty (newLocation (1 :: path) Nothing), Cmd.none )
+                                ( Empty (newLocation path2 Nothing), Cmd.none )
+
+                    location =
+                        newLocation path maybeAddress
                 in
-                ( Map2 (newLocation path maybeAddress) model1 model2
+                ( Both AndThen location model1 model2
                 , Cmd.batch [ cmd1, cmd2 ]
                 )
         , update =
             \msg model ->
                 case model of
-                    Map2 location model1 model2 ->
+                    Both typ location model1 model2 ->
                         let
                             ( newModel1, cmd1 ) =
                                 field.update msg model1
@@ -1261,8 +1273,8 @@ andThen f (Field field) =
                                                 f output
                                         in
                                         case model2 of
-                                            Empty _ ->
-                                                field2.init (1 :: pathFromModel model) field2.maybeAddress
+                                            Empty location2 ->
+                                                field2.init (locationToPath location2) field2.maybeAddress
 
                                             _ ->
                                                 field2.update msg model2
@@ -1270,7 +1282,7 @@ andThen f (Field field) =
                                     Err _ ->
                                         ( model2, Cmd.none )
                         in
-                        ( Map2 location newModel1 newModel2
+                        ( Both typ location newModel1 newModel2
                         , Cmd.batch [ cmd1, cmd2 ]
                         )
 
@@ -1279,7 +1291,7 @@ andThen f (Field field) =
         , view =
             \config model ->
                 case model of
-                    Map2 _ model1 model2 ->
+                    Both typ _ model1 model2 ->
                         field.view { config | label = field.label, id = locationFromModel model1 |> locationToString } model1
                             ++ (case field.submit model1 of
                                     Ok output ->
@@ -1298,7 +1310,7 @@ andThen f (Field field) =
         , subscriptions =
             \model ->
                 case model of
-                    Map2 _ model1 model2 ->
+                    Both typ _ model1 model2 ->
                         Sub.batch
                             [ field.subscriptions model1
                             , case field.submit model1 of
@@ -1318,7 +1330,7 @@ andThen f (Field field) =
         , submit =
             \model ->
                 case model of
-                    Map2 _ model1 model2 ->
+                    Both typ _ model1 model2 ->
                         field.submit model1
                             |> Result.andThen
                                 (\output ->
@@ -1964,7 +1976,7 @@ internalUpdate update_ msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        Map2 location model1 model2 ->
+        Both typ location model1 model2 ->
             let
                 ( newModel1, cmd1 ) =
                     internalUpdate update_ msg model1
@@ -1972,7 +1984,7 @@ internalUpdate update_ msg model =
                 ( newModel2, cmd2 ) =
                     internalUpdate update_ msg model2
             in
-            ( Map2 location newModel1 newModel2
+            ( Both typ location newModel1 newModel2
             , Cmd.batch [ cmd1, cmd2 ]
             )
 
@@ -2066,7 +2078,7 @@ locateOneOf locator model =
         Value _ _ ->
             ( model, Cmd.none )
 
-        Map2 location model1 model2 ->
+        Both typ location model1 model2 ->
             let
                 ( newModel1, cmd1 ) =
                     locateOneOf locator model1
@@ -2074,7 +2086,7 @@ locateOneOf locator model =
                 ( newModel2, cmd2 ) =
                     locateOneOf locator model2
             in
-            ( Map2 location newModel1 newModel2
+            ( Both typ location newModel1 newModel2
             , Cmd.batch
                 [ cmd1, cmd2 ]
             )
@@ -2153,7 +2165,7 @@ locationFromModel model =
         Value loc _ ->
             loc
 
-        Map2 loc _ _ ->
+        Both typ loc _ _ ->
             loc
 
         Choice loc _ _ ->
@@ -2226,6 +2238,7 @@ locatorFromModel =
 using a tool such as <https://dreampuf.github.io/GraphvizOnline>
 
 As the first argument, you should pass in `Debug.toString`.
+
 -}
 toDOT : (model -> String) -> Model model -> String
 toDOT debugToString model =
@@ -2250,16 +2263,19 @@ toDOT debugToString model =
         toPathsAndLabels model_ =
             case model_ of
                 Value loc val ->
-                    [ ( locationToPath loc, "\"Value: " ++ match val ++ "\"" ) ]
+                    [ ( locationToPath loc, "\"" ++ locationToString loc ++ ": Value: " ++ match val ++ "\"" ) ]
 
-                Map2 loc m1 m2 ->
-                    ( locationToPath loc, "Map2" ) :: toPathsAndLabels m1 ++ toPathsAndLabels m2
+                Both Map2 loc m1 m2 ->
+                    ( locationToPath loc, "\"" ++ locationToString loc ++ ": Map2\"" ) :: toPathsAndLabels m1 ++ toPathsAndLabels m2
+
+                Both AndThen loc m1 m2 ->
+                    ( locationToPath loc, "\"" ++ locationToString loc ++ ": AndThen\"" ) :: toPathsAndLabels m1 ++ toPathsAndLabels m2
 
                 Choice loc _ ms ->
-                    ( locationToPath loc, "Choice" ) :: List.concatMap (\( _, m ) -> toPathsAndLabels m) ms
+                    ( locationToPath loc, "\"" ++ locationToString loc ++ ": Choice\"" ) :: List.concatMap (\( _, m ) -> toPathsAndLabels m) ms
 
                 Empty loc ->
-                    [ ( locationToPath loc, "Empty" ) ]
+                    [ ( locationToPath loc, "\"" ++ locationToString loc ++ ": Empty\"" ) ]
 
         pathDict =
             model
@@ -2268,7 +2284,7 @@ toDOT debugToString model =
                 |> Dict.fromList
 
         node i l =
-            i ++ " [ label = " ++ l ++ "]\n"
+            i ++ " [ label = " ++ l ++ " ]\n"
 
         edge n1 n2 =
             n1 ++ " -- " ++ n2 ++ "\n"
