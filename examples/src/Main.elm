@@ -6,7 +6,6 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Widgets
 import Yafl
-import Visualize
 
 
 {- Goal: create a form that will allow a user to create a value of the type
@@ -418,7 +417,7 @@ main =
                                 |> List.map (H.map FormUpdated)
                              )
                                 ++ [ H.button [] [ H.text "Submit" ]
-                                , Visualize.draw formModel ]
+                                , H.pre [] [H.text (Yafl.toDOT Debug.toString formModel) ]]
                             )
 
                     ViewingDog dog ->
