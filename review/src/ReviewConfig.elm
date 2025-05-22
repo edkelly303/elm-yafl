@@ -33,7 +33,6 @@ config =
         , simplify
         , snippets
         ]
-        |> ignoreDocSnippets
 
 
 ignoreDocSnippets =
@@ -49,6 +48,7 @@ docs =
     , Docs.ReviewAtDocs.rule
     , Docs.UpToDateReadmeLinks.rule
     ]
+        |> ignoreDocSnippets
 
 
 misc =
@@ -63,6 +63,7 @@ misc =
     , NoSimpleLetBody.rule
     , NoPrematureLetComputation.rule
     ]
+        |> ignoreDocSnippets
 
 
 unused =
@@ -75,11 +76,13 @@ unused =
     , NoUnused.Exports.rule
         |> Rule.ignoreErrorsForFiles [ "src/Visualize.elm" ]
     ]
+        |> ignoreDocSnippets
 
 
 simplify =
     [ Simplify.rule Simplify.defaults
     ]
+        |> ignoreDocSnippets
 
 
 snippets =

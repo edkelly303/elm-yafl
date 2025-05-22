@@ -492,10 +492,6 @@ view (Field field) model =
 
     --: Sub (Yafl.Msg Fields.Msg)
 
-    model
-
-    --: Sub (Yafl.Msg Fields.Msg)
-
 -}
 subscriptions : Field model msg address innerMsg output -> Model model -> Sub (Msg msg)
 subscriptions (Field field) model =
