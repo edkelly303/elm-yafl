@@ -1070,7 +1070,7 @@ map2 f (Field field1) (Field field2) =
         , view =
             \config model ->
                 case model of
-                    Both typ _ model1 model2 ->
+                    Both _ _ model1 model2 ->
                         field1.view { config | label = field1.label, id = locationFromModel model1 |> locationToString } model1
                             ++ field2.view { config | label = field2.label, id = locationFromModel model1 |> locationToString } model2
 
@@ -1079,7 +1079,7 @@ map2 f (Field field1) (Field field2) =
         , subscriptions =
             \model ->
                 case model of
-                    Both typ _ model1 model2 ->
+                    Both _ _ model1 model2 ->
                         Sub.batch
                             [ field1.subscriptions model1
                             , field2.subscriptions model2
@@ -1090,7 +1090,7 @@ map2 f (Field field1) (Field field2) =
         , submit =
             \model ->
                 case model of
-                    Both typ _ model1 model2 ->
+                    Both _ _ model1 model2 ->
                         case ( field1.submit model1, field2.submit model2 ) of
                             ( Ok output1, Ok output2 ) ->
                                 Ok (f output1 output2)
@@ -1154,7 +1154,7 @@ andMap (Field field1) (Field field2) =
             | view =
                 \config model ->
                     case model of
-                        Both typ _ model1 model2 ->
+                        Both _ _ model1 model2 ->
                             field2.view { config | label = field2.label, id = locationFromModel model1 |> locationToString } model2
                                 ++ field1.view { config | label = field1.label, id = locationFromModel model2 |> locationToString } model1
 
@@ -1291,7 +1291,7 @@ andThen f (Field field) =
         , view =
             \config model ->
                 case model of
-                    Both typ _ model1 model2 ->
+                    Both _ _ model1 model2 ->
                         field.view { config | label = field.label, id = locationFromModel model1 |> locationToString } model1
                             ++ (case field.submit model1 of
                                     Ok output ->
@@ -1310,7 +1310,7 @@ andThen f (Field field) =
         , subscriptions =
             \model ->
                 case model of
-                    Both typ _ model1 model2 ->
+                    Both _ _ model1 model2 ->
                         Sub.batch
                             [ field.subscriptions model1
                             , case field.submit model1 of
@@ -1330,7 +1330,7 @@ andThen f (Field field) =
         , submit =
             \model ->
                 case model of
-                    Both typ _ model1 model2 ->
+                    Both _ _ model1 model2 ->
                         field.submit model1
                             |> Result.andThen
                                 (\output ->
@@ -2165,7 +2165,7 @@ locationFromModel model =
         Value loc _ ->
             loc
 
-        Both typ loc _ _ ->
+        Both _ loc _ _ ->
             loc
 
         Choice loc _ _ ->
