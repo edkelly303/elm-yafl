@@ -2265,21 +2265,21 @@ toDOT debugToString model =
         bothTypeToString bothType =
             case bothType of
                 Map2 ->
-                    { label = "Map2", colour = "khaki" }
+                    { label = "Map2", shape = "larrow" }
 
                 AndThen ->
-                    { label = "AndThen", colour = "lightskyblue2" }
+                    { label = "AndThen", shape = "rarrow" }
 
         emptyTypeToString emptyType =
             case emptyType of
                 Succeed ->
-                    { label = "Succeed", colour = "lawngreen" }
+                    { label = "Succeed", shape = "star" }
 
                 Fail ->
-                    { label = "Fail", colour = "tomato1" }
+                    { label = "Fail", shape = "octagon" }
 
                 NoValue ->
-                    { label = "No Value", colour = "grey92" }
+                    { label = "No Value", shape = "plain" }
 
         nodeLabel loc innerLabel =
             "\"" ++ locationToString loc ++ ": " ++ innerLabel ++ "\""
@@ -2289,14 +2289,14 @@ toDOT debugToString model =
                 Value loc val ->
                     [ ( locationToPath loc
                       , nodeLabel loc ("Value: " ++ match val)
-                      , "aliceblue"
+                      , "oval"
                       )
                     ]
 
                 Both typ loc m1 m2 ->
                     ( locationToPath loc
                     , nodeLabel loc (bothTypeToString typ).label
-                    , (bothTypeToString typ).colour
+                    , (bothTypeToString typ).shape
                     )
                         :: toPathsAndLabels m1
                         ++ toPathsAndLabels m2
@@ -2304,14 +2304,14 @@ toDOT debugToString model =
                 Choice loc _ ms ->
                     ( locationToPath loc
                     , nodeLabel loc "Choice"
-                    , "honeydew"
+                    , "diamond"
                     )
                         :: List.concatMap (\( _, m ) -> toPathsAndLabels m) ms
 
                 Empty typ loc ->
                     [ ( locationToPath loc
                       , nodeLabel loc (emptyTypeToString typ).label
-                      , (emptyTypeToString typ).colour
+                      , (emptyTypeToString typ).shape
                       )
                     ]
 
@@ -2326,9 +2326,9 @@ toDOT debugToString model =
             String.fromInt index
                 ++ " [ label = "
                 ++ label_
-                ++ ", fillcolor = \""
+                ++ ", shape = \""
                 ++ colour
-                ++ "\", style = filled ]\n"
+                ++ "\", fixedsize = shape, style = filled, fillcolor = grey85, color = grey85 ]\n"
 
         edge n1 n2 =
             String.fromInt n1 ++ " -- " ++ String.fromInt n2 ++ "\n"
