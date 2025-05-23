@@ -309,12 +309,18 @@ type Model model
     = Value Location model
     | Both ProductType Location (Model model) (Model model)
     | Choice Location { selected : Int } (List ( String, Model model ))
-    | Empty Location
+    | Empty EmptyType Location
 
 
 type ProductType
     = Map2
     | AndThen
+
+
+type EmptyType
+    = Succeed
+    | Fail
+    | NoValue
 
 
 {-| The top-level message type for your form.
@@ -848,7 +854,7 @@ andSelectField field ( model, cmd1 ) =
 succeed : output -> Field model msg address innerMsg output
 succeed f =
     Field
-        { init = \path maybeAddress -> ( Empty (newLocation path maybeAddress), Cmd.none )
+        { init = \path maybeAddress -> ( Empty Succeed (newLocation path maybeAddress), Cmd.none )
         , update =
             \msg model ->
                 case msg of
@@ -887,7 +893,7 @@ succeed f =
 fail : String -> Field model msg address innerMsg output
 fail e =
     Field
-        { init = \path maybeAddress -> ( Empty (newLocation path maybeAddress), Cmd.none )
+        { init = \path maybeAddress -> ( Empty Fail (newLocation path maybeAddress), Cmd.none )
         , update =
             \msg model ->
                 case msg of
@@ -921,7 +927,7 @@ error message on one specific field.
 failAt : Field model msg HasAddress innerMsg1 output1 -> String -> Field model msg address2 innerMsg2 output2
 failAt (Field failField) e =
     Field
-        { init = \path maybeAddress -> ( Empty (newLocation path maybeAddress), Cmd.none )
+        { init = \path maybeAddress -> ( Empty Fail (newLocation path maybeAddress), Cmd.none )
         , update =
             \msg model ->
                 case msg of
@@ -1245,7 +1251,7 @@ andThen f (Field field) =
                                 field2.init path2 field2.maybeAddress
 
                             Err _ ->
-                                ( Empty (newLocation path2 Nothing), Cmd.none )
+                                ( Empty NoValue (newLocation path2 Nothing), Cmd.none )
 
                     location =
                         newLocation path maybeAddress
@@ -1269,7 +1275,7 @@ andThen f (Field field) =
                                                 f output
                                         in
                                         case model2 of
-                                            Empty location2 ->
+                                            Empty _ location2 ->
                                                 field2.init (locationToPath location2) field2.maybeAddress
 
                                             _ ->
@@ -2030,7 +2036,7 @@ internalUpdate update_ msg model =
                 _ ->
                     fallback
 
-        Empty _ ->
+        Empty _ _ ->
             ( model, Cmd.none )
 
 
@@ -2087,7 +2093,7 @@ locateOneOf locator model =
                 [ cmd1, cmd2 ]
             )
 
-        Empty _ ->
+        Empty _ _ ->
             ( model, Cmd.none )
 
 
@@ -2167,7 +2173,7 @@ locationFromModel model =
         Choice loc _ _ ->
             loc
 
-        Empty loc ->
+        Empty _ loc ->
             loc
 
 
@@ -2256,41 +2262,83 @@ toDOT debugToString model =
         match val =
             Regex.find regex (escape (debugToString val)) |> List.map .match |> List.head |> Maybe.withDefault ""
 
+        bothTypeToString bothType =
+            case bothType of
+                Map2 ->
+                    { label = "Map2", colour = "khaki" }
+
+                AndThen ->
+                    { label = "AndThen", colour = "lightskyblue2" }
+
+        emptyTypeToString emptyType =
+            case emptyType of
+                Succeed ->
+                    { label = "Succeed", colour = "lawngreen" }
+
+                Fail ->
+                    { label = "Fail", colour = "tomato1" }
+
+                NoValue ->
+                    { label = "No Value", colour = "grey92" }
+
+        nodeLabel loc innerLabel =
+            "\"" ++ locationToString loc ++ ": " ++ innerLabel ++ "\""
+
         toPathsAndLabels model_ =
             case model_ of
                 Value loc val ->
-                    [ ( locationToPath loc, "\"" ++ locationToString loc ++ ": Value: " ++ match val ++ "\"" ) ]
+                    [ ( locationToPath loc
+                      , nodeLabel loc ("Value: " ++ match val)
+                      , "aliceblue"
+                      )
+                    ]
 
-                Both Map2 loc m1 m2 ->
-                    ( locationToPath loc, "\"" ++ locationToString loc ++ ": Map2\"" ) :: toPathsAndLabels m1 ++ toPathsAndLabels m2
-
-                Both AndThen loc m1 m2 ->
-                    ( locationToPath loc, "\"" ++ locationToString loc ++ ": AndThen\"" ) :: toPathsAndLabels m1 ++ toPathsAndLabels m2
+                Both typ loc m1 m2 ->
+                    ( locationToPath loc
+                    , nodeLabel loc (bothTypeToString typ).label
+                    , (bothTypeToString typ).colour
+                    )
+                        :: toPathsAndLabels m1
+                        ++ toPathsAndLabels m2
 
                 Choice loc _ ms ->
-                    ( locationToPath loc, "\"" ++ locationToString loc ++ ": Choice\"" ) :: List.concatMap (\( _, m ) -> toPathsAndLabels m) ms
+                    ( locationToPath loc
+                    , nodeLabel loc "Choice"
+                    , "honeydew"
+                    )
+                        :: List.concatMap (\( _, m ) -> toPathsAndLabels m) ms
 
-                Empty loc ->
-                    [ ( locationToPath loc, "\"" ++ locationToString loc ++ ": Empty\"" ) ]
+                Empty typ loc ->
+                    [ ( locationToPath loc
+                      , nodeLabel loc (emptyTypeToString typ).label
+                      , (emptyTypeToString typ).colour
+                      )
+                    ]
 
         pathDict =
             model
                 |> toPathsAndLabels
-                |> List.indexedMap (\i ( p, l ) -> ( p, ( String.fromInt i, l ) ))
+                |> List.sort
+                |> List.indexedMap (\i ( p, l, c ) -> ( p, ( i, l, c ) ))
                 |> Dict.fromList
 
-        node i l =
-            i ++ " [ label = " ++ l ++ " ]\n"
+        node index label_ colour =
+            String.fromInt index
+                ++ " [ label = "
+                ++ label_
+                ++ ", fillcolor = \""
+                ++ colour
+                ++ "\", style = filled ]\n"
 
         edge n1 n2 =
-            n1 ++ " -- " ++ n2 ++ "\n"
+            String.fromInt n1 ++ " -- " ++ String.fromInt n2 ++ "\n"
 
         ( nodes, edges ) =
             Dict.foldl
-                (\path ( index, label_ ) list ->
-                    ( node index label_
+                (\path ( index, label_, colour ) list ->
+                    ( node index label_ colour
                     , case Dict.get (List.drop 1 path) pathDict of
-                        Just ( parentIndex, _ ) ->
+                        Just ( parentIndex, _, _ ) ->
                             edge parentIndex index
 
                         Nothing ->
