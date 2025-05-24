@@ -158,16 +158,16 @@ type alias FormModel =
    by the `Field`'s `view` function, so you can easily tell which field is
    which.
 
-   * `Yafl.address` allows you to give the `Field` a unique ID. (This is useful
+   * `Yafl.id` allows you to give the `Field` a unique ID. (This is useful
    for several reasons, and we'll come back to it later.)
 -}
 
 
-nameField : Yafl.Field FormModel FormMsg Yafl.HasAddress String String
+nameField : Yafl.Field FormModel FormMsg Yafl.HasId String String
 nameField =
     fields.string
         |> Yafl.label "What is your dog's name?"
-        |> Yafl.address "name-field"
+        |> Yafl.id "name-field"
 
 
 
@@ -185,7 +185,7 @@ nameField =
 -}
 
 
-dogField : Yafl.Field FormModel FormMsg Yafl.NoAddress Never Dog
+dogField : Yafl.Field FormModel FormMsg Yafl.NoId Never Dog
 dogField =
     Yafl.succeed Dog
         |> Yafl.andMap nameField
@@ -199,7 +199,7 @@ dogField =
 -}
 
 
-funFactField : Yafl.Field FormModel FormMsg Yafl.NoAddress Never FunFact
+funFactField : Yafl.Field FormModel FormMsg Yafl.NoId Never FunFact
 funFactField =
     Yafl.choice
         |> Yafl.label "A fun fact about your dog is:"
@@ -218,12 +218,12 @@ funFactField =
 -}
 
 
-likesBonesField : Yafl.Field FormModel FormMsg Yafl.HasAddress Bool FunFact
+likesBonesField : Yafl.Field FormModel FormMsg Yafl.HasId Bool FunFact
 likesBonesField =
     fields.bool
         |> Yafl.map LikesBones
         |> Yafl.label "Do they _really_ like bones?"
-        |> Yafl.address "likes-bones-field"
+        |> Yafl.id "likes-bones-field"
 
 
 
@@ -238,7 +238,7 @@ likesBonesField =
 -}
 
 
-hasFleasField : Yafl.Field FormModel FormMsg Yafl.NoAddress Widgets.IntMsg FunFact
+hasFleasField : Yafl.Field FormModel FormMsg Yafl.NoId Widgets.IntMsg FunFact
 hasFleasField =
     fields.int
         |> Yafl.label "How many fleas do they have?"
@@ -345,7 +345,7 @@ main_ =
    If necessary, we can then send messages to field A with `Yafl.send`. If field
    A is a `Yafl.option`, we can also select it using `Yafl.choose`.
 
-   Both field B and Field B need to have addresses set with `Yafl.address` for
+   Both field B and Field B need to have ids set with `Yafl.id` for
    this to work.
 -}
 

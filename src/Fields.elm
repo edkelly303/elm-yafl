@@ -13,8 +13,8 @@ type alias Msg =
 
 
 fields :
-    { string : Yafl.Field Model Msg Yafl.NoAddress String String
-    , int : Yafl.Field Model Msg Yafl.NoAddress Widgets.IntMsg Int
+    { string : Yafl.Field Model Msg Yafl.NoId String String
+    , int : Yafl.Field Model Msg Yafl.NoId Widgets.IntMsg Int
     }
 fields =
     defineFields (\string int -> { string = string, int = int })

@@ -70,8 +70,8 @@ boolWidget =
 
 
 fields :
-    { string : Yafl.Field FormModel FormMsg Yafl.NoAddress String String
-    , bool : Yafl.Field FormModel FormMsg Yafl.NoAddress Bool Bool
+    { string : Yafl.Field FormModel FormMsg Yafl.NoId String String
+    , bool : Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool
     }
 fields =
     Yafl.defineFields
@@ -89,7 +89,7 @@ type alias FormMsg =
     ( Maybe String, ( Maybe Bool, () ) )
 
 
-nonEmptyString : Yafl.Field FormModel FormMsg Yafl.NoAddress String String
+nonEmptyString : Yafl.Field FormModel FormMsg Yafl.NoId String String
 nonEmptyString =
     fields.string
         |> Yafl.andThen
@@ -102,25 +102,25 @@ nonEmptyString =
             )
 
 
-firstName : Yafl.Field FormModel FormMsg Yafl.NoAddress String String
+firstName : Yafl.Field FormModel FormMsg Yafl.NoId String String
 firstName =
     nonEmptyString
         |> Yafl.label "What is the user's first name?"
 
 
-lastName : Yafl.Field FormModel FormMsg Yafl.NoAddress String String
+lastName : Yafl.Field FormModel FormMsg Yafl.NoId String String
 lastName =
     nonEmptyString
         |> Yafl.label "What is the user's last name?"
 
 
-isAdmin : Yafl.Field FormModel FormMsg Yafl.NoAddress Bool Bool
+isAdmin : Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool
 isAdmin =
     fields.bool
         |> Yafl.label "Is the user an admin?"
 
 
-user : Yafl.Field FormModel FormMsg Yafl.NoAddress Never User
+user : Yafl.Field FormModel FormMsg Yafl.NoId Never User
 user =
     Yafl.succeed User
         |> Yafl.andMap firstName

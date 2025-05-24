@@ -153,7 +153,7 @@ type alias FormMsg =
 
 
 -- DOC TESTS
-fields --: { string : Yafl.Field FormModel FormMsg Yafl.NoAddress String String, bool : Yafl.Field FormModel FormMsg Yafl.NoAddress Bool Bool }
+fields --: { string : Yafl.Field FormModel FormMsg Yafl.NoId String String, bool : Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool }
 ```
 
 Now whenever we need a `String` field, we can use `fields.string`, and if we
@@ -191,10 +191,10 @@ isAdmin =
 
 
 -- DOC TESTS
-nonEmptyString --: Yafl.Field FormModel FormMsg Yafl.NoAddress String String
-firstName --: Yafl.Field FormModel FormMsg Yafl.NoAddress String String
-lastName --: Yafl.Field FormModel FormMsg Yafl.NoAddress String String
-isAdmin --: Yafl.Field FormModel FormMsg Yafl.NoAddress Bool Bool
+nonEmptyString --: Yafl.Field FormModel FormMsg Yafl.NoId String String
+firstName --: Yafl.Field FormModel FormMsg Yafl.NoId String String
+lastName --: Yafl.Field FormModel FormMsg Yafl.NoId String String
+isAdmin --: Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool
 ```
 
 ### Step 4: Compose the `Field`s to create a form
@@ -217,7 +217,7 @@ user =
 
 
 -- DOC TESTS
-user --: Yafl.Field FormModel FormMsg Yafl.NoAddress Never User
+user --: Yafl.Field FormModel FormMsg Yafl.NoId Never User
 ```
 
 ### Step 5: Integrate the form into your Elm application

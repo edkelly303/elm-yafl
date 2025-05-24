@@ -7,9 +7,10 @@ module Yafl exposing
     , map2, andMap
     , choice, option
     , label, showFeedback
-    , HasAddress, NoAddress, address, intercept, send, select
+    , HasId, NoId, intercept, send, select
     , updateField, andUpdateField, selectField, andSelectField
     , toDOT
+    , id
     )
 
 {-| This library helps you build user input forms in Elm by creating and
@@ -263,7 +264,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 # Communicating between Fields
 
-@docs HasAddress, NoAddress, address, intercept, send, select
+@docs HasId, NoId, id, intercept, send, select
 
 
 # Updating Fields synchronously
@@ -291,15 +292,15 @@ import Task
 -}
 type Locator
     = ByPath Path
-    | ByAddress String
+    | ById String
 
 
 type Location
     = Located Path
-    | Addressed Path String
+    | Identified Path String
 
 
-type alias MaybeAddress =
+type alias MaybeId =
     Maybe String
 
 
@@ -339,10 +340,10 @@ type alias Path =
 
 {-| Forms are composed of `Field`s - this is the main data type we'll be using in this package.
 -}
-type Field model msg address innerMsg output
+type Field model msg id innerMsg output
     = Field
         { init :
-            Path -> MaybeAddress -> ( Model model, Cmd (Msg msg) )
+            Path -> MaybeId -> ( Model model, Cmd (Msg msg) )
         , update :
             Msg msg
             -> Model model
@@ -357,25 +358,25 @@ type Field model msg address innerMsg output
         , subscriptions :
             Model model
             -> Sub (Msg msg)
-        , send : MaybeAddress -> innerMsg -> Msg msg
-        , intercept : MaybeAddress -> Msg msg -> Maybe innerMsg
+        , send : MaybeId -> innerMsg -> Msg msg
+        , intercept : MaybeId -> Msg msg -> Maybe innerMsg
         , label : String
-        , maybeAddress : MaybeAddress
+        , maybeId : MaybeId
         }
 
 
-{-| Indicates that a [`Field`](#Field) has been given an `address`, and can therefore be
-used with `intercept`, `send`, etc. See the docs for `address`.
+{-| Indicates that a [`Field`](#Field) has been given an `id`, and can therefore be
+used with `intercept`, `send`, etc. See the docs for `id`.
 -}
-type HasAddress
-    = HasAddress Never
+type HasId
+    = HasId Never
 
 
-{-| Indicates that a [`Field`](#Field) has not been given an `address`. See the docs for
-`address`.
+{-| Indicates that a [`Field`](#Field) has not been given an `id`. See the docs for
+`id`.
 -}
-type NoAddress
-    = NoAddress Never
+type NoId
+    = NoId Never
 
 
 {-| The `Widget` type is very similar to the record type that you would supply
@@ -431,14 +432,14 @@ type alias Feedback =
     --: ( Yafl.Model Fields.Model, Cmd (Yafl.Msg Fields.Msg) )
 
 -}
-init : Field model msg address innerMsg output -> ( Model model, Cmd (Msg msg) )
+init : Field model msg id innerMsg output -> ( Model model, Cmd (Msg msg) )
 init (Field field) =
-    field.init [ 0 ] field.maybeAddress
+    field.init [ 0 ] field.maybeId
 
 
 {-| Update your form by supplying a `Msg` and `Model`
 -}
-update : Field model msg address innerMsg output -> Msg msg -> Model model -> ( Model model, Cmd (Msg msg) )
+update : Field model msg id innerMsg output -> Msg msg -> Model model -> ( Model model, Cmd (Msg msg) )
 update (Field field) msg model =
     field.update msg model
 
@@ -462,7 +463,7 @@ update (Field field) msg model =
     --: List (Html (Yafl.Msg Fields.Msg))
 
 -}
-view : Field model msg address innerMsg output -> Model model -> List (H.Html (Msg msg))
+view : Field model msg id innerMsg output -> Model model -> List (H.Html (Msg msg))
 view (Field field) model =
     let
         feedback =
@@ -499,7 +500,7 @@ view (Field field) model =
     --: Sub (Yafl.Msg Fields.Msg)
 
 -}
-subscriptions : Field model msg address innerMsg output -> Model model -> Sub (Msg msg)
+subscriptions : Field model msg id innerMsg output -> Model model -> Sub (Msg msg)
 subscriptions (Field field) model =
     field.subscriptions model
 
@@ -522,7 +523,7 @@ subscriptions (Field field) model =
     --> Ok ""
 
 -}
-submit : Field model msg address innerMsg output -> Model model -> Result (List Feedback) output
+submit : Field model msg id innerMsg output -> Model model -> Result (List Feedback) output
 submit (Field field) model =
     field.submit model
 
@@ -538,10 +539,10 @@ submit (Field field) model =
 
     nameField
 
-    --: Yafl.Field Fields.Model Fields.Msg Yafl.NoAddress String String
+    --: Yafl.Field Fields.Model Fields.Msg Yafl.NoId String String
 
 -}
-label : String -> Field model msg address innerMsg output -> Field model msg address innerMsg output
+label : String -> Field model msg id innerMsg output -> Field model msg id innerMsg output
 label label_ (Field field) =
     Field { field | label = label_ }
 
@@ -569,24 +570,24 @@ label label_ (Field field) =
 
     myField
 
-    --: Yafl.Field Fields.Model Fields.Msg Yafl.NoAddress String String
+    --: Yafl.Field Fields.Model Fields.Msg Yafl.NoId String String
 
-    myAddressedField =
+    myFieldWithId =
         myField
-            |> Yafl.address "any-string-as-long-as-it's-unique"
+            |> Yafl.id "any-string-as-long-as-it's-unique"
 
-    myAddressedField
+    myFieldWithId
 
-    --: Yafl.Field Fields.Model Fields.Msg Yafl.HasAddress String String
+    --: Yafl.Field Fields.Model Fields.Msg Yafl.HasId String String
 
-    Yafl.send myAddressedField "Hello!"
+    Yafl.send myFieldWithId "Hello!"
 
     --: Cmd (Yafl.Msg Fields.Msg)
 
 -}
-address : String -> Field model msg NoAddress innerMsg output -> Field model msg HasAddress innerMsg output
-address sendId_ (Field field) =
-    Field { field | maybeAddress = Just sendId_ }
+id : String -> Field model msg NoId innerMsg output -> Field model msg HasId innerMsg output
+id sendId_ (Field field) =
+    Field { field | maybeId = Just sendId_ }
 
 
 {-| Create a `Cmd` that will select a specific `option` in a `choice` Field.
@@ -596,7 +597,7 @@ address sendId_ (Field field) =
 
     holyGrail =
         Fields.fields.string
-            |> Yafl.address "any-string-as-long-as-it's-unique"
+            |> Yafl.id "any-string-as-long-as-it's-unique"
 
     myChoiceField =
         Yafl.choice
@@ -608,11 +609,11 @@ address sendId_ (Field field) =
     --: Cmd (Yafl.Msg Fields.Msg)
 
 -}
-select : Field model msg HasAddress innerMsg output -> Cmd (Msg msg)
+select : Field model msg HasId innerMsg output -> Cmd (Msg msg)
 select (Field field) =
-    case field.maybeAddress of
-        Just address_ ->
-            Task.perform identity (Task.succeed (OptionSelected (ByAddress address_)))
+    case field.maybeId of
+        Just id_ ->
+            Task.perform identity (Task.succeed (OptionSelected (ById id_)))
 
         Nothing ->
             Cmd.none
@@ -625,16 +626,16 @@ select (Field field) =
 
     myAddressedField =
         Fields.fields.string
-            |> Yafl.address "any-string-as-long-as-it's-unique"
+            |> Yafl.id "any-string-as-long-as-it's-unique"
 
     Yafl.send myAddressedField "Hello!"
 
     --: Cmd (Yafl.Msg Fields.Msg)
 
 -}
-send : Field model msg HasAddress innerMsg output -> innerMsg -> Cmd (Msg msg)
+send : Field model msg HasId innerMsg output -> innerMsg -> Cmd (Msg msg)
 send (Field field) msg =
-    Task.perform identity (Task.succeed (field.send field.maybeAddress msg))
+    Task.perform identity (Task.succeed (field.send field.maybeId msg))
 
 
 {-| Intercept the top-level `Msg` sent to your form, and if it contains a message sent to the specified field, return that message.
@@ -644,16 +645,16 @@ send (Field field) msg =
 
     myAddressedField =
         Fields.fields.string
-            |> Yafl.address "any-string-as-long-as-it's-unique"
+            |> Yafl.id "any-string-as-long-as-it's-unique"
 
     Yafl.intercept myAddressedField
 
     --: Yafl.Msg Fields.Msg -> Maybe String
 
 -}
-intercept : Field model msg HasAddress innerMsg output -> Msg msg -> Maybe innerMsg
+intercept : Field model msg HasId innerMsg output -> Msg msg -> Maybe innerMsg
 intercept (Field field) =
-    field.intercept field.maybeAddress
+    field.intercept field.maybeId
 
 
 {-| Update an individual Field within your form's `Model` by supplying a message for that Field.
@@ -669,11 +670,11 @@ intercept (Field field) =
 
     firstField =
         Fields.fields.string
-            |> Yafl.address "a-unique-string"
+            |> Yafl.id "a-unique-string"
 
     secondField =
         Fields.fields.string
-            |> Yafl.address "another-unique-string"
+            |> Yafl.id "another-unique-string"
 
     model =
         fooField
@@ -694,9 +695,9 @@ intercept (Field field) =
     --> Ok (Foo "Hello!" "")
 
 -}
-updateField : Field model msg HasAddress innerMsg output -> innerMsg -> Model model -> ( Model model, Cmd (Msg msg) )
+updateField : Field model msg HasId innerMsg output -> innerMsg -> Model model -> ( Model model, Cmd (Msg msg) )
 updateField (Field field) innerMsg model =
-    field.update (field.send field.maybeAddress innerMsg) model
+    field.update (field.send field.maybeId innerMsg) model
 
 
 {-| Like `updateField`, but works on `( model, cmd )` tuples. Useful if you're chaining multiple updates.
@@ -713,11 +714,11 @@ updateField (Field field) innerMsg model =
 
     firstField =
         Fields.fields.string
-            |> Yafl.address "a-unique-string"
+            |> Yafl.id "a-unique-string"
 
     secondField =
         Fields.fields.string
-            |> Yafl.address "another-unique-string"
+            |> Yafl.id "another-unique-string"
 
     updatedModel =
         fooField
@@ -731,7 +732,7 @@ updateField (Field field) innerMsg model =
     --> Ok (Foo "Hello" "World")
 
 -}
-andUpdateField : Field model msg HasAddress innerMsg output -> innerMsg -> ( Model model, Cmd (Msg msg) ) -> ( Model model, Cmd (Msg msg) )
+andUpdateField : Field model msg HasId innerMsg output -> innerMsg -> ( Model model, Cmd (Msg msg) ) -> ( Model model, Cmd (Msg msg) )
 andUpdateField field innerMsg ( model, cmd1 ) =
     updateField field innerMsg model
         |> Tuple.mapSecond (\cmd2 -> Cmd.batch [ cmd1, cmd2 ])
@@ -744,7 +745,7 @@ andUpdateField field innerMsg ( model, cmd1 ) =
 
     myAddressedField =
         Yafl.succeed "Hurrah!"
-            |> Yafl.address "any-string-as-long-as-it's-unique"
+            |> Yafl.id "any-string-as-long-as-it's-unique"
 
     myChoiceField =
         Yafl.choice
@@ -769,13 +770,13 @@ andUpdateField field innerMsg ( model, cmd1 ) =
     --> Ok "Hurrah!"
 
 -}
-selectField : Field model msg HasAddress innerMsg output -> Model model -> ( Model model, Cmd (Msg msg) )
+selectField : Field model msg HasId innerMsg output -> Model model -> ( Model model, Cmd (Msg msg) )
 selectField (Field field) model =
-    case field.maybeAddress of
-        Just address_ ->
+    case field.maybeId of
+        Just id_ ->
             let
                 msg =
-                    OptionSelected (ByAddress address_)
+                    OptionSelected (ById id_)
             in
             field.update msg model
 
@@ -790,7 +791,7 @@ selectField (Field field) model =
 
     myAddressedField =
         Yafl.succeed "Hurrah!"
-            |> Yafl.address "any-string-as-long-as-it's-unique"
+            |> Yafl.id "any-string-as-long-as-it's-unique"
 
     myChoiceField =
         Yafl.choice
@@ -815,7 +816,7 @@ selectField (Field field) model =
     --> Ok "Hurrah!"
 
 -}
-andSelectField : Field model msg HasAddress innerMsg output -> ( Model model, Cmd (Msg msg) ) -> ( Model model, Cmd (Msg msg) )
+andSelectField : Field model msg HasId innerMsg output -> ( Model model, Cmd (Msg msg) ) -> ( Model model, Cmd (Msg msg) )
 andSelectField field ( model, cmd1 ) =
     selectField field model
         |> Tuple.mapSecond (\cmd2 -> Cmd.batch [ cmd1, cmd2 ])
@@ -851,7 +852,7 @@ andSelectField field ( model, cmd1 ) =
     --> Ok "Hurrah!"
 
 -}
-succeed : output -> Field model msg address innerMsg output
+succeed : output -> Field model msg id innerMsg output
 succeed f =
     Field
         { init = \path maybeAddress -> ( Empty Succeed (newLocation path maybeAddress), Cmd.none )
@@ -869,7 +870,7 @@ succeed f =
         , send = \_ _ -> Noop
         , intercept = \_ _ -> Nothing
         , label = ""
-        , maybeAddress = Nothing
+        , maybeId = Nothing
         }
 
 
@@ -890,7 +891,7 @@ succeed f =
     --> Err [ { message = "Oh dear!", locator = Yafl.ByPath [ 0 ], fail = True } ]
 
 -}
-fail : String -> Field model msg address innerMsg output
+fail : String -> Field model msg id innerMsg output
 fail e =
     Field
         { init = \path maybeAddress -> ( Empty Fail (newLocation path maybeAddress), Cmd.none )
@@ -915,7 +916,7 @@ fail e =
         , send = \_ _ -> Noop
         , intercept = \_ _ -> Nothing
         , label = ""
-        , maybeAddress = Nothing
+        , maybeId = Nothing
         }
 
 
@@ -924,7 +925,7 @@ Field. This can be useful in multi-field validation, when you have an error that
 results from a combination of several fields, but you only want to display the
 error message on one specific field.
 -}
-failAt : Field model msg HasAddress innerMsg1 output1 -> String -> Field model msg address2 innerMsg2 output2
+failAt : Field model msg HasId innerMsg1 output1 -> String -> Field model msg address2 innerMsg2 output2
 failAt (Field failField) e =
     Field
         { init = \path maybeAddress -> ( Empty Fail (newLocation path maybeAddress), Cmd.none )
@@ -941,11 +942,11 @@ failAt (Field failField) e =
         , submit =
             \model ->
                 Err
-                    [ case failField.maybeAddress of
-                        Just address_ ->
+                    [ case failField.maybeId of
+                        Just id_ ->
                             { message = e
                             , fail = True
-                            , locator = ByAddress address_
+                            , locator = ById id_
                             }
 
                         Nothing ->
@@ -957,7 +958,7 @@ failAt (Field failField) e =
         , send = \_ _ -> Noop
         , intercept = \_ _ -> Nothing
         , label = ""
-        , maybeAddress = Nothing
+        , maybeId = Nothing
         }
 
 
@@ -987,8 +988,8 @@ type variants.
 -}
 map :
     (output -> output2)
-    -> Field model msg address innerMsg output
-    -> Field model msg address innerMsg output2
+    -> Field model msg id innerMsg output
+    -> Field model msg id innerMsg output2
 map f (Field field) =
     Field
         { init = field.init
@@ -999,7 +1000,7 @@ map f (Field field) =
         , send = field.send
         , intercept = field.intercept
         , label = field.label
-        , maybeAddress = field.maybeAddress
+        , maybeId = field.maybeId
         }
 
 
@@ -1033,17 +1034,17 @@ map2 :
     (output1 -> output2 -> output3)
     -> Field model msg address1 innerMsg1 output1
     -> Field model msg address2 innerMsg2 output2
-    -> Field model msg NoAddress Never output3
+    -> Field model msg NoId Never output3
 map2 f (Field field1) (Field field2) =
     Field
         { init =
             \path maybeAddress ->
                 let
                     ( model1, cmd1 ) =
-                        field1.init (0 :: path) field1.maybeAddress
+                        field1.init (0 :: path) field1.maybeId
 
                     ( model2, cmd2 ) =
-                        field2.init (1 :: path) field2.maybeAddress
+                        field2.init (1 :: path) field2.maybeId
                 in
                 ( Product Map2 (newLocation path maybeAddress) model1 model2
                 , Cmd.batch
@@ -1116,7 +1117,7 @@ map2 f (Field field1) (Field field2) =
         , send = \_ msg -> never msg
         , intercept = \_ _ -> Nothing
         , label = ""
-        , maybeAddress = Nothing
+        , maybeId = Nothing
         }
 
 
@@ -1145,7 +1146,7 @@ Use in combination with [`succeed`](#succeed).
 andMap :
     Field model msg address1 innerMsg1 output1
     -> Field model msg address2 innerMsg2 (output1 -> output2)
-    -> Field model msg NoAddress Never output2
+    -> Field model msg NoId Never output2
 andMap (Field field1) (Field field2) =
     let
         (Field mapped) =
@@ -1189,7 +1190,7 @@ combination with this function.
                     Yafl.fail "Invalid Beatle"
             )
 
-    --: Yafl.Field Fields.Model Fields.Msg Yafl.NoAddress String String
+    --: Yafl.Field Fields.Model Fields.Msg Yafl.NoId String String
 
     -- Example 2: Asking the user for additional information
 
@@ -1206,7 +1207,7 @@ combination with this function.
                     Yafl.succeed words
             )
 
-    --: Yafl.Field Fields.Model Fields.Msg Yafl.NoAddress String String
+    --: Yafl.Field Fields.Model Fields.Msg Yafl.NoId String String
 
     -- Example 3: Repurposing an existing widget
 
@@ -1222,20 +1223,20 @@ combination with this function.
                             Yafl.fail "That's not a valid float"
                 )
 
-    --: Yafl.Field Fields.Model Fields.Msg Yafl.NoAddress String Float
+    --: Yafl.Field Fields.Model Fields.Msg Yafl.NoId String Float
 
 -}
 andThen :
-    (output -> Field model msg address innerMsg2 output2)
-    -> Field model msg address innerMsg output
-    -> Field model msg address innerMsg output2
+    (output -> Field model msg id innerMsg2 output2)
+    -> Field model msg id innerMsg output
+    -> Field model msg id innerMsg output2
 andThen f (Field field) =
     Field
         { init =
             \path maybeAddress ->
                 let
                     ( model1, cmd1 ) =
-                        field.init (0 :: path) field.maybeAddress
+                        field.init (0 :: path) field.maybeId
 
                     ( model2, cmd2 ) =
                         let
@@ -1248,7 +1249,7 @@ andThen f (Field field) =
                                     (Field field2) =
                                         f output
                                 in
-                                field2.init path2 field2.maybeAddress
+                                field2.init path2 field2.maybeId
 
                             Err _ ->
                                 ( Empty NoValue (newLocation path2 Nothing), Cmd.none )
@@ -1276,7 +1277,7 @@ andThen f (Field field) =
                                         in
                                         case model2 of
                                             Empty _ location2 ->
-                                                field2.init (locationToPath location2) field2.maybeAddress
+                                                field2.init (locationToPath location2) field2.maybeId
 
                                             _ ->
                                                 field2.update msg model2
@@ -1353,7 +1354,7 @@ andThen f (Field field) =
         , send = field.send
         , intercept = field.intercept
         , label = field.label
-        , maybeAddress = field.maybeAddress
+        , maybeId = field.maybeId
         }
 
 
@@ -1362,8 +1363,8 @@ when a [`Field`](#Field)'s `submit` function returns errors.
 -}
 showFeedback :
     (List Feedback -> H.Html (Msg msg))
-    -> Field model msg address innerMsg output
-    -> Field model msg address innerMsg output
+    -> Field model msg id innerMsg output
+    -> Field model msg id innerMsg output
 showFeedback render (Field field) =
     Field
         { field
@@ -1379,7 +1380,7 @@ showFeedback render (Field field) =
 
 {-| Begin defining a `choice` between multiple [`option`](#option)s.
 -}
-choice : Field model msg NoAddress Never output
+choice : Field model msg NoId Never output
 choice =
     Field
         { init = \path maybeAddress -> ( Sum (newLocation path maybeAddress) { selected = 0 } [], Cmd.none )
@@ -1390,7 +1391,7 @@ choice =
         , send = \_ msg -> never msg
         , intercept = \_ _ -> Nothing
         , label = ""
-        , maybeAddress = Nothing
+        , maybeId = Nothing
         }
 
 
@@ -1418,25 +1419,25 @@ will be rendered underneath the fieldset containing the radio buttons.
 -}
 option :
     String
-    -> Field model msg address innerMsg output
-    -> Field model msg NoAddress Never output
-    -> Field model msg NoAddress Never output
+    -> Field model msg id innerMsg output
+    -> Field model msg NoId Never output
+    -> Field model msg NoId Never output
 option radioLabel (Field field) (Field choice_) =
     Field
         { init =
             \path _ ->
-                case choice_.init path choice_.maybeAddress of
+                case choice_.init path choice_.maybeId of
                     ( Sum location selection options, choiceCmd ) ->
                         let
                             ( fieldModel, fieldCmd ) =
-                                field.init (List.length options :: path) field.maybeAddress
+                                field.init (List.length options :: path) field.maybeId
                         in
                         ( Sum location selection (( radioLabel, fieldModel ) :: options)
                         , Cmd.batch [ choiceCmd, fieldCmd ]
                         )
 
                     _ ->
-                        field.init path field.maybeAddress
+                        field.init path field.maybeId
         , update =
             \msg model ->
                 case model of
@@ -1543,7 +1544,7 @@ option radioLabel (Field field) (Field choice_) =
         , send = \_ msg -> never msg
         , intercept = \_ _ -> Nothing
         , label = choice_.label
-        , maybeAddress = Nothing
+        , maybeId = Nothing
         }
 
 
@@ -1597,7 +1598,7 @@ addWidget :
             ({ blankModel : model
              , blankMsg : b
              , ctor :
-                Field model msg NoAddress innerMsg value -> c
+                Field model msg NoId innerMsg value -> c
              }
              -> ( msg -> Maybe innerMsg, tailA )
              -> ( Maybe innerMsg -> b -> msg, tailB )
@@ -1774,7 +1775,7 @@ applier :
     ->
         { blankModel : model
         , blankMsg : b
-        , ctor : Field model msg NoAddress innerMsg value -> d
+        , ctor : Field model msg NoId innerMsg value -> d
         }
     -> { blankModel : model, blankMsg : b, ctor : d }
 applier msgGetter msgSetter modelGetter modelSetter fieldType acc =
@@ -1866,7 +1867,7 @@ wrapWithTrees :
     , intercept : msg -> Maybe innerMsg
     , label : String
     }
-    -> Field model msg NoAddress innerMsg value
+    -> Field model msg NoId innerMsg value
 wrapWithTrees args =
     Field
         { init =
@@ -1934,13 +1935,13 @@ wrapWithTrees args =
                     Nothing ->
                         Noop
 
-                    Just address_ ->
-                        ValueChanged (ByAddress address_) (args.send msg)
+                    Just id_ ->
+                        ValueChanged (ById id_) (args.send msg)
         , intercept =
             \maybeAddress msg ->
                 case ( maybeAddress, msg ) of
-                    ( Just address_, ValueChanged (ByAddress msgAddress) msgTuple ) ->
-                        if msgAddress == address_ then
+                    ( Just id_, ValueChanged (ById msgAddress) msgTuple ) ->
+                        if msgAddress == id_ then
                             args.intercept msgTuple
 
                         else
@@ -1949,7 +1950,7 @@ wrapWithTrees args =
                     _ ->
                         Nothing
         , label = args.label
-        , maybeAddress = Nothing
+        , maybeId = Nothing
         }
 
 
@@ -2157,8 +2158,8 @@ newLocation path maybeAddress =
         Nothing ->
             Located path
 
-        Just address_ ->
-            Addressed path address_
+        Just id_ ->
+            Identified path id_
 
 
 locationFromModel : Model model -> Location
@@ -2188,7 +2189,7 @@ locationToPath location =
         Located path_ ->
             path_
 
-        Addressed path_ _ ->
+        Identified path_ _ ->
             path_
 
 
@@ -2198,13 +2199,13 @@ isLocated locator location =
         ( ByPath path1, Located path2 ) ->
             path1 == path2
 
-        ( ByPath path1, Addressed path2 _ ) ->
+        ( ByPath path1, Identified path2 _ ) ->
             path1 == path2
 
-        ( ByAddress address1, Addressed _ address2 ) ->
+        ( ById address1, Identified _ address2 ) ->
             address1 == address2
 
-        ( ByAddress _, Located _ ) ->
+        ( ById _, Located _ ) ->
             False
 
 
@@ -2214,8 +2215,8 @@ locationToLocator location =
         Located path ->
             ByPath path
 
-        Addressed _ address_ ->
-            ByAddress address_
+        Identified _ id_ ->
+            ById id_
 
 
 locatorFromModel : Model model -> Locator
