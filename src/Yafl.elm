@@ -7,10 +7,9 @@ module Yafl exposing
     , map2, andMap
     , choice, option
     , label, showFeedback
-    , HasId, NoId, intercept, send, select
+    , HasId, NoId, id, intercept, send, select
     , updateField, andUpdateField, selectField, andSelectField
     , toDOT
-    , id
     )
 
 {-| This library helps you build user input forms in Elm by creating and
@@ -855,7 +854,7 @@ andSelectField field ( model, cmd1 ) =
 succeed : output -> Field model msg id innerMsg output
 succeed f =
     Field
-        { init = \path maybeAddress -> ( Empty Succeed (newLocation path maybeAddress), Cmd.none )
+        { init = \path maybeId -> ( Empty Succeed (newLocation path maybeId), Cmd.none )
         , update =
             \msg model ->
                 case msg of
@@ -894,7 +893,7 @@ succeed f =
 fail : String -> Field model msg id innerMsg output
 fail e =
     Field
-        { init = \path maybeAddress -> ( Empty Fail (newLocation path maybeAddress), Cmd.none )
+        { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
         , update =
             \msg model ->
                 case msg of
@@ -928,7 +927,7 @@ error message on one specific field.
 failAt : Field model msg HasId innerMsg1 output1 -> String -> Field model msg address2 innerMsg2 output2
 failAt (Field failField) e =
     Field
-        { init = \path maybeAddress -> ( Empty Fail (newLocation path maybeAddress), Cmd.none )
+        { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
         , update =
             \msg model ->
                 case msg of
@@ -1038,7 +1037,7 @@ map2 :
 map2 f (Field field1) (Field field2) =
     Field
         { init =
-            \path maybeAddress ->
+            \path maybeId ->
                 let
                     ( model1, cmd1 ) =
                         field1.init (0 :: path) field1.maybeId
@@ -1046,7 +1045,7 @@ map2 f (Field field1) (Field field2) =
                     ( model2, cmd2 ) =
                         field2.init (1 :: path) field2.maybeId
                 in
-                ( Product Map2 (newLocation path maybeAddress) model1 model2
+                ( Product Map2 (newLocation path maybeId) model1 model2
                 , Cmd.batch
                     [ cmd1
                     , cmd2
@@ -1233,7 +1232,7 @@ andThen :
 andThen f (Field field) =
     Field
         { init =
-            \path maybeAddress ->
+            \path maybeId ->
                 let
                     ( model1, cmd1 ) =
                         field.init (0 :: path) field.maybeId
@@ -1255,7 +1254,7 @@ andThen f (Field field) =
                                 ( Empty NoValue (newLocation path2 Nothing), Cmd.none )
 
                     location =
-                        newLocation path maybeAddress
+                        newLocation path maybeId
                 in
                 ( Product AndThen location model1 model2
                 , Cmd.batch [ cmd1, cmd2 ]
@@ -1383,7 +1382,7 @@ showFeedback render (Field field) =
 choice : Field model msg NoId Never output
 choice =
     Field
-        { init = \path maybeAddress -> ( Sum (newLocation path maybeAddress) { selected = 0 } [], Cmd.none )
+        { init = \path maybeId -> ( Sum (newLocation path maybeId) { selected = 0 } [], Cmd.none )
         , update = \_ model -> ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
@@ -1871,10 +1870,10 @@ wrapWithTrees :
 wrapWithTrees args =
     Field
         { init =
-            \path maybeAddress ->
+            \path maybeId ->
                 let
                     location =
-                        newLocation path maybeAddress
+                        newLocation path maybeId
                 in
                 args.init
                     |> Tuple.mapBoth
@@ -1900,7 +1899,12 @@ wrapWithTrees args =
                             _ ->
                                 ( args.blankModel, always Noop )
                 in
-                args.view { config | feedback = relevantFeedback } model_
+                args.view
+                    { config
+                        | feedback = relevantFeedback
+                        , id = locationToString location
+                    }
+                    model_
                     |> List.map (H.map mapper)
         , submit =
             \model ->
@@ -1930,16 +1934,16 @@ wrapWithTrees args =
                     _ ->
                         Sub.none
         , send =
-            \maybeAddress msg ->
-                case maybeAddress of
+            \maybeId msg ->
+                case maybeId of
                     Nothing ->
                         Noop
 
                     Just id_ ->
                         ValueChanged (ById id_) (args.send msg)
         , intercept =
-            \maybeAddress msg ->
-                case ( maybeAddress, msg ) of
+            \maybeId msg ->
+                case ( maybeId, msg ) of
                     ( Just id_, ValueChanged (ById msgAddress) msgTuple ) ->
                         if msgAddress == id_ then
                             args.intercept msgTuple
@@ -2145,16 +2149,20 @@ endFolder5 =
 
 locationToString : Location -> String
 locationToString location =
-    location
-        |> locationToPath
-        |> List.reverse
-        |> List.map String.fromInt
-        |> String.join "."
+    case location of
+        Located path ->
+            path
+                |> List.reverse
+                |> List.map String.fromInt
+                |> String.join "."
+
+        Identified _ id_ ->
+            id_
 
 
 newLocation : Path -> Maybe String -> Location
-newLocation path maybeAddress =
-    case maybeAddress of
+newLocation path maybeId =
+    case maybeId of
         Nothing ->
             Located path
 
