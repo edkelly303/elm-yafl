@@ -401,7 +401,7 @@ type alias ViewConfig =
     }
 
 
-{-| Feedback produced when running the [`submit`](#submit) function on your form returns errors.
+{-| Feedback produced when the [`submit`](#submit) function on a [`Field`](#Field) returns errors.
 -}
 type alias Feedback =
     { message : String, fail : Bool, locator : Locator }
@@ -522,9 +522,10 @@ subscriptions (Field field) model =
     --> Ok ""
 
 -}
-submit : Field model msg id innerMsg output -> Model model -> Result (List Feedback) output
+submit : Field model msg id innerMsg output -> Model model -> Result (List ( String, String )) output
 submit (Field field) model =
     field.submit model
+        |> Result.mapError (List.map (\{ message, locator } -> ( locatorToString locator, message )))
 
 
 {-| Add a label to a Field
@@ -759,7 +760,7 @@ andUpdateField field innerMsg ( model, cmd1 ) =
     model
         |> Yafl.submit myChoiceField
 
-    --> Err [ { message = "Oh no, you failed!", fail = True, locator = Yafl.ByPath [ 0, 0 ] } ]
+    --> Err [ ( "0.0", "Oh no, you failed!" ) ]
 
     model
         |> Yafl.selectField myAddressedField
@@ -805,7 +806,7 @@ selectField (Field field) model =
         |> Tuple.first
         |> Yafl.submit myChoiceField
 
-    --> Err [ { message = "Oh no, you failed!", fail = True, locator = Yafl.ByPath [ 0, 0 ] } ]
+    --> Err [ ("0.0", "Oh no, you failed!" ) ]
 
     modelAndCmd
         |> Yafl.andSelectField myAddressedField
@@ -887,7 +888,7 @@ succeed f =
 
     Yafl.submit form model
 
-    --> Err [ { message = "Oh dear!", locator = Yafl.ByPath [ 0 ], fail = True } ]
+    --> Err [ ("0", "Oh dear!") ]
 
 -}
 fail : String -> Field model msg id innerMsg output
@@ -2151,13 +2152,17 @@ locationToString : Location -> String
 locationToString location =
     case location of
         Located path ->
-            path
-                |> List.reverse
-                |> List.map String.fromInt
-                |> String.join "."
+            pathToString path
 
         Identified _ id_ ->
             id_
+
+
+pathToString path =
+    path
+        |> List.reverse
+        |> List.map String.fromInt
+        |> String.join "."
 
 
 newLocation : Path -> Maybe String -> Location
@@ -2230,6 +2235,16 @@ locationToLocator location =
 locatorFromModel : Model model -> Locator
 locatorFromModel =
     locationFromModel >> locationToLocator
+
+
+locatorToString : Locator -> String
+locatorToString locator =
+    case locator of
+        ById id_ ->
+            id_
+
+        ByPath path ->
+            pathToString path
 
 
 

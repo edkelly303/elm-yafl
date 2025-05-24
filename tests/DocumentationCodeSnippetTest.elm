@@ -228,11 +228,7 @@ tests =
                                     myChoiceField__Yafl__andSelectField_0
                                 |> Expect.equal
                                     (Result.Err
-                                        [ { message = "Oh no, you failed!"
-                                          , fail = Basics.True
-                                          , locator = Yafl.ByPath [ 0, 0 ]
-                                          }
-                                        ]
+                                        [ ( "0.0", "Oh no, you failed!" ) ]
                                     )
                         )
                     , Test.test
@@ -361,13 +357,7 @@ tests =
                         (\() ->
                             Yafl.submit form__Yafl__fail_0 model__Yafl__fail_0
                                 |> Expect.equal
-                                    (Result.Err
-                                        [ { message = "Oh dear!"
-                                          , locator = Yafl.ByPath [ 0 ]
-                                          , fail = Basics.True
-                                          }
-                                        ]
-                                    )
+                                    (Result.Err [ ( "0", "Oh dear!" ) ])
                         )
                     ]
                 ]
@@ -514,11 +504,7 @@ tests =
                                     myChoiceField__Yafl__selectField_0
                                 |> Expect.equal
                                     (Result.Err
-                                        [ { message = "Oh no, you failed!"
-                                          , fail = Basics.True
-                                          , locator = Yafl.ByPath [ 0, 0 ]
-                                          }
-                                        ]
+                                        [ ( "0.0", "Oh no, you failed!" ) ]
                                     )
                         )
                     , Test.test
