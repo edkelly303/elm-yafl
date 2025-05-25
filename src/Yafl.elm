@@ -1236,7 +1236,7 @@ andThen f (Field field) =
             \path maybeId ->
                 let
                     ( model1, cmd1 ) =
-                        field.init (0 :: path) field.maybeId
+                        field.init (0 :: path) maybeId
 
                     ( model2, cmd2 ) =
                         let
@@ -1255,7 +1255,7 @@ andThen f (Field field) =
                                 ( Empty NoValue (newLocation path2 Nothing), Cmd.none )
 
                     location =
-                        newLocation path maybeId
+                        newLocation path Nothing
                 in
                 ( Product AndThen location model1 model2
                 , Cmd.batch [ cmd1, cmd2 ]
