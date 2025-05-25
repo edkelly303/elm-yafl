@@ -1295,7 +1295,7 @@ andThen f (Field field) =
             \config model ->
                 case model of
                     Product _ _ model1 model2 ->
-                        field.view { config | label = field.label, id = locationFromModel model1 |> locationToString } model1
+                        field.view { config | id = locationFromModel model1 |> locationToString } model1
                             ++ (case field.submit model1 of
                                     Ok output ->
                                         let
