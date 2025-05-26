@@ -6,7 +6,7 @@ module Yafl exposing
     , map, andThen
     , map2, andMap
     , choice, option
-    , label, showFeedback
+    , label
     , HasId, NoId, id, intercept, send, select
     , updateField, andUpdateField, selectField, andSelectField
     , toDOT
@@ -258,7 +258,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 # Customizing Fields
 
-@docs label, showFeedback
+@docs label
 
 
 # Communicating between Fields
@@ -1355,26 +1355,6 @@ andThen f (Field field) =
         , intercept = field.intercept
         , label = field.label
         , maybeId = field.maybeId
-        }
-
-
-{-| Provide a view function to display the [`Feedback`](#Feedback) generated
-when a [`Field`](#Field)'s `submit` function returns errors.
--}
-showFeedback :
-    (List Feedback -> H.Html (Msg msg))
-    -> Field model msg id innerMsg output
-    -> Field model msg id innerMsg output
-showFeedback render (Field field) =
-    Field
-        { field
-            | view =
-                \config model ->
-                    let
-                        relevantFeedback =
-                            List.filter (\f -> isLocated f.locator (locationFromModel model)) config.feedback
-                    in
-                    field.view config model ++ [ render relevantFeedback ]
         }
 
 

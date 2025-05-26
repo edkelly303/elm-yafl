@@ -231,10 +231,6 @@ likesBonesField =
    `Yafl.andThen` is useful for validating outputs, in combination with
    `Yafl.succeed` and `Yafl.fail`, and also for asking the user for more
    information.
-
-   When a field could possibly fail validation, we may want to show the user an
-   error message. You can customise how errors are displayed with
-   `Yafl.showFeedback`.
 -}
 
 
@@ -242,12 +238,12 @@ hasFleasField : Yafl.Field FormModel FormMsg Yafl.NoId Widgets.IntMsg FunFact
 hasFleasField =
     fields.int
         |> Yafl.label "How many fleas do they have?"
-        |> Yafl.showFeedback viewFeedback
+        
         |> Yafl.andThen
             (\numberOfFleas ->
                 if numberOfFleas < 1 then
                     Yafl.fail "They must have at least one?!"
-                        |> Yafl.showFeedback viewFeedback
+                        
 
                 else if numberOfFleas < 10 then
                     Yafl.choice
@@ -262,12 +258,12 @@ hasFleasField =
                                 else
                                     fields.int
                                         |> Yafl.label "Ok, how many extra fleas did you find on their belly?"
-                                        |> Yafl.showFeedback viewFeedback
+                                        
                                         |> Yafl.andThen
                                             (\extraFleas ->
                                                 if extraFleas < 0 then
                                                     Yafl.fail "C'mon, you can't have negative fleas!"
-                                                        |> Yafl.showFeedback viewFeedback
+                                                        
 
                                                 else
                                                     Yafl.succeed (HasFleas (numberOfFleas + extraFleas))
