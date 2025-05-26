@@ -58,7 +58,7 @@ like to use this package:
 Let's say we want to create a form for this very boring `User` type:
 
 ```elm
-module Example exposing (..)
+module Examples exposing (..)
 
 type alias User = 
     { firstName : String
@@ -132,7 +132,7 @@ big library of `Widget`s, but if you only need to use a handful of them in your
 form, there's no need to include them all).
 
 ```elm
-import Example exposing (..)
+import Examples exposing (..)
 import Yafl
 
 fields = 
@@ -164,7 +164,7 @@ need a `Bool` field, it's just `fields.bool`.
 Each field needs a label, and we might also want to add some validation, so:
 
 ```elm
-import Example exposing (..)
+import Examples exposing (..)
 import Yafl
 
 nonEmptyString =
@@ -206,7 +206,7 @@ and
 to compose our `Field`s into a `User` type:
 
 ```elm
-import Example exposing (..)
+import Examples exposing (..)
 import Yafl
 
 user = 
@@ -225,7 +225,7 @@ user --: Yafl.Field FormModel FormMsg Yafl.NoId Never User
 This isn't a very realistic example, but it should get you up and running:
 
 ```elm
-import Example exposing (..)
+import Examples exposing (..)
 import Yafl
 import Browser
 import Html as H

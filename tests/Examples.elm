@@ -1,4 +1,4 @@
-module Example exposing
+module Examples exposing
     ( FormModel
     , FormMsg
     , User
@@ -25,27 +25,6 @@ type alias User =
     }
 
 
-stringWidget : Yafl.Widget String String String
-stringWidget =
-    { init = ( "", Cmd.none )
-    , update = \msg _ -> ( msg, Cmd.none )
-    , view =
-        \{ label, id } model ->
-            [ H.label [ HA.for id ] [ H.text label ]
-            , H.input
-                [ HA.id id
-                , HA.type_ "text"
-                , HA.value model
-                , HE.onInput identity
-                ]
-                []
-            ]
-    , subscriptions = \_ -> Sub.none
-    , submit = \model -> Ok model
-    , label = "String"
-    }
-
-
 boolWidget : Yafl.Widget Bool Bool Bool
 boolWidget =
     { init = ( False, Cmd.none )
@@ -67,6 +46,52 @@ boolWidget =
     , submit = \model -> Ok model
     , label = "Bool"
     }
+
+
+
+{- A basic Widget that produces a String. Its internal
+   Model and Msg types are also Strings.
+-}
+
+
+stringWidget : Yafl.Widget String String String
+stringWidget =
+    { init = ( "", Cmd.none )
+    , update = \msg _ -> ( msg, Cmd.none )
+    , view =
+        \{ label, id, feedback } model ->
+            [ H.label [ HA.for id ] [ H.text label ]
+            , H.input
+                [ HA.id id
+                , HA.type_ "text"
+                , HA.value model
+                , HE.onInput identity
+                ]
+                []
+            , viewFeedback feedback
+            ]
+    , subscriptions = \_ -> Sub.none
+    , submit = \model -> Ok model
+    , label = "String"
+    }
+
+
+viewFeedback : List Yafl.Feedback -> H.Html msg
+viewFeedback feedback =
+    case feedback of
+        [] ->
+            H.text ""
+
+        _ ->
+            H.ul
+                [ HA.style "list-style-type" "none"
+                , HA.style "margin" "0px"
+                , HA.style "padding" "0px"
+                ]
+                (List.map
+                    (\f -> H.li [] [ H.small [] [ H.text ("⚠️ " ++ f) ] ])
+                    feedback
+                )
 
 
 fields :

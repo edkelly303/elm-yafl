@@ -154,13 +154,13 @@ Once we've defined our [`Field`](#Field)s, we can start the fun part: making for
 Imagine we just want a simple form that allows a user to choose an `Int`:
 
     import Yafl
-    import Fields
+    import Examples exposing (FormModel, FormMsg, fields)
     import Html exposing (Html)
 
     -- We can turn any Field into a form:
 
     form =
-        Fields.fields.int
+        fields.bool
 
     -- Initialize it with `Yafl.init` to get a (model, cmd)
     -- tuple:
@@ -170,7 +170,7 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 
     init
 
-    --: ( Yafl.Model Fields.Model, Cmd (Yafl.Msg Fields.Msg) )
+    --: ( Yafl.Model FormModel, Cmd (Yafl.Msg FormMsg) )
 
     -- The form's model can then be passed to `Yafl.view`,
     -- `Yafl.update`, `Yafl.subscriptions` and `Yafl.submit`:
@@ -180,15 +180,15 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 
     Yafl.view form model
 
-    --: List (Html (Yafl.Msg Fields.Msg))
+    --: List (Html (Yafl.Msg FormMsg))
 
     Yafl.subscriptions form model
 
-    --: Sub (Yafl.Msg Fields.Msg)
+    --: Sub (Yafl.Msg FormMsg)
 
     Yafl.submit form model
 
-    --> Ok 0
+    --> Ok False
 
 @docs Model, Msg, init, update, view, ViewConfig, Feedback, subscriptions, submit, Path, Locator
 
@@ -225,11 +225,11 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 ## Building custom types
 
     import Yafl
-    import Fields
+    import Examples exposing (FormModel, FormMsg, fields)
 
     type MyCustomType
         = Foo String
-        | Bar Int
+        | Bar Bool
 
     myCustomTypeField =
         Yafl.choice
@@ -237,11 +237,11 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
             |> Yafl.option "Bar" barField
 
     fooField =
-        Fields.fields.string
+        fields.string
             |> Yafl.map Foo
 
     barField =
-        Fields.fields.int
+        fields.bool
             |> Yafl.map Bar
 
     model =
@@ -434,12 +434,12 @@ type alias InternalFeedback =
 {-| Initialize your form
 
     import Yafl
-    import Fields
+    import Examples exposing (FormModel, FormMsg, fields)
 
-    Fields.fields.int
+    fields.bool
         |> Yafl.init
 
-    --: ( Yafl.Model Fields.Model, Cmd (Yafl.Msg Fields.Msg) )
+    --: ( Yafl.Model FormModel, Cmd (Yafl.Msg FormMsg) )
 
 -}
 init : Field model msg id innerMsg output -> ( Model model, Cmd (Msg msg) )
@@ -457,11 +457,11 @@ update (Field field) msg model =
 {-| View your form.
 
     import Yafl
-    import Fields
+    import Examples exposing (FormModel, FormMsg, fields)
     import Html exposing (Html)
 
     form =
-        Fields.fields.string
+        fields.string
 
     model =
         form
@@ -470,7 +470,7 @@ update (Field field) msg model =
 
     Yafl.view form model
 
-    --: List (Html (Yafl.Msg Fields.Msg))
+    --: List (Html (Yafl.Msg FormMsg))
 
 -}
 view : Field model msg id innerMsg output -> Model model -> List (H.Html (Msg msg))
@@ -495,10 +495,10 @@ view (Field field) model =
 {-| Generate subscriptions for your form.
 
     import Yafl
-    import Fields
+    import Examples exposing (FormModel, FormMsg, fields)
 
     form =
-        Fields.fields.string
+        fields.string
 
     model =
         form
@@ -507,7 +507,7 @@ view (Field field) model =
 
     Yafl.subscriptions form model
 
-    --: Sub (Yafl.Msg Fields.Msg)
+    --: Sub (Yafl.Msg FormMsg)
 
 -}
 subscriptions : Field model msg id innerMsg output -> Model model -> Sub (Msg msg)
@@ -518,10 +518,10 @@ subscriptions (Field field) model =
 {-| Submit your form.
 
     import Yafl
-    import Fields
+    import Examples exposing (FormModel, FormMsg, fields)
 
     form =
-        Fields.fields.string
+        fields.string
 
     model =
         form
@@ -542,15 +542,15 @@ submit (Field field) model =
 {-| Add a label to a Field
 
     import Yafl
-    import Fields
+    import Examples exposing (FormModel, FormMsg, fields)
 
     nameField =
-        Fields.fields.string
+        fields.string
             |> Yafl.label "What is your name?"
 
     nameField
 
-    --: Yafl.Field Fields.Model Fields.Msg Yafl.NoId String String
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String String
 
 -}
 label : String -> Field model msg id innerMsg output -> Field model msg id innerMsg output
@@ -574,14 +574,14 @@ label label_ (Field field) =
 {-| Add a unique identifier to a Field, which can be used to send and intercept messages to that Field.
 
     import Yafl
-    import Fields
+    import Examples exposing (FormModel, FormMsg, fields)
 
     myField =
-        Fields.fields.string
+        fields.string
 
     myField
 
-    --: Yafl.Field Fields.Model Fields.Msg Yafl.NoId String String
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String String
 
     myFieldWithId =
         myField
@@ -589,11 +589,11 @@ label label_ (Field field) =
 
     myFieldWithId
 
-    --: Yafl.Field Fields.Model Fields.Msg Yafl.HasId String String
+    --: Yafl.Field FormModel FormMsg Yafl.HasId String String
 
     Yafl.send myFieldWithId "Hello!"
 
-    --: Cmd (Yafl.Msg Fields.Msg)
+    --: Cmd (Yafl.Msg FormMsg)
 
 -}
 id : String -> Field model msg NoId innerMsg output -> Field model msg HasId innerMsg output
@@ -604,10 +604,10 @@ id sendId_ (Field field) =
 {-| Create a `Cmd` that will select a specific `option` in a `choice` Field.
 
     import Yafl
-    import Fields
+    import Examples exposing (FormModel, FormMsg, fields)
 
     holyGrail =
-        Fields.fields.string
+        fields.string
             |> Yafl.id "any-string-as-long-as-it's-unique"
 
     myChoiceField =
@@ -617,7 +617,7 @@ id sendId_ (Field field) =
 
     Yafl.select holyGrail
 
-    --: Cmd (Yafl.Msg Fields.Msg)
+    --: Cmd (Yafl.Msg FormMsg)
 
 -}
 select : Field model msg HasId innerMsg output -> Cmd (Msg msg)
@@ -633,15 +633,15 @@ select (Field field) =
 {-| Create a `Cmd` that will send a message to a specific `option` in a `choice` Field.
 
     import Yafl
-    import Fields
+    import Examples exposing (FormModel, FormMsg, fields)
 
     myAddressedField =
-        Fields.fields.string
+        fields.string
             |> Yafl.id "any-string-as-long-as-it's-unique"
 
     Yafl.send myAddressedField "Hello!"
 
-    --: Cmd (Yafl.Msg Fields.Msg)
+    --: Cmd (Yafl.Msg FormMsg)
 
 -}
 send : Field model msg HasId innerMsg output -> innerMsg -> Cmd (Msg msg)
@@ -652,15 +652,15 @@ send (Field field) msg =
 {-| Intercept the top-level `Msg` sent to your form, and if it contains a message sent to the specified field, return that message.
 
     import Yafl
-    import Fields
+    import Examples exposing (FormModel, FormMsg, fields)
 
     myAddressedField =
-        Fields.fields.string
+        fields.string
             |> Yafl.id "any-string-as-long-as-it's-unique"
 
     Yafl.intercept myAddressedField
 
-    --: Yafl.Msg Fields.Msg -> Maybe String
+    --: Yafl.Msg FormMsg -> Maybe String
 
 -}
 intercept : Field model msg HasId innerMsg output -> Msg msg -> Maybe innerMsg
@@ -671,7 +671,7 @@ intercept (Field field) =
 {-| Update an individual Field within your form's `Model` by supplying a message for that Field.
 
     import Yafl
-    import Fields
+    import Examples exposing (FormModel, FormMsg, fields)
 
     type Foo
         = Foo String String
@@ -680,11 +680,11 @@ intercept (Field field) =
         Yafl.map2 Foo firstField secondField
 
     firstField =
-        Fields.fields.string
+        fields.string
             |> Yafl.id "a-unique-string"
 
     secondField =
-        Fields.fields.string
+        fields.string
             |> Yafl.id "another-unique-string"
 
     model =
@@ -714,7 +714,7 @@ updateField (Field field) innerMsg model =
 {-| Like `updateField`, but works on `( model, cmd )` tuples. Useful if you're chaining multiple updates.
 
     import Yafl
-    import Fields
+    import Examples exposing (FormModel, FormMsg, fields)
     import Cmd.Extra
 
     type Foo
@@ -724,11 +724,11 @@ updateField (Field field) innerMsg model =
         Yafl.map2 Foo firstField secondField
 
     firstField =
-        Fields.fields.string
+        fields.string
             |> Yafl.id "a-unique-string"
 
     secondField =
-        Fields.fields.string
+        fields.string
             |> Yafl.id "another-unique-string"
 
     updatedModel =
@@ -752,7 +752,7 @@ andUpdateField field innerMsg ( model, cmd1 ) =
 {-| Select a specific `option` Field within your form's `Model`.
 
     import Yafl
-    import Fields
+    import Examples exposing (FormModel, FormMsg, fields)
 
     myAddressedField =
         Yafl.succeed "Hurrah!"
@@ -798,7 +798,7 @@ selectField (Field field) model =
 {-| Like `selectField`, but works on `( model, cmd )` tuples. Useful if you're chaining multiple updates.
 
     import Yafl
-    import Fields
+    import Examples exposing (FormModel, FormMsg, fields)
 
     myAddressedField =
         Yafl.succeed "Hurrah!"
@@ -994,7 +994,7 @@ A common use case for this function is to create `Field`s that produce custom
 type variants.
 
     import Yafl
-    import Fields
+    import Examples exposing (FormModel, FormMsg, fields)
 
     -- Example 1: Creating a custom type variant
 
@@ -1002,7 +1002,7 @@ type variants.
         = Foo String
 
     fooField =
-        Yafl.map Foo Fields.fields.string
+        Yafl.map Foo fields.string
 
     fooField
         |> Yafl.init
@@ -1039,13 +1039,13 @@ If you need to combine the outputs of more than two fields, check out
 [`andMap`](#andMap) instead.
 
     import Yafl
-    import Fields
+    import Examples exposing (FormModel, FormMsg, fields)
 
     form =
         Yafl.map2
             (\a b -> ( a, b ))
-            (Fields.fields.string)
-            (Fields.fields.string)
+            fields.string
+            fields.string
 
     model =
         Yafl.init form
@@ -1152,13 +1152,13 @@ map2 f (Field field1) (Field field2) =
 Use in combination with [`succeed`](#succeed).
 
     import Yafl
-    import Fields
+    import Examples exposing (FormModel, FormMsg, fields)
 
     form =
         Yafl.succeed (\a b c -> { firstName = a, middleName = b, lastName = c })
-            |> Yafl.andMap (Fields.fields.string |> Yafl.label "First name")
-            |> Yafl.andMap (Fields.fields.string |> Yafl.label "Middle name")
-            |> Yafl.andMap (Fields.fields.string |> Yafl.label "Last name")
+            |> Yafl.andMap (fields.string |> Yafl.label "First name")
+            |> Yafl.andMap (fields.string |> Yafl.label "Middle name")
+            |> Yafl.andMap (fields.string |> Yafl.label "Last name")
 
     model =
         Yafl.init form
@@ -1200,12 +1200,12 @@ different output type.
 The [`succeed`](#succeed) and [`fail`](#fail) functions are often useful in
 combination with this function.
 
-    import Fields
     import Yafl
+    import Examples exposing (FormModel, FormMsg, fields)
 
     -- Example 1: Validating a field's output
 
-    Fields.fields.string
+    fields.string
         |> Yafl.label "Enter the first name of a Beatle"
         |> Yafl.andThen
             (\name ->
@@ -1216,16 +1216,16 @@ combination with this function.
                     Yafl.fail "Invalid Beatle"
             )
 
-    --: Yafl.Field Fields.Model Fields.Msg Yafl.NoId String String
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String String
 
     -- Example 2: Asking the user for additional information
 
-    Fields.fields.string
+    fields.string
         |> Yafl.label "What would you like to say?"
         |> Yafl.andThen
             (\words ->
                 if words == "Hello" then
-                    Fields.fields.string
+                    fields.string
                         |> Yafl.label "Who are you saying 'Hello' to?"
                         |> Yafl.map (\moreWords -> words ++ " " ++ moreWords)
 
@@ -1233,11 +1233,11 @@ combination with this function.
                     Yafl.succeed words
             )
 
-    --: Yafl.Field Fields.Model Fields.Msg Yafl.NoId String String
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String String
 
     -- Example 3: Repurposing an existing widget
 
-    Fields.fields.string
+    fields.string
             |> Yafl.label "Enter a floating-point number"
             |> Yafl.andThen
                 (\string ->
@@ -1249,7 +1249,7 @@ combination with this function.
                             Yafl.fail "That's not a valid float"
                 )
 
-    --: Yafl.Field Fields.Model Fields.Msg Yafl.NoId String Float
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String Float
 
 -}
 andThen :
@@ -1414,12 +1414,13 @@ If the user selects the radio button for this `option`, then the `Field`'s view
 will be rendered underneath the fieldset containing the radio buttons.
 
     import Yafl
+    import Examples exposing (FormModel, FormMsg, fields)
 
     Yafl.choice
         |> Yafl.option
             "This is the label for the radio button"
-            (Fields.fields.int
-                |> Yafl.label "This is a label for the `int` field"
+            (fields.bool
+                |> Yafl.label "This is a label for the `bool` field"
             )
 
 -}

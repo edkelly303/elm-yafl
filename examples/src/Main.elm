@@ -4,7 +4,6 @@ import Browser
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
-import Widgets
 import Yafl
 
 
@@ -63,7 +62,7 @@ boolWidget =
         \msg _ ->
             ( msg, Cmd.none )
     , view =
-        \{ label, id } model ->
+        \{ label, id, feedback } model ->
             [ H.label [ HA.for id ] [ H.text label ]
             , H.input
                 [ HA.id id
@@ -72,6 +71,7 @@ boolWidget =
                 , HE.onCheck identity
                 ]
                 []
+            , viewFeedback feedback
             ]
     , subscriptions = \_ -> Sub.none
     , submit = Ok
@@ -79,6 +79,65 @@ boolWidget =
     }
 
 
+stringWidget : Yafl.Widget String String String
+stringWidget =
+    { init = ( "", Cmd.none )
+    , update = \msg _ -> ( msg, Cmd.none )
+    , view =
+        \{ label, id, feedback } model ->
+            [ H.label [ HA.for id ] [ H.text label ]
+            , H.input
+                [ HA.id id
+                , HA.type_ "text"
+                , HA.value model
+                , HE.onInput identity
+                ]
+                []
+            , viewFeedback feedback
+            ]
+    , subscriptions = \_ -> Sub.none
+    , submit = \model -> Ok model
+    , label = "String"
+    }
+
+intWidget : Yafl.Widget String String Int
+intWidget =
+    { init = ( "", Cmd.none )
+    , update = \msg _ -> ( msg, Cmd.none )
+    , view =
+        \{ label, id, feedback } model ->
+            [ H.label [ HA.for id ] [ H.text label ]
+            , H.input
+                [ HA.id id
+                , HA.type_ "text"
+                , HA.value model
+                , HE.onInput identity
+                ]
+                []
+            , viewFeedback feedback
+            ]
+    , subscriptions = \_ -> Sub.none
+    , submit = \model -> String.toInt model |> Result.fromMaybe ["This must be a whole number"]
+    , label = "String"
+    }
+
+
+viewFeedback : List Yafl.Feedback -> H.Html msg
+viewFeedback feedback =
+    case feedback of
+        [] ->
+            H.text ""
+
+        _ ->
+            H.ul
+                [ HA.style "list-style-type" "none"
+                , HA.style "margin" "0px"
+                , HA.style "padding" "0px"
+                ]
+                (List.map
+                    (\f -> H.li [] [ H.small [] [ H.text ("⚠️ " ++ f) ] ])
+                    feedback
+                )
 
 {-
    Step 2: Define your `Field`s
@@ -103,8 +162,8 @@ fields =
             }
         )
         |> Yafl.addWidget boolWidget
-        |> Yafl.addWidget Widgets.int
-        |> Yafl.addWidget Widgets.string
+        |> Yafl.addWidget intWidget
+        |> Yafl.addWidget stringWidget
         |> Yafl.endFields
 
 
@@ -124,7 +183,7 @@ fields =
 
 type alias FormMsg =
     ( Maybe Bool
-    , ( Maybe Widgets.IntMsg
+    , ( Maybe String
       , ( Maybe String
         , ()
         )
@@ -134,7 +193,7 @@ type alias FormMsg =
 
 type alias FormModel =
     ( Maybe Bool
-    , ( Maybe Int
+    , ( Maybe String
       , ( Maybe String
         , ()
         )
@@ -234,7 +293,7 @@ likesBonesField =
 -}
 
 
-hasFleasField : Yafl.Field FormModel FormMsg Yafl.NoId Widgets.IntMsg FunFact
+hasFleasField : Yafl.Field FormModel FormMsg Yafl.NoId String FunFact
 hasFleasField =
     fields.int
         |> Yafl.label "How many fleas do they have?"
