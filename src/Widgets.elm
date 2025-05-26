@@ -17,7 +17,7 @@ string =
     { init = ( "", Cmd.none )
     , update = \msg _ -> ( msg, Cmd.none )
     , view =
-        \{ label, id } model ->
+        \{ label, id, feedback } model ->
             [ H.label [ HA.for id ] [ H.text label ]
             , H.input
                 [ HA.id id
@@ -26,6 +26,7 @@ string =
                 , HE.onInput identity
                 ]
                 []
+            , viewFeedback feedback
             ]
     , subscriptions = \_ -> Sub.none
     , submit = \model -> Ok model
@@ -58,7 +59,7 @@ int =
             , Cmd.none
             )
     , view =
-        \{ label, id } model ->
+        \{ label, id, feedback } model ->
             [ H.label [ HA.for id ] [ H.text label ]
             , H.span [ HA.id id ]
                 [ H.button
@@ -73,8 +74,27 @@ int =
                     ]
                     [ H.text "+" ]
                 ]
+            , viewFeedback feedback
             ]
     , subscriptions = \_ -> Sub.none
     , submit = \model -> Ok model
     , label = "Int"
     }
+
+
+viewFeedback : List Yafl.Feedback -> H.Html msg
+viewFeedback feedback =
+    case feedback of
+        [] ->
+            H.text ""
+
+        _ ->
+            H.ul
+                [ HA.style "list-style-type" "none"
+                , HA.style "margin" "0px"
+                , HA.style "padding" "0px"
+                ]
+                (List.map
+                    (\f -> H.li [] [ H.small [] [ H.text ("⚠️ " ++ f) ] ])
+                    feedback
+                )

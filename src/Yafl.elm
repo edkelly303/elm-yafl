@@ -1,7 +1,7 @@
 module Yafl exposing
     ( Widget
     , Field, defineFields, addWidget, endFields
-    , Model, Msg, init, update, view, ViewConfig, subscriptions, submit, Feedback, Path, Locator(..)
+    , Model, Msg, init, update, view, ViewConfig, Feedback, subscriptions, submit, Path, Locator(..)
     , succeed, fail, failAt
     , map, andThen
     , map2, andMap
@@ -190,7 +190,7 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 
     --> Ok 0
 
-@docs Model, Msg, init, update, view, ViewConfig, subscriptions, submit, Feedback, Path, Locator
+@docs Model, Msg, init, update, view, ViewConfig, Feedback, subscriptions, submit, Path, Locator
 
 
 # Combining Fields
@@ -348,12 +348,12 @@ type Field model msg id innerMsg output
             -> Model model
             -> ( Model model, Cmd (Msg msg) )
         , view :
-            ViewConfig
+            InternalViewConfig
             -> Model model
             -> List (H.Html (Msg msg))
         , submit :
             Model model
-            -> Result (List Feedback) output
+            -> Result (List InternalFeedback) output
         , subscriptions :
             Model model
             -> Sub (Msg msg)
@@ -404,6 +404,17 @@ type alias ViewConfig =
 {-| Feedback produced when the [`submit`](#submit) function on a [`Field`](#Field) returns errors.
 -}
 type alias Feedback =
+    String
+
+
+type alias InternalViewConfig =
+    { label : String
+    , id : String
+    , feedback : List InternalFeedback
+    }
+
+
+type alias InternalFeedback =
     { message : String, fail : Bool, locator : Locator }
 
 
@@ -903,7 +914,22 @@ fail e =
 
                     _ ->
                         ( model, Cmd.none )
-        , view = \_ _ -> []
+        , view =
+            \{ feedback } _ ->
+                case feedback of
+                    [] ->
+                        []
+
+                    _ ->
+                        [H.ul
+                            [ HA.style "list-style-type" "none"
+                            , HA.style "margin" "0px"
+                            , HA.style "padding" "0px"
+                            ]
+                            (List.map
+                                (\f -> H.li [] [ H.small [] [ H.text ("⚠️ " ++ f.message) ] ])
+                                feedback
+                            )]
         , subscriptions = \_ -> Sub.none
         , submit =
             \model ->
@@ -1841,7 +1867,7 @@ wrapWithTrees :
     , update : msg -> model -> ( model, Cmd msg )
     , blankModel : model
     , view : ViewConfig -> model -> List (H.Html msg)
-    , submit : model -> Result (List Feedback) value
+    , submit : model -> Result (List InternalFeedback) value
     , subscriptions : model -> Sub msg
     , send : innerMsg -> msg
     , intercept : msg -> Maybe innerMsg
@@ -1870,7 +1896,15 @@ wrapWithTrees args =
                         locationFromModel model
 
                     relevantFeedback =
-                        List.filter (\f -> isLocated f.locator location) config.feedback
+                        List.filterMap
+                            (\f ->
+                                if isLocated f.locator location then
+                                    Just f.message
+
+                                else
+                                    Nothing
+                            )
+                            config.feedback
 
                     ( model_, mapper ) =
                         case model of
@@ -1881,9 +1915,9 @@ wrapWithTrees args =
                                 ( args.blankModel, always Noop )
                 in
                 args.view
-                    { config
-                        | feedback = relevantFeedback
-                        , id = locationToString location
+                    { feedback = relevantFeedback
+                    , id = locationToString location
+                    , label = config.label
                     }
                     model_
                     |> List.map (H.map mapper)

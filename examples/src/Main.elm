@@ -238,12 +238,10 @@ hasFleasField : Yafl.Field FormModel FormMsg Yafl.NoId Widgets.IntMsg FunFact
 hasFleasField =
     fields.int
         |> Yafl.label "How many fleas do they have?"
-        
         |> Yafl.andThen
             (\numberOfFleas ->
                 if numberOfFleas < 1 then
                     Yafl.fail "They must have at least one?!"
-                        
 
                 else if numberOfFleas < 10 then
                     Yafl.choice
@@ -258,7 +256,6 @@ hasFleasField =
                                 else
                                     fields.int
                                         |> Yafl.label "Ok, how many extra fleas did you find on their belly?"
-                                        
                                         |> Yafl.andThen
                                             (\extraFleas ->
                                                 if extraFleas < 0 then
@@ -269,28 +266,12 @@ hasFleasField =
                                                     Yafl.succeed (HasFleas (numberOfFleas + extraFleas))
                                             )
                             )
-
                 else
                     Yafl.succeed (HasFleas numberOfFleas)
             )
 
 
-viewFeedback : List Yafl.Feedback -> H.Html msg
-viewFeedback feedback =
-    case feedback of
-        [] ->
-            H.text ""
 
-        _ ->
-            H.ul
-                [ HA.style "list-style-type" "none"
-                , HA.style "margin" "0px"
-                , HA.style "padding" "0px"
-                ]
-                (List.map
-                    (\f -> H.li [] [ H.small [] [ H.text ("⚠️ " ++ f.message) ] ])
-                    feedback
-                )
 
 
 
