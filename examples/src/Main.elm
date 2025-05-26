@@ -100,6 +100,7 @@ stringWidget =
     , label = "String"
     }
 
+
 intWidget : Yafl.Widget String String Int
 intWidget =
     { init = ( "", Cmd.none )
@@ -117,7 +118,7 @@ intWidget =
             , viewFeedback feedback
             ]
     , subscriptions = \_ -> Sub.none
-    , submit = \model -> String.toInt model |> Result.fromMaybe ["This must be a whole number"]
+    , submit = \model -> String.toInt model |> Result.fromMaybe [ "This must be a whole number" ]
     , label = "String"
     }
 
@@ -138,6 +139,8 @@ viewFeedback feedback =
                     (\f -> H.li [] [ H.small [] [ H.text ("⚠️ " ++ f) ] ])
                     feedback
                 )
+
+
 
 {-
    Step 2: Define your `Field`s
@@ -319,18 +322,15 @@ hasFleasField =
                                             (\extraFleas ->
                                                 if extraFleas < 0 then
                                                     Yafl.fail "C'mon, you can't have negative fleas!"
-                                                        
 
                                                 else
                                                     Yafl.succeed (HasFleas (numberOfFleas + extraFleas))
                                             )
                             )
+
                 else
                     Yafl.succeed (HasFleas numberOfFleas)
             )
-
-
-
 
 
 

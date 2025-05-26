@@ -921,7 +921,7 @@ fail e =
                         []
 
                     _ ->
-                        [H.ul
+                        [ H.ul
                             [ HA.style "list-style-type" "none"
                             , HA.style "margin" "0px"
                             , HA.style "padding" "0px"
@@ -929,7 +929,8 @@ fail e =
                             (List.map
                                 (\f -> H.li [] [ H.small [] [ H.text ("⚠️ " ++ f.message) ] ])
                                 feedback
-                            )]
+                            )
+                        ]
         , subscriptions = \_ -> Sub.none
         , submit =
             \model ->
