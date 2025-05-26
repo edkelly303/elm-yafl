@@ -235,7 +235,7 @@ tests =
                         (\() ->
                             modelAndCmd__Yafl__andSelectField_0
                                 |> Yafl.andSelectField
-                                    myAddressedField__Yafl__andSelectField_0
+                                    myFieldWithId__Yafl__andSelectField_0
                                 |> Tuple.first
                                 |> Yafl.submit
                                     myChoiceField__Yafl__andSelectField_0
@@ -425,7 +425,7 @@ tests =
                                     -> Maybe.Maybe String.String
                                 unused =
                                     Yafl.intercept
-                                        myAddressedField__Yafl__intercept_0
+                                        myFieldWithId__Yafl__intercept_0
                             in
                             Expect.pass
                         )
@@ -511,7 +511,7 @@ tests =
                         (\() ->
                             model__Yafl__selectField_0
                                 |> Yafl.selectField
-                                    myAddressedField__Yafl__selectField_0
+                                    myFieldWithId__Yafl__selectField_0
                                 |> Tuple.first
                                 |> Yafl.submit
                                     myChoiceField__Yafl__selectField_0
@@ -530,7 +530,7 @@ tests =
                                 unused : Platform.Cmd.Cmd (Yafl.Msg Examples.FormMsg)
                                 unused =
                                     Yafl.send
-                                        myAddressedField__Yafl__send_0
+                                        myFieldWithId__Yafl__send_0
                                         "Hello!"
                             in
                             Expect.pass
@@ -772,14 +772,14 @@ model__Yafl__andMap_0 =
     Yafl.init form__Yafl__andMap_0 |> Tuple.first
 
 
-myAddressedField__Yafl__andSelectField_0 =
+myFieldWithId__Yafl__andSelectField_0 =
     Yafl.succeed "Hurrah!" |> Yafl.id "any-string-as-long-as-it's-unique"
 
 
 myChoiceField__Yafl__andSelectField_0 =
     Yafl.choice
         |> Yafl.option "Don't pick me!" (Yafl.fail "Oh no, you failed!")
-        |> Yafl.option "I'm the one!" myAddressedField__Yafl__andSelectField_0
+        |> Yafl.option "I'm the one!" myFieldWithId__Yafl__andSelectField_0
 
 
 modelAndCmd__Yafl__andSelectField_0 =
@@ -829,7 +829,7 @@ myFieldWithId__Yafl__id_0 =
     myField__Yafl__id_0 |> Yafl.id "any-string-as-long-as-it's-unique"
 
 
-myAddressedField__Yafl__intercept_0 =
+myFieldWithId__Yafl__intercept_0 =
     Examples.fields.string |> Yafl.id "any-string-as-long-as-it's-unique"
 
 
@@ -863,21 +863,21 @@ myChoiceField__Yafl__select_0 =
         |> Yafl.option "Fancy chalice" (Yafl.fail "You chose... poorly")
 
 
-myAddressedField__Yafl__selectField_0 =
+myFieldWithId__Yafl__selectField_0 =
     Yafl.succeed "Hurrah!" |> Yafl.id "any-string-as-long-as-it's-unique"
 
 
 myChoiceField__Yafl__selectField_0 =
     Yafl.choice
         |> Yafl.option "Don't pick me!" (Yafl.fail "Oh no, you failed!")
-        |> Yafl.option "I'm the one!" myAddressedField__Yafl__selectField_0
+        |> Yafl.option "I'm the one!" myFieldWithId__Yafl__selectField_0
 
 
 model__Yafl__selectField_0 =
     myChoiceField__Yafl__selectField_0 |> Yafl.init |> Tuple.first
 
 
-myAddressedField__Yafl__send_0 =
+myFieldWithId__Yafl__send_0 =
     Examples.fields.string |> Yafl.id "any-string-as-long-as-it's-unique"
 
 

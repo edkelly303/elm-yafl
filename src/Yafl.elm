@@ -1,7 +1,7 @@
 module Yafl exposing
     ( Widget
     , Field, defineFields, addWidget, endFields
-    , Model, Msg, init, update, view, ViewConfig, Feedback, subscriptions, submit, Path, Locator(..)
+    , Model, Msg, init, update, view, ViewConfig, Feedback, subscriptions, submit
     , succeed, fail, failAt
     , map, andThen
     , map2, andMap
@@ -31,7 +31,7 @@ boilerplate.
 Nevertheless, we'll provide some code samples for a few simple widgets that we
 can use in the code snippets in these docs.
 
-    module Widgets exposing (int, string)
+    module Examples exposing (..)
 
     import Html as H
     import Html.Attributes as HA
@@ -42,12 +42,12 @@ can use in the code snippets in these docs.
     {- A basic Widget that produces a String. Its internal
        Model and Msg types are also Strings.
     -}
-    string : Yafl.Widget String String String
-    string =
+    stringWidget : Yafl.Widget String String String
+    stringWidget =
         { init = ( "", Cmd.none )
         , update = \msg model -> ( msg, Cmd.none )
         , view =
-            \{ label, id } model ->
+            \{ label, id, feedback } model ->
                 [ H.label [ HA.for id ] [ H.text label ]
                 , H.input
                     [ HA.id id
@@ -56,52 +56,34 @@ can use in the code snippets in these docs.
                     , HE.onInput identity
                     ]
                     []
+                , H.ul [] (List.map (\f -> H.li [] [ H.text f ]) feedback)
                 ]
         , subscriptions = \model -> Sub.none
         , submit = \model -> Ok model
         , label = "String"
         }
 
-    {- A Widget that produces an Int. This is basically
-       the 'Counter' example from the Elm Guide.
-    -}
-    type IntMsg
-        = Increment
-        | Decrement
-
-    int : Yafl.Widget Int IntMsg Int
-    int =
-        { init = ( 0, Cmd.none )
+    boolWidget : Yafl.Widget Bool Bool Bool
+    boolWidget =
+        { init = ( False, Cmd.none )
         , update =
-            \msg model ->
-                ( case msg of
-                    Increment ->
-                        model + 1
-
-                    Decrement ->
-                        model - 1
-                , Cmd.none
-                )
+            \msg _ ->
+                ( msg, Cmd.none )
         , view =
-            \{ label, id } model ->
+            \{ label, id, feedback } model ->
                 [ H.label [ HA.for id ] [ H.text label ]
-                , H.span [ HA.id id ]
-                    [ H.button
-                        [ HA.type_ "button"
-                        , HE.onClick Decrement
-                        ]
-                        [ H.text "-" ]
-                    , H.text (String.fromInt model)
-                    , H.button
-                        [ HA.type_ "button"
-                        , HE.onClick Increment
-                        ]
-                        [ H.text "+" ]
+                , H.input
+                    [ HA.id id
+                    , HA.type_ "checkbox"
+                    , HA.checked model
+                    , HE.onCheck identity
                     ]
+                    []
+                , H.ul [] (List.map (\f -> H.li [] [ H.text f ]) feedback)
                 ]
-        , subscriptions = \model -> Sub.none
+        , subscriptions = \_ -> Sub.none
         , submit = \model -> Ok model
-        , label = "Int"
+        , label = "Bool"
         }
 
 @docs Widget
@@ -119,30 +101,29 @@ and [`endFields`](#endFields). The type signatures for these three functions are
 terrifying, but fortunately we don't need to understand them - just follow the
 example below:
 
-    module Fields exposing (Model, Msg, fields)
+    module Examples exposing (Model, Msg, fields)
 
-    import Widgets
     import Yafl exposing (addWidget, defineFields, endFields)
 
     fields =
         defineFields
-            (\string int ->
+            (\string bool ->
                 { string = string
-                , int = int
+                , bool = bool
                 }
             )
-            |> addWidget Widgets.string
-            |> addWidget Widgets.int
+            |> addWidget stringWidget
+            |> addWidget boolWidget
             |> endFields
 
     {- This gives us the following Model and Msg types for
        our form:
     -}
-    type alias Model =
-        ( Maybe String, ( Maybe Int, () ) )
+    type alias FormModel =
+        ( Maybe String, ( Maybe Bool, () ) )
 
-    type alias Msg =
-        ( Maybe String, ( Maybe Widgets.IntMsg, () ) )
+    type alias FormMsg =
+        ( Maybe String, ( Maybe Bool, () ) )
 
 @docs Field, defineFields, addWidget, endFields
 
@@ -190,7 +171,7 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 
     --> Ok False
 
-@docs Model, Msg, init, update, view, ViewConfig, Feedback, subscriptions, submit, Path, Locator
+@docs Model, Msg, init, update, view, ViewConfig, Feedback, subscriptions, submit
 
 
 # Combining Fields
@@ -571,21 +552,18 @@ label label_ (Field field) =
 -}
 
 
-{-| Add a unique identifier to a Field, which can be used to send and intercept messages to that Field.
+{-| Add a unique identifier to a Field, which can be used to send and intercept
+messages to that Field.
 
-    import Yafl
-    import Examples exposing (FormModel, FormMsg, fields)
+    import Yafl import Examples exposing (FormModel, FormMsg, fields)
 
-    myField =
-        fields.string
+    myField = fields.string
 
     myField
 
     --: Yafl.Field FormModel FormMsg Yafl.NoId String String
 
-    myFieldWithId =
-        myField
-            |> Yafl.id "any-string-as-long-as-it's-unique"
+    myFieldWithId = myField |> Yafl.id "any-string-as-long-as-it's-unique"
 
     myFieldWithId
 
@@ -594,6 +572,11 @@ label label_ (Field field) =
     Yafl.send myFieldWithId "Hello!"
 
     --: Cmd (Yafl.Msg FormMsg)
+
+This identifier is also used as the `id` string in [`ViewConfig`](#ViewConfig),
+which is passed into the view when the Field is rendered. When defining a
+Widget, you can use the `id` field of the `ViewConfig` to set the
+`Html.Attributes.id` of the HTML input.
 
 -}
 id : String -> Field model msg NoId innerMsg output -> Field model msg HasId innerMsg output
@@ -635,11 +618,11 @@ select (Field field) =
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
 
-    myAddressedField =
+    myFieldWithId =
         fields.string
             |> Yafl.id "any-string-as-long-as-it's-unique"
 
-    Yafl.send myAddressedField "Hello!"
+    Yafl.send myFieldWithId "Hello!"
 
     --: Cmd (Yafl.Msg FormMsg)
 
@@ -654,11 +637,11 @@ send (Field field) msg =
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
 
-    myAddressedField =
+    myFieldWithId =
         fields.string
             |> Yafl.id "any-string-as-long-as-it's-unique"
 
-    Yafl.intercept myAddressedField
+    Yafl.intercept myFieldWithId
 
     --: Yafl.Msg FormMsg -> Maybe String
 
@@ -754,14 +737,14 @@ andUpdateField field innerMsg ( model, cmd1 ) =
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
 
-    myAddressedField =
+    myFieldWithId =
         Yafl.succeed "Hurrah!"
             |> Yafl.id "any-string-as-long-as-it's-unique"
 
     myChoiceField =
         Yafl.choice
             |> Yafl.option "Don't pick me!" (Yafl.fail "Oh no, you failed!")
-            |> Yafl.option "I'm the one!" myAddressedField
+            |> Yafl.option "I'm the one!" myFieldWithId
 
     model =
         myChoiceField
@@ -774,7 +757,7 @@ andUpdateField field innerMsg ( model, cmd1 ) =
     --> Err [ ( "0.0", "Oh no, you failed!" ) ]
 
     model
-        |> Yafl.selectField myAddressedField
+        |> Yafl.selectField myFieldWithId
         |> Tuple.first
         |> Yafl.submit myChoiceField
 
@@ -800,14 +783,14 @@ selectField (Field field) model =
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
 
-    myAddressedField =
+    myFieldWithId =
         Yafl.succeed "Hurrah!"
             |> Yafl.id "any-string-as-long-as-it's-unique"
 
     myChoiceField =
         Yafl.choice
             |> Yafl.option "Don't pick me!" (Yafl.fail "Oh no, you failed!")
-            |> Yafl.option "I'm the one!" myAddressedField
+            |> Yafl.option "I'm the one!" myFieldWithId
 
     modelAndCmd =
         myChoiceField
@@ -820,7 +803,7 @@ selectField (Field field) model =
     --> Err [ ("0.0", "Oh no, you failed!" ) ]
 
     modelAndCmd
-        |> Yafl.andSelectField myAddressedField
+        |> Yafl.andSelectField myFieldWithId
         |> Tuple.first
         |> Yafl.submit myChoiceField
 
