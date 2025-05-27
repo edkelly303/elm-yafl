@@ -286,14 +286,14 @@ type alias MaybeId =
 
 {-| The top-level model type for your form.
 -}
-type Model model output
-    = Model (Node model)
+type Model formModel output
+    = Model (Node formModel)
 
 
-type Node node
-    = Value Location node
-    | Product ProductType Location (Node node) (Node node)
-    | Sum Location { selected : Int } (List ( String, Node node ))
+type Node formModel
+    = Value Location formModel
+    | Product ProductType Location (Node formModel) (Node formModel)
+    | Sum Location { selected : Int } (List ( String, Node formModel ))
     | Empty EmptyType Location
 
 
@@ -310,8 +310,8 @@ type EmptyType
 
 {-| The top-level message type for your form.
 -}
-type Msg msg
-    = ValueChanged Locator msg
+type Msg formMsg
+    = ValueChanged Locator formMsg
     | OptionSelected Locator
     | Noop
 
@@ -324,26 +324,26 @@ type alias Path =
 
 {-| Forms are composed of `Field`s - this is the main data type we'll be using in this package.
 -}
-type Field model msg id innerMsg output
+type Field formModel formMsg id fieldMsg output
     = Field
         { init :
-            Path -> MaybeId -> ( Node model, Cmd (Msg msg) )
+            Path -> MaybeId -> ( Node formModel, Cmd (Msg formMsg) )
         , update :
-            Msg msg
-            -> Node model
-            -> ( Node model, Cmd (Msg msg) )
+            Msg formMsg
+            -> Node formModel
+            -> ( Node formModel, Cmd (Msg formMsg) )
         , view :
             InternalViewConfig
-            -> Node model
-            -> List (H.Html (Msg msg))
+            -> Node formModel
+            -> List (H.Html (Msg formMsg))
         , submit :
-            Node model
+            Node formModel
             -> Result (List InternalFeedback) output
         , subscriptions :
-            Node model
-            -> Sub (Msg msg)
-        , send : MaybeId -> innerMsg -> Msg msg
-        , intercept : MaybeId -> Msg msg -> Maybe innerMsg
+            Node formModel
+            -> Sub (Msg formMsg)
+        , send : MaybeId -> fieldMsg -> Msg formMsg
+        , intercept : MaybeId -> Msg formMsg -> Maybe fieldMsg
         , label : String
         , maybeId : MaybeId
         }
@@ -427,7 +427,7 @@ type alias InternalFeedback =
     --: ( Yafl.Model FormModel Bool, Cmd (Yafl.Msg FormMsg) )
 
 -}
-init : Field model msg id innerMsg output -> ( Model model output, Cmd (Msg msg) )
+init : Field formModel formMsg id fieldMsg output -> ( Model formModel output, Cmd (Msg formMsg) )
 init (Field field) =
     field.init [ 0 ] field.maybeId
         |> Tuple.mapFirst Model
@@ -435,7 +435,7 @@ init (Field field) =
 
 {-| Update your form by supplying a `Msg` and `Model`
 -}
-update : Field model msg id innerMsg output -> Msg msg -> Model model output -> ( Model model output, Cmd (Msg msg) )
+update : Field formModel formMsg id fieldMsg output -> Msg formMsg -> Model formModel output -> ( Model formModel output, Cmd (Msg formMsg) )
 update (Field field) msg (Model model) =
     field.update msg model
         |> Tuple.mapFirst Model
@@ -460,7 +460,7 @@ update (Field field) msg (Model model) =
     --: List (Html (Yafl.Msg FormMsg))
 
 -}
-view : Field model msg id innerMsg output -> Model model output -> List (H.Html (Msg msg))
+view : Field formModel formMsg id fieldMsg output -> Model formModel output -> List (H.Html (Msg formMsg))
 view (Field field) (Model model) =
     let
         feedback =
@@ -497,7 +497,7 @@ view (Field field) (Model model) =
     --: Sub (Yafl.Msg FormMsg)
 
 -}
-subscriptions : Field model msg id innerMsg output -> Model model output -> Sub (Msg msg)
+subscriptions : Field formModel formMsg id fieldMsg output -> Model formModel output -> Sub (Msg formMsg)
 subscriptions (Field field) (Model model) =
     field.subscriptions model
 
@@ -520,7 +520,7 @@ subscriptions (Field field) (Model model) =
     --> Ok ""
 
 -}
-submit : Field model msg id innerMsg output -> Model model output -> Result (List ( String, String )) output
+submit : Field formModel formMsg id fieldMsg output -> Model formModel output -> Result (List ( String, String )) output
 submit (Field field) (Model model) =
     field.submit model
         |> Result.mapError (List.map (\{ message, locator } -> ( locatorToString locator, message )))
@@ -540,20 +540,20 @@ submit (Field field) (Model model) =
     --: Yafl.Field FormModel FormMsg Yafl.NoId String String
 
 -}
-label : String -> Field model msg id innerMsg output -> Field model msg id innerMsg output
+label : String -> Field formModel formMsg id fieldMsg output -> Field formModel formMsg id fieldMsg output
 label label_ (Field field) =
     Field { field | label = label_ }
 
 
 
 {-
-    .d8b.  d8888b. d8888b. d8888b. d88888b .d8888. .d8888. d888888b d8b   db  d888b
-   d8' `8b 88  `8D 88  `8D 88  `8D 88'     88'  YP 88'  YP   `88'   888o  88 88' Y8b
-   88ooo88 88   88 88   88 88oobY' 88ooooo `8bo.   `8bo.      88    88V8o 88 88
-   88~~~88 88   88 88   88 88`8b   88~~~~~   `Y8b.   `Y8b.    88    88 V8o88 88  ooo
-   88   88 88  .8D 88  .8D 88 `88. 88.     db   8D db   8D   .88.   88  V888 88. ~8~
-   YP   YP Y8888D' Y8888D' 88   YD Y88888P `8888Y' `8888Y' Y888888P VP   V8P  Y888P
-
+   d888888b d8888b.         .d8888. d88888b d8b   db d8888b.         d888888b d8b   db d888888b d88888b d8888b.  .o88b. d88888b d8888b. d888888b
+     `88'   88  `8D         88'  YP 88'     888o  88 88  `8D           `88'   888o  88 `~~88~~' 88'     88  `8D d8P  Y8 88'     88  `8D `~~88~~'
+      88    88   88         `8bo.   88ooooo 88V8o 88 88   88            88    88V8o 88    88    88ooooo 88oobY' 8P      88ooooo 88oodD'    88
+      88    88   88           `Y8b. 88~~~~~ 88 V8o88 88   88            88    88 V8o88    88    88~~~~~ 88`8b   8b      88~~~~~ 88~~~      88
+     .88.   88  .8D db      db   8D 88.     88  V888 88  .8D db        .88.   88  V888    88    88.     88 `88. Y8b  d8 88.     88         88
+   Y888888P Y8888D' V8      `8888Y' Y88888P VP   V8P Y8888D' V8      Y888888P VP   V8P    YP    Y88888P 88   YD  `Y88P' Y88888P 88         YP
+                     P                                        P
 
 -}
 
@@ -585,7 +585,7 @@ Widget, you can use the `id` field of the `ViewConfig` to set the
 `Html.Attributes.id` of the HTML input.
 
 -}
-id : String -> Field model msg NoId innerMsg output -> Field model msg HasId innerMsg output
+id : String -> Field formModel formMsg NoId innerMsg output -> Field formModel formMsg HasId innerMsg output
 id sendId_ (Field field) =
     Field { field | maybeId = Just sendId_ }
 
@@ -609,7 +609,7 @@ id sendId_ (Field field) =
     --: Cmd (Yafl.Msg FormMsg)
 
 -}
-select : Field model msg HasId innerMsg output -> Cmd (Msg msg)
+select : Field formModel formMsg HasId innerMsg output -> Cmd (Msg msg)
 select (Field field) =
     case field.maybeId of
         Just id_ ->
@@ -633,7 +633,7 @@ select (Field field) =
     --: Cmd (Yafl.Msg FormMsg)
 
 -}
-send : Field model msg HasId innerMsg output -> innerMsg -> Cmd (Msg msg)
+send : Field formModel formMsg HasId innerMsg output -> innerMsg -> Cmd (Msg formMsg)
 send (Field field) msg =
     Task.perform identity (Task.succeed (field.send field.maybeId msg))
 
@@ -652,7 +652,7 @@ send (Field field) msg =
     --: Yafl.Msg FormMsg -> Maybe String
 
 -}
-intercept : Field model msg HasId innerMsg output -> Msg msg -> Maybe innerMsg
+intercept : Field formModel formMsg HasId innerMsg output -> Msg formMsg -> Maybe innerMsg
 intercept (Field field) =
     field.intercept field.maybeId
 
@@ -695,7 +695,7 @@ intercept (Field field) =
     --> Ok (Foo "Hello!" "")
 
 -}
-updateField : Field model msg HasId innerMsg output -> innerMsg -> Model model output2 -> ( Model model output2, Cmd (Msg msg) )
+updateField : Field formModel formMsg HasId innerMsg output -> innerMsg -> Model formModel output2 -> ( Model formModel output2, Cmd (Msg formMsg) )
 updateField (Field field) innerMsg (Model model) =
     field.update (field.send field.maybeId innerMsg) model
         |> Tuple.mapFirst Model
@@ -732,7 +732,7 @@ updateField (Field field) innerMsg (Model model) =
     --> Ok (Foo "Hello" "World")
 
 -}
-andUpdateField : Field model msg HasId innerMsg output -> innerMsg -> ( Model model output2, Cmd (Msg msg) ) -> ( Model model output2, Cmd (Msg msg) )
+andUpdateField : Field formModel formMsg HasId innerMsg output -> innerMsg -> ( Model formModel output2, Cmd (Msg formMsg) ) -> ( Model formModel output2, Cmd (Msg formMsg) )
 andUpdateField field innerMsg ( model, cmd1 ) =
     updateField field innerMsg model
         |> Tuple.mapSecond (\cmd2 -> Cmd.batch [ cmd1, cmd2 ])
@@ -770,7 +770,7 @@ andUpdateField field innerMsg ( model, cmd1 ) =
     --> Ok "Hurrah!"
 
 -}
-selectField : Field model msg HasId innerMsg output -> Model model output2 -> ( Model model output2, Cmd (Msg msg) )
+selectField : Field formModel formMsg HasId innerMsg output -> Model formModel output2 -> ( Model formModel output2, Cmd (Msg formMsg) )
 selectField (Field field) (Model model) =
     case field.maybeId of
         Just id_ ->
@@ -817,7 +817,7 @@ selectField (Field field) (Model model) =
     --> Ok "Hurrah!"
 
 -}
-andSelectField : Field model msg HasId innerMsg output -> ( Model model output2, Cmd (Msg msg) ) -> ( Model model output2, Cmd (Msg msg) )
+andSelectField : Field formModel formMsg HasId innerMsg output -> ( Model formModel output2, Cmd (Msg formMsg) ) -> ( Model formModel output2, Cmd (Msg formMsg) )
 andSelectField field ( model, cmd1 ) =
     selectField field model
         |> Tuple.mapSecond (\cmd2 -> Cmd.batch [ cmd1, cmd2 ])
@@ -853,7 +853,7 @@ andSelectField field ( model, cmd1 ) =
     --> Ok "Hurrah!"
 
 -}
-succeed : output -> Field model msg id innerMsg output
+succeed : output -> Field formModel formMsg id fieldMsg output
 succeed f =
     Field
         { init = \path maybeId -> ( Empty Succeed (newLocation path maybeId), Cmd.none )
@@ -892,7 +892,7 @@ succeed f =
     --> Err [ ("0", "Oh dear!") ]
 
 -}
-fail : String -> Field model msg id innerMsg output
+fail : String -> Field formModel formMsg id fieldMsg output
 fail e =
     Field
         { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
@@ -942,7 +942,7 @@ Field. This can be useful in multi-field validation, when you have an error that
 results from a combination of several fields, but you only want to display the
 error message on one specific field.
 -}
-failAt : Field model msg HasId innerMsg1 output1 -> String -> Field model msg address2 innerMsg2 output2
+failAt : Field formModel formMsg HasId innerMsg1 output1 -> String -> Field formModel formMsg address2 innerMsg2 output2
 failAt (Field failField) e =
     Field
         { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
@@ -1005,8 +1005,8 @@ type variants.
 -}
 map :
     (output -> output2)
-    -> Field model msg id innerMsg output
-    -> Field model msg id innerMsg output2
+    -> Field formModel formMsg id fieldMsg output
+    -> Field formModel formMsg id fieldMsg output2
 map f (Field field) =
     Field
         { init = field.init
@@ -1049,9 +1049,9 @@ If you need to combine the outputs of more than two fields, check out
 -}
 map2 :
     (output1 -> output2 -> output3)
-    -> Field model msg address1 innerMsg1 output1
-    -> Field model msg address2 innerMsg2 output2
-    -> Field model msg NoId Never output3
+    -> Field formModel formMsg address1 innerMsg1 output1
+    -> Field formModel formMsg address2 innerMsg2 output2
+    -> Field formModel formMsg NoId Never output3
 map2 f (Field field1) (Field field2) =
     Field
         { init =
@@ -1167,9 +1167,9 @@ Use in combination with [`succeed`](#succeed).
 
 -}
 andMap :
-    Field model msg address1 innerMsg1 output1
-    -> Field model msg address2 innerMsg2 (output1 -> output2)
-    -> Field model msg NoId Never output2
+    Field formModel formMsg address1 innerMsg1 output1
+    -> Field formModel formMsg address2 innerMsg2 (output1 -> output2)
+    -> Field formModel formMsg NoId Never output2
 andMap (Field field1) (Field field2) =
     let
         (Field mapped) =
@@ -1250,9 +1250,9 @@ combination with this function.
 
 -}
 andThen :
-    (output -> Field model msg id2 innerMsg2 output2)
-    -> Field model msg id innerMsg output
-    -> Field model msg id innerMsg output2
+    (output -> Field formModel formMsg id2 innerMsg2 output2)
+    -> Field formModel formMsg id fieldMsg output
+    -> Field formModel formMsg id fieldMsg output2
 andThen f (Field field) =
     Field
         { init =
@@ -1434,7 +1434,7 @@ andThen f (Field field) =
 
 {-| Begin defining a `choice` between multiple [`option`](#option)s.
 -}
-choice : Field model msg NoId Never output
+choice : Field formModel formMsg NoId Never output
 choice =
     Field
         { init = \path maybeId -> ( Sum (newLocation path maybeId) { selected = 0 } [], Cmd.none )
@@ -1474,9 +1474,9 @@ will be rendered underneath the fieldset containing the radio buttons.
 -}
 option :
     String
-    -> Field model msg id innerMsg output
-    -> Field model msg NoId Never output
-    -> Field model msg NoId Never output
+    -> Field formModel formMsg id fieldMsg output
+    -> Field formModel formMsg NoId Never output
+    -> Field formModel formMsg NoId Never output
 option radioLabel (Field field) (Field choice_) =
     Field
         { init =
@@ -1650,15 +1650,15 @@ addWidget :
     widget
     ->
         { apply :
-            ({ blankModel : model
+            ({ blankModel : formModel
              , blankMsg : b
              , ctor :
-                Field model msg NoId innerMsg value -> c
+                Field formModel formMsg NoId innerMsg value -> c
              }
-             -> ( msg -> Maybe innerMsg, tailA )
-             -> ( Maybe innerMsg -> b -> msg, tailB )
-             -> ( model -> Maybe a2, tailC )
-             -> ( Maybe a3 -> model -> model, tailD )
+             -> ( formMsg -> Maybe innerMsg, tailA )
+             -> ( Maybe innerMsg -> b -> formMsg, tailB )
+             -> ( formModel -> Maybe a2, tailC )
+             -> ( Maybe a3 -> formModel -> formModel, tailD )
              ->
                 ( { init : ( a3, Cmd innerMsg )
                   , label : String
@@ -1699,7 +1699,7 @@ addWidget :
         }
     ->
         { apply :
-            ({ blankModel : model, blankMsg : b, ctor : c }
+            ({ blankModel : formModel, blankMsg : b, ctor : c }
              -> tailA
              -> tailB
              -> tailC
@@ -1815,10 +1815,10 @@ endFields builder =
 
 
 applier :
-    (msg -> Maybe innerMsg)
-    -> (Maybe innerMsg -> b -> msg)
-    -> (model -> Maybe a)
-    -> (Maybe a1 -> model -> model)
+    (formMsg -> Maybe innerMsg)
+    -> (Maybe innerMsg -> b -> formMsg)
+    -> (formModel -> Maybe a)
+    -> (Maybe a1 -> formModel -> formModel)
     ->
         { init : ( a1, Cmd innerMsg )
         , label : String
@@ -1828,11 +1828,11 @@ applier :
         , view : ViewConfig -> a -> List (H.Html innerMsg)
         }
     ->
-        { blankModel : model
+        { blankModel : formModel
         , blankMsg : b
-        , ctor : Field model msg NoId innerMsg value -> d
+        , ctor : Field formModel formMsg NoId innerMsg value -> d
         }
-    -> { blankModel : model, blankMsg : b, ctor : d }
+    -> { blankModel : formModel, blankMsg : b, ctor : d }
 applier msgGetter msgSetter modelGetter modelSetter fieldType acc =
     let
         send_ msg_ =
@@ -1912,17 +1912,17 @@ applier msgGetter msgSetter modelGetter modelSetter fieldType acc =
 
 
 wrapWithTrees :
-    { init : ( model, Cmd msg )
-    , update : msg -> model -> ( model, Cmd msg )
-    , blankModel : model
-    , view : ViewConfig -> model -> List (H.Html msg)
-    , submit : model -> Result (List InternalFeedback) value
-    , subscriptions : model -> Sub msg
-    , send : innerMsg -> msg
-    , intercept : msg -> Maybe innerMsg
+    { init : ( formModel, Cmd formMsg )
+    , update : formMsg -> formModel -> ( formModel, Cmd formMsg )
+    , blankModel : formModel
+    , view : ViewConfig -> formModel -> List (H.Html formMsg)
+    , submit : formModel -> Result (List InternalFeedback) value
+    , subscriptions : formModel -> Sub formMsg
+    , send : innerMsg -> formMsg
+    , intercept : formMsg -> Maybe innerMsg
     , label : String
     }
-    -> Field model msg NoId innerMsg value
+    -> Field formModel formMsg NoId innerMsg value
 wrapWithTrees args =
     Field
         { init =
