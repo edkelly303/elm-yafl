@@ -585,7 +585,7 @@ Widget, you can use the `id` field of the `ViewConfig` to set the
 `Html.Attributes.id` of the HTML input.
 
 -}
-id : String -> Field formModel formMsg NoId innerMsg output -> Field formModel formMsg HasId innerMsg output
+id : String -> Field formModel formMsg NoId widgetMsg output -> Field formModel formMsg HasId widgetMsg output
 id sendId_ (Field field) =
     Field { field | maybeId = Just sendId_ }
 
@@ -609,7 +609,7 @@ id sendId_ (Field field) =
     --: Cmd (Yafl.Msg FormMsg)
 
 -}
-select : Field formModel formMsg HasId innerMsg output -> Cmd (Msg msg)
+select : Field formModel formMsg HasId widgetMsg output -> Cmd (Msg msg)
 select (Field field) =
     case field.maybeId of
         Just id_ ->
@@ -633,7 +633,7 @@ select (Field field) =
     --: Cmd (Yafl.Msg FormMsg)
 
 -}
-send : Field formModel formMsg HasId innerMsg output -> innerMsg -> Cmd (Msg formMsg)
+send : Field formModel formMsg HasId widgetMsg output -> widgetMsg -> Cmd (Msg formMsg)
 send (Field field) msg =
     Task.perform identity (Task.succeed (field.send field.maybeId msg))
 
@@ -652,7 +652,7 @@ send (Field field) msg =
     --: Yafl.Msg FormMsg -> Maybe String
 
 -}
-intercept : Field formModel formMsg HasId innerMsg output -> Msg formMsg -> Maybe innerMsg
+intercept : Field formModel formMsg HasId widgetMsg output -> Msg formMsg -> Maybe widgetMsg
 intercept (Field field) =
     field.intercept field.maybeId
 
@@ -695,9 +695,9 @@ intercept (Field field) =
     --> Ok (Foo "Hello!" "")
 
 -}
-updateField : Field formModel formMsg HasId innerMsg output -> innerMsg -> Model formModel output2 -> ( Model formModel output2, Cmd (Msg formMsg) )
-updateField (Field field) innerMsg (Model model) =
-    field.update (field.send field.maybeId innerMsg) model
+updateField : Field formModel formMsg HasId widgetMsg output -> widgetMsg -> Model formModel output2 -> ( Model formModel output2, Cmd (Msg formMsg) )
+updateField (Field field) widgetMsg (Model model) =
+    field.update (field.send field.maybeId widgetMsg) model
         |> Tuple.mapFirst Model
 
 
@@ -732,9 +732,9 @@ updateField (Field field) innerMsg (Model model) =
     --> Ok (Foo "Hello" "World")
 
 -}
-andUpdateField : Field formModel formMsg HasId innerMsg output -> innerMsg -> ( Model formModel output2, Cmd (Msg formMsg) ) -> ( Model formModel output2, Cmd (Msg formMsg) )
-andUpdateField field innerMsg ( model, cmd1 ) =
-    updateField field innerMsg model
+andUpdateField : Field formModel formMsg HasId widgetMsg output -> widgetMsg -> ( Model formModel output2, Cmd (Msg formMsg) ) -> ( Model formModel output2, Cmd (Msg formMsg) )
+andUpdateField field widgetMsg ( model, cmd1 ) =
+    updateField field widgetMsg model
         |> Tuple.mapSecond (\cmd2 -> Cmd.batch [ cmd1, cmd2 ])
 
 
@@ -770,7 +770,7 @@ andUpdateField field innerMsg ( model, cmd1 ) =
     --> Ok "Hurrah!"
 
 -}
-selectField : Field formModel formMsg HasId innerMsg output -> Model formModel output2 -> ( Model formModel output2, Cmd (Msg formMsg) )
+selectField : Field formModel formMsg HasId widgetMsg output -> Model formModel output2 -> ( Model formModel output2, Cmd (Msg formMsg) )
 selectField (Field field) (Model model) =
     case field.maybeId of
         Just id_ ->
@@ -817,7 +817,7 @@ selectField (Field field) (Model model) =
     --> Ok "Hurrah!"
 
 -}
-andSelectField : Field formModel formMsg HasId innerMsg output -> ( Model formModel output2, Cmd (Msg formMsg) ) -> ( Model formModel output2, Cmd (Msg formMsg) )
+andSelectField : Field formModel formMsg HasId widgetMsg output -> ( Model formModel output2, Cmd (Msg formMsg) ) -> ( Model formModel output2, Cmd (Msg formMsg) )
 andSelectField field ( model, cmd1 ) =
     selectField field model
         |> Tuple.mapSecond (\cmd2 -> Cmd.batch [ cmd1, cmd2 ])
@@ -1653,20 +1653,20 @@ addWidget :
             ({ blankModel : formModel
              , blankMsg : b
              , ctor :
-                Field formModel formMsg NoId innerMsg value -> c
+                Field formModel formMsg NoId widgetMsg value -> c
              }
-             -> ( formMsg -> Maybe innerMsg, tailA )
-             -> ( Maybe innerMsg -> b -> formMsg, tailB )
+             -> ( formMsg -> Maybe widgetMsg, tailA )
+             -> ( Maybe widgetMsg -> b -> formMsg, tailB )
              -> ( formModel -> Maybe a2, tailC )
              -> ( Maybe a3 -> formModel -> formModel, tailD )
              ->
-                ( { init : ( a3, Cmd innerMsg )
+                ( { init : ( a3, Cmd widgetMsg )
                   , label : String
                   , submit : a2 -> Result (List String) value
-                  , subscriptions : a2 -> Sub innerMsg
-                  , update : innerMsg -> a2 -> ( a3, Cmd innerMsg )
+                  , subscriptions : a2 -> Sub widgetMsg
+                  , update : widgetMsg -> a2 -> ( a3, Cmd widgetMsg )
                   , view :
-                        ViewConfig -> a2 -> List (H.Html innerMsg)
+                        ViewConfig -> a2 -> List (H.Html widgetMsg)
                   }
                 , tailE
                 )
@@ -1815,22 +1815,22 @@ endFields builder =
 
 
 applier :
-    (formMsg -> Maybe innerMsg)
-    -> (Maybe innerMsg -> b -> formMsg)
+    (formMsg -> Maybe widgetMsg)
+    -> (Maybe widgetMsg -> b -> formMsg)
     -> (formModel -> Maybe a)
     -> (Maybe a1 -> formModel -> formModel)
     ->
-        { init : ( a1, Cmd innerMsg )
+        { init : ( a1, Cmd widgetMsg )
         , label : String
         , submit : a -> Result (List String) value
-        , subscriptions : a -> Sub innerMsg
-        , update : innerMsg -> a -> ( a1, Cmd innerMsg )
-        , view : ViewConfig -> a -> List (H.Html innerMsg)
+        , subscriptions : a -> Sub widgetMsg
+        , update : widgetMsg -> a -> ( a1, Cmd widgetMsg )
+        , view : ViewConfig -> a -> List (H.Html widgetMsg)
         }
     ->
         { blankModel : formModel
         , blankMsg : b
-        , ctor : Field formModel formMsg NoId innerMsg value -> d
+        , ctor : Field formModel formMsg NoId widgetMsg value -> d
         }
     -> { blankModel : formModel, blankMsg : b, ctor : d }
 applier msgGetter msgSetter modelGetter modelSetter fieldType acc =
@@ -1918,11 +1918,11 @@ wrapWithTrees :
     , view : ViewConfig -> formModel -> List (H.Html formMsg)
     , submit : formModel -> Result (List InternalFeedback) value
     , subscriptions : formModel -> Sub formMsg
-    , send : innerMsg -> formMsg
-    , intercept : formMsg -> Maybe innerMsg
+    , send : widgetMsg -> formMsg
+    , intercept : formMsg -> Maybe widgetMsg
     , label : String
     }
-    -> Field formModel formMsg NoId innerMsg value
+    -> Field formModel formMsg NoId widgetMsg value
 wrapWithTrees args =
     Field
         { init =
@@ -2031,11 +2031,11 @@ internalUpdate update_ msg model =
     case model of
         Value location innerModel ->
             case msg of
-                ValueChanged locator innerMsg ->
+                ValueChanged locator widgetMsg ->
                     if isLocated locator location then
                         let
                             ( newModel, cmd ) =
-                                update_ innerMsg innerModel
+                                update_ widgetMsg innerModel
                         in
                         ( Value location newModel
                         , Cmd.map (ValueChanged (locationToLocator location)) cmd
@@ -2220,6 +2220,7 @@ locationToString location =
             id_
 
 
+pathToString : List Int -> String
 pathToString path =
     path
         |> List.reverse
