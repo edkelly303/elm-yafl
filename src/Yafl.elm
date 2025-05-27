@@ -1071,6 +1071,13 @@ map2 f (Field field1) (Field field2) =
                 )
         , update =
             \msg model ->
+                let
+                    _ =
+                        Debug.log "map2 model" model
+
+                    _ =
+                        Debug.log "map2 msg" msg
+                in
                 case model of
                     Product Map2 location model1 model2 ->
                         let
@@ -1278,35 +1285,68 @@ andThen f (Field field) =
                 )
         , update =
             \msg model ->
-                case model of
-                    Product typ location model1 model2 ->
-                        let
-                            ( newModel1, cmd1 ) =
-                                field.update msg model1
+                let
+                    updateHelper model_ =
+                        case model_ of
+                            Product AndThen location model1 model2 ->
+                                let
+                                    ( newModel1, cmd1 ) =
+                                        field.update msg model1
 
-                            ( newModel2, cmd2 ) =
-                                case field.submit newModel1 of
-                                    Ok output ->
-                                        let
-                                            (Field field2) =
-                                                f output
-                                        in
-                                        case model2 of
-                                            Empty _ location2 ->
-                                                field2.init (locationToPath location2) field2.maybeId
+                                    ( newModel2, cmd2 ) =
+                                        case field.submit newModel1 of
+                                            Ok output ->
+                                                let
+                                                    (Field field2) =
+                                                        f output
+                                                in
+                                                case model2 of
+                                                    Empty _ location2 ->
+                                                        field2.init (locationToPath location2) field2.maybeId
 
-                                            _ ->
-                                                field2.update msg model2
+                                                    _ ->
+                                                        field2.update msg model2
 
-                                    Err _ ->
-                                        ( model2, Cmd.none )
-                        in
-                        ( Product typ location newModel1 newModel2
-                        , Cmd.batch [ cmd1, cmd2 ]
-                        )
+                                            Err _ ->
+                                                ( model2, Cmd.none )
+                                in
+                                ( Product AndThen location newModel1 newModel2
+                                , Cmd.batch [ cmd1, cmd2 ]
+                                )
 
-                    _ ->
-                        ( model, Cmd.none )
+                            Product Map2 location model1 model2 ->
+                                let
+                                    ( newModel1, cmd1 ) =
+                                        updateHelper model1
+
+                                    ( newModel2, cmd2 ) =
+                                        updateHelper model2
+                                in
+                                ( Product Map2 location newModel1 newModel2
+                                , Cmd.batch [ cmd1, cmd2 ]
+                                )
+
+                            Value location value ->
+                                ( Value location value, Cmd.none )
+
+                            Sum location meta labelsAndModels ->
+                                let
+                                    ( labels, models ) =
+                                        List.unzip labelsAndModels
+
+                                    ( newModels, cmds ) =
+                                        List.map updateHelper models
+                                            |> List.unzip
+
+                                    newLabelsAndModels =
+                                        List.Extra.zip labels newModels
+                                in
+                                ( Sum location meta newLabelsAndModels, Cmd.batch cmds )
+
+                            Empty typ location ->
+                                ( Empty typ location, Cmd.none )
+                in
+                updateHelper model
         , view =
             \config model ->
                 case model of

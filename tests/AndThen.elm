@@ -31,26 +31,27 @@ tests =
                     |> Yafl.submit form
                     |> Expect.equal (Ok ( "1", () ))
             )
-        , Test.test
-            "Can use andUpdateField with an andThen-ed field that is within an andMap-ed field"
-            (\() ->
-                let
-                    form =
-                        Yafl.succeed (\x -> x)
-                            |> Yafl.andMap field
+        , 
+            Test.test
+                "Can use andUpdateField with an andThen-ed field that is within an andMap-ed field"
+                (\() ->
+                    let
+                        form =
+                            Yafl.succeed (\x -> x)
+                                |> Yafl.andMap field
 
-                    field =
-                        Examples.fields.string
-                            |> Yafl.id "xxx"
-                            |> Yafl.andThen Yafl.succeed
-                in
-                form
-                    |> Yafl.init
-                    |> Yafl.andUpdateField field "1"
-                    |> Tuple.first
-                    |> Yafl.submit form
-                    |> Expect.equal (Ok "1")
-            )
+                        field =
+                            Examples.fields.string
+                                |> Yafl.id "xxx"
+                                |> Yafl.andThen Yafl.succeed
+                    in
+                    form
+                        |> Yafl.init
+                        |> Yafl.andUpdateField field "1"
+                        |> Tuple.first
+                        |> Yafl.submit form
+                        |> Expect.equal (Ok "1")
+                )
         , Test.test
             "Can use andUpdateField with an andThen-ed field that is within an andMap-ed field and has another andMap-ed field before it"
             (\() ->
