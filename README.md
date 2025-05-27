@@ -58,7 +58,7 @@ like to use this package:
 Let's say we want to create a form for this very boring `User` type:
 
 ```elm
-module Example exposing (..)
+module Examples exposing (..)
 
 type alias User = 
     { firstName : String
@@ -132,7 +132,7 @@ big library of `Widget`s, but if you only need to use a handful of them in your
 form, there's no need to include them all).
 
 ```elm
-import Example exposing (..)
+import Examples exposing (..)
 import Yafl
 
 fields = 
@@ -153,7 +153,7 @@ type alias FormMsg =
 
 
 -- DOC TESTS
-fields --: { string : Yafl.Field FormModel FormMsg Yafl.NoAddress String String, bool : Yafl.Field FormModel FormMsg Yafl.NoAddress Bool Bool }
+fields --: { string : Yafl.Field FormModel FormMsg Yafl.NoId String String, bool : Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool }
 ```
 
 Now whenever we need a `String` field, we can use `fields.string`, and if we
@@ -164,7 +164,7 @@ need a `Bool` field, it's just `fields.bool`.
 Each field needs a label, and we might also want to add some validation, so:
 
 ```elm
-import Example exposing (..)
+import Examples exposing (..)
 import Yafl
 
 nonEmptyString =
@@ -191,10 +191,10 @@ isAdmin =
 
 
 -- DOC TESTS
-nonEmptyString --: Yafl.Field FormModel FormMsg Yafl.NoAddress String String
-firstName --: Yafl.Field FormModel FormMsg Yafl.NoAddress String String
-lastName --: Yafl.Field FormModel FormMsg Yafl.NoAddress String String
-isAdmin --: Yafl.Field FormModel FormMsg Yafl.NoAddress Bool Bool
+nonEmptyString --: Yafl.Field FormModel FormMsg Yafl.NoId String String
+firstName --: Yafl.Field FormModel FormMsg Yafl.NoId String String
+lastName --: Yafl.Field FormModel FormMsg Yafl.NoId String String
+isAdmin --: Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool
 ```
 
 ### Step 4: Compose the `Field`s to create a form
@@ -206,7 +206,7 @@ and
 to compose our `Field`s into a `User` type:
 
 ```elm
-import Example exposing (..)
+import Examples exposing (..)
 import Yafl
 
 user = 
@@ -217,7 +217,7 @@ user =
 
 
 -- DOC TESTS
-user --: Yafl.Field FormModel FormMsg Yafl.NoAddress Never User
+user --: Yafl.Field FormModel FormMsg Yafl.NoId Never User
 ```
 
 ### Step 5: Integrate the form into your Elm application
@@ -225,7 +225,7 @@ user --: Yafl.Field FormModel FormMsg Yafl.NoAddress Never User
 This isn't a very realistic example, but it should get you up and running:
 
 ```elm
-import Example exposing (..)
+import Examples exposing (..)
 import Yafl
 import Browser
 import Html as H
@@ -240,7 +240,7 @@ main =
 
 
 -- DOC TESTS
-main --: Program () (Yafl.Model FormModel) (Yafl.Msg FormMsg )
+main --: Program () (Yafl.Model FormModel User) (Yafl.Msg FormMsg )
 ```
 
 For a slightly larger-scale example, take a look at the

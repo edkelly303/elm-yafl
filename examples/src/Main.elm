@@ -4,7 +4,6 @@ import Browser
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
-import Widgets
 import Yafl
 
 
@@ -63,20 +62,83 @@ boolWidget =
         \msg _ ->
             ( msg, Cmd.none )
     , view =
-        \{ label } model ->
-            [ H.label [ HA.for label ] [ H.text label ]
+        \{ label, id, feedback } model ->
+            [ H.label [ HA.for id ] [ H.text label ]
             , H.input
-                [ HA.id label
+                [ HA.id id
                 , HA.type_ "checkbox"
                 , HA.checked model
                 , HE.onCheck identity
                 ]
                 []
+            , viewFeedback feedback
             ]
     , subscriptions = \_ -> Sub.none
     , submit = Ok
     , label = "Bool"
     }
+
+
+stringWidget : Yafl.Widget String String String
+stringWidget =
+    { init = ( "", Cmd.none )
+    , update = \msg _ -> ( msg, Cmd.none )
+    , view =
+        \{ label, id, feedback } model ->
+            [ H.label [ HA.for id ] [ H.text label ]
+            , H.input
+                [ HA.id id
+                , HA.type_ "text"
+                , HA.value model
+                , HE.onInput identity
+                ]
+                []
+            , viewFeedback feedback
+            ]
+    , subscriptions = \_ -> Sub.none
+    , submit = \model -> Ok model
+    , label = "String"
+    }
+
+
+intWidget : Yafl.Widget String String Int
+intWidget =
+    { init = ( "", Cmd.none )
+    , update = \msg _ -> ( msg, Cmd.none )
+    , view =
+        \{ label, id, feedback } model ->
+            [ H.label [ HA.for id ] [ H.text label ]
+            , H.input
+                [ HA.id id
+                , HA.type_ "text"
+                , HA.value model
+                , HE.onInput identity
+                ]
+                []
+            , viewFeedback feedback
+            ]
+    , subscriptions = \_ -> Sub.none
+    , submit = \model -> String.toInt model |> Result.fromMaybe [ "This must be a whole number" ]
+    , label = "String"
+    }
+
+
+viewFeedback : List Yafl.Feedback -> H.Html msg
+viewFeedback feedback =
+    case feedback of
+        [] ->
+            H.text ""
+
+        _ ->
+            H.ul
+                [ HA.style "list-style-type" "none"
+                , HA.style "margin" "0px"
+                , HA.style "padding" "0px"
+                ]
+                (List.map
+                    (\f -> H.li [] [ H.small [] [ H.text ("⚠️ " ++ f) ] ])
+                    feedback
+                )
 
 
 
@@ -103,8 +165,8 @@ fields =
             }
         )
         |> Yafl.addWidget boolWidget
-        |> Yafl.addWidget Widgets.int
-        |> Yafl.addWidget Widgets.string
+        |> Yafl.addWidget intWidget
+        |> Yafl.addWidget stringWidget
         |> Yafl.endFields
 
 
@@ -124,7 +186,7 @@ fields =
 
 type alias FormMsg =
     ( Maybe Bool
-    , ( Maybe Widgets.IntMsg
+    , ( Maybe String
       , ( Maybe String
         , ()
         )
@@ -134,7 +196,7 @@ type alias FormMsg =
 
 type alias FormModel =
     ( Maybe Bool
-    , ( Maybe Int
+    , ( Maybe String
       , ( Maybe String
         , ()
         )
@@ -158,16 +220,16 @@ type alias FormModel =
    by the `Field`'s `view` function, so you can easily tell which field is
    which.
 
-   * `Yafl.address` allows you to give the `Field` a unique ID. (This is useful
+   * `Yafl.id` allows you to give the `Field` a unique ID. (This is useful
    for several reasons, and we'll come back to it later.)
 -}
 
 
-nameField : Yafl.Field FormModel FormMsg Yafl.HasAddress String String
+nameField : Yafl.Field FormModel FormMsg Yafl.HasId String String
 nameField =
     fields.string
         |> Yafl.label "What is your dog's name?"
-        |> Yafl.address "name-field"
+        |> Yafl.id "name-field"
 
 
 
@@ -185,7 +247,7 @@ nameField =
 -}
 
 
-dogField : Yafl.Field FormModel FormMsg Yafl.NoAddress Never Dog
+dogField : Yafl.Field FormModel FormMsg Yafl.NoId Never Dog
 dogField =
     Yafl.succeed Dog
         |> Yafl.andMap nameField
@@ -199,7 +261,7 @@ dogField =
 -}
 
 
-funFactField : Yafl.Field FormModel FormMsg Yafl.NoAddress Never FunFact
+funFactField : Yafl.Field FormModel FormMsg Yafl.NoId Never FunFact
 funFactField =
     Yafl.choice
         |> Yafl.label "A fun fact about your dog is:"
@@ -218,12 +280,12 @@ funFactField =
 -}
 
 
-likesBonesField : Yafl.Field FormModel FormMsg Yafl.HasAddress Bool FunFact
+likesBonesField : Yafl.Field FormModel FormMsg Yafl.HasId Bool FunFact
 likesBonesField =
     fields.bool
         |> Yafl.map LikesBones
         |> Yafl.label "Do they _really_ like bones?"
-        |> Yafl.address "likes-bones-field"
+        |> Yafl.id "likes-bones-field"
 
 
 
@@ -231,23 +293,17 @@ likesBonesField =
    `Yafl.andThen` is useful for validating outputs, in combination with
    `Yafl.succeed` and `Yafl.fail`, and also for asking the user for more
    information.
-
-   When a field could possibly fail validation, we may want to show the user an
-   error message. You can customise how errors are displayed with
-   `Yafl.showFeedback`.
 -}
 
 
-hasFleasField : Yafl.Field FormModel FormMsg Yafl.NoAddress Widgets.IntMsg FunFact
+hasFleasField : Yafl.Field FormModel FormMsg Yafl.NoId String FunFact
 hasFleasField =
     fields.int
         |> Yafl.label "How many fleas do they have?"
-        |> Yafl.showFeedback viewFeedback
         |> Yafl.andThen
             (\numberOfFleas ->
                 if numberOfFleas < 1 then
                     Yafl.fail "They must have at least one?!"
-                        |> Yafl.showFeedback viewFeedback
 
                 else if numberOfFleas < 10 then
                     Yafl.choice
@@ -262,12 +318,10 @@ hasFleasField =
                                 else
                                     fields.int
                                         |> Yafl.label "Ok, how many extra fleas did you find on their belly?"
-                                        |> Yafl.showFeedback viewFeedback
                                         |> Yafl.andThen
                                             (\extraFleas ->
                                                 if extraFleas < 0 then
                                                     Yafl.fail "C'mon, you can't have negative fleas!"
-                                                        |> Yafl.showFeedback viewFeedback
 
                                                 else
                                                     Yafl.succeed (HasFleas (numberOfFleas + extraFleas))
@@ -277,24 +331,6 @@ hasFleasField =
                 else
                     Yafl.succeed (HasFleas numberOfFleas)
             )
-
-
-viewFeedback : List Yafl.Feedback -> H.Html msg
-viewFeedback feedback =
-    case feedback of
-        [] ->
-            H.text ""
-
-        _ ->
-            H.ul
-                [ HA.style "list-style-type" "none"
-                , HA.style "margin" "0px"
-                , HA.style "padding" "0px"
-                ]
-                (List.map
-                    (\f -> H.li [] [ H.small [] [ H.text ("⚠️ " ++ f.message) ] ])
-                    feedback
-                )
 
 
 
@@ -309,7 +345,7 @@ viewFeedback feedback =
 -}
 
 
-main_ : Program () (Yafl.Model FormModel) (Yafl.Msg FormMsg)
+main_ : Program () (Yafl.Model FormModel Dog) (Yafl.Msg FormMsg)
 main_ =
     Browser.element
         { init =
@@ -345,7 +381,7 @@ main_ =
    If necessary, we can then send messages to field A with `Yafl.send`. If field
    A is a `Yafl.option`, we can also select it using `Yafl.choose`.
 
-   Both field B and Field B need to have addresses set with `Yafl.address` for
+   Both field B and Field B need to have ids set with `Yafl.id` for
    this to work.
 -}
 
@@ -356,7 +392,7 @@ type Msg
 
 
 type Model
-    = EditingForm (Yafl.Model FormModel)
+    = EditingForm (Yafl.Model FormModel Dog)
     | ViewingDog Dog
 
 
@@ -417,7 +453,9 @@ main =
                             ((Yafl.view dogField formModel
                                 |> List.map (H.map FormUpdated)
                              )
-                                ++ [ H.button [] [ H.text "Submit" ] ]
+                                ++ [ H.button [] [ H.text "Submit" ]
+                                   , H.pre [] [ H.text (Yafl.toDOT Debug.toString formModel) ]
+                                   ]
                             )
 
                     ViewingDog dog ->
