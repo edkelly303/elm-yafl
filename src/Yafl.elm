@@ -2332,14 +2332,8 @@ toDOT : (model -> String) -> Model model output -> String
 toDOT debugToString (Model model) =
     let
         escape str =
-            str
-                |> String.replace "\\" "\\\\"
-                |> String.replace "\"" "\\\""
-                |> String.replace "\\n" "\\\\n"
-                |> String.replace "\\r" "\\\\r"
-                |> String.replace "\\t" "\\\\t"
-                |> String.replace "\\b" "\\\\b"
-                |> String.replace "\\f" "\\\\f"
+            String.replace "\"" "\\\"" str
+
 
         regex =
             Regex.fromString "(?<=Just )[^,]+"
