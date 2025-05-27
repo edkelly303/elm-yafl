@@ -124,7 +124,7 @@ tests =
                     "0"
                     (\() ->
                         let
-                            unused : Platform.Program () (Yafl.Model Examples.FormModel) (Yafl.Msg Examples.FormMsg)
+                            unused : Platform.Program () (Yafl.Model Examples.FormModel Examples.User) (Yafl.Msg Examples.FormMsg)
                             unused =
                                 main__Readme_4
                         in
@@ -142,7 +142,7 @@ tests =
                         "0"
                         (\() ->
                             let
-                                unused : ( Yafl.Model Examples.FormModel, Platform.Cmd.Cmd (Yafl.Msg Examples.FormMsg) )
+                                unused : ( Yafl.Model Examples.FormModel Basics.Bool, Platform.Cmd.Cmd (Yafl.Msg Examples.FormMsg) )
                                 unused =
                                     init__Yafl__Header_0
                             in
@@ -404,7 +404,7 @@ tests =
                         "0"
                         (\() ->
                             let
-                                unused : ( Yafl.Model Examples.FormModel, Platform.Cmd.Cmd (Yafl.Msg Examples.FormMsg) )
+                                unused : ( Yafl.Model Examples.FormModel Basics.Bool, Platform.Cmd.Cmd (Yafl.Msg Examples.FormMsg) )
                                 unused =
                                     Examples.fields.bool |> Yafl.init
                             in

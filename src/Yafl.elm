@@ -151,7 +151,7 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 
     init
 
-    --: ( Yafl.Model FormModel, Cmd (Yafl.Msg FormMsg) )
+    --: ( Yafl.Model FormModel Bool, Cmd (Yafl.Msg FormMsg) )
 
     -- The form's model can then be passed to `Yafl.view`,
     -- `Yafl.update`, `Yafl.subscriptions` and `Yafl.submit`:
@@ -286,10 +286,14 @@ type alias MaybeId =
 
 {-| The top-level model type for your form.
 -}
-type Model model
-    = Value Location model
-    | Product ProductType Location (Model model) (Model model)
-    | Sum Location { selected : Int } (List ( String, Model model ))
+type Model model output
+    = Model (Node model)
+
+
+type Node node
+    = Value Location node
+    | Product ProductType Location (Node node) (Node node)
+    | Sum Location { selected : Int } (List ( String, Node node ))
     | Empty EmptyType Location
 
 
@@ -323,20 +327,20 @@ type alias Path =
 type Field model msg id innerMsg output
     = Field
         { init :
-            Path -> MaybeId -> ( Model model, Cmd (Msg msg) )
+            Path -> MaybeId -> ( Node model, Cmd (Msg msg) )
         , update :
             Msg msg
-            -> Model model
-            -> ( Model model, Cmd (Msg msg) )
+            -> Node model
+            -> ( Node model, Cmd (Msg msg) )
         , view :
             InternalViewConfig
-            -> Model model
+            -> Node model
             -> List (H.Html (Msg msg))
         , submit :
-            Model model
+            Node model
             -> Result (List InternalFeedback) output
         , subscriptions :
-            Model model
+            Node model
             -> Sub (Msg msg)
         , send : MaybeId -> innerMsg -> Msg msg
         , intercept : MaybeId -> Msg msg -> Maybe innerMsg
@@ -420,19 +424,21 @@ type alias InternalFeedback =
     fields.bool
         |> Yafl.init
 
-    --: ( Yafl.Model FormModel, Cmd (Yafl.Msg FormMsg) )
+    --: ( Yafl.Model FormModel Bool, Cmd (Yafl.Msg FormMsg) )
 
 -}
-init : Field model msg id innerMsg output -> ( Model model, Cmd (Msg msg) )
+init : Field model msg id innerMsg output -> ( Model model output, Cmd (Msg msg) )
 init (Field field) =
     field.init [ 0 ] field.maybeId
+        |> Tuple.mapFirst Model
 
 
 {-| Update your form by supplying a `Msg` and `Model`
 -}
-update : Field model msg id innerMsg output -> Msg msg -> Model model -> ( Model model, Cmd (Msg msg) )
-update (Field field) msg model =
+update : Field model msg id innerMsg output -> Msg msg -> Model model output -> ( Model model output, Cmd (Msg msg) )
+update (Field field) msg (Model model) =
     field.update msg model
+        |> Tuple.mapFirst Model
 
 
 {-| View your form.
@@ -454,8 +460,8 @@ update (Field field) msg model =
     --: List (Html (Yafl.Msg FormMsg))
 
 -}
-view : Field model msg id innerMsg output -> Model model -> List (H.Html (Msg msg))
-view (Field field) model =
+view : Field model msg id innerMsg output -> Model model output -> List (H.Html (Msg msg))
+view (Field field) (Model model) =
     let
         feedback =
             case field.submit model of
@@ -491,8 +497,8 @@ view (Field field) model =
     --: Sub (Yafl.Msg FormMsg)
 
 -}
-subscriptions : Field model msg id innerMsg output -> Model model -> Sub (Msg msg)
-subscriptions (Field field) model =
+subscriptions : Field model msg id innerMsg output -> Model model output -> Sub (Msg msg)
+subscriptions (Field field) (Model model) =
     field.subscriptions model
 
 
@@ -514,8 +520,8 @@ subscriptions (Field field) model =
     --> Ok ""
 
 -}
-submit : Field model msg id innerMsg output -> Model model -> Result (List ( String, String )) output
-submit (Field field) model =
+submit : Field model msg id innerMsg output -> Model model output -> Result (List ( String, String )) output
+submit (Field field) (Model model) =
     field.submit model
         |> Result.mapError (List.map (\{ message, locator } -> ( locatorToString locator, message )))
 
@@ -689,16 +695,16 @@ intercept (Field field) =
     --> Ok (Foo "Hello!" "")
 
 -}
-updateField : Field model msg HasId innerMsg output -> innerMsg -> Model model -> ( Model model, Cmd (Msg msg) )
-updateField (Field field) innerMsg model =
+updateField : Field model msg HasId innerMsg output -> innerMsg -> Model model output2 -> ( Model model output2, Cmd (Msg msg) )
+updateField (Field field) innerMsg (Model model) =
     field.update (field.send field.maybeId innerMsg) model
+        |> Tuple.mapFirst Model
 
 
 {-| Like `updateField`, but works on `( model, cmd )` tuples. Useful if you're chaining multiple updates.
 
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
-    import Cmd.Extra
 
     type Foo
         = Foo String String
@@ -726,7 +732,7 @@ updateField (Field field) innerMsg model =
     --> Ok (Foo "Hello" "World")
 
 -}
-andUpdateField : Field model msg HasId innerMsg output -> innerMsg -> ( Model model, Cmd (Msg msg) ) -> ( Model model, Cmd (Msg msg) )
+andUpdateField : Field model msg HasId innerMsg output -> innerMsg -> ( Model model output2, Cmd (Msg msg) ) -> ( Model model output2, Cmd (Msg msg) )
 andUpdateField field innerMsg ( model, cmd1 ) =
     updateField field innerMsg model
         |> Tuple.mapSecond (\cmd2 -> Cmd.batch [ cmd1, cmd2 ])
@@ -764,8 +770,8 @@ andUpdateField field innerMsg ( model, cmd1 ) =
     --> Ok "Hurrah!"
 
 -}
-selectField : Field model msg HasId innerMsg output -> Model model -> ( Model model, Cmd (Msg msg) )
-selectField (Field field) model =
+selectField : Field model msg HasId innerMsg output -> Model model output2 -> ( Model model output2, Cmd (Msg msg) )
+selectField (Field field) (Model model) =
     case field.maybeId of
         Just id_ ->
             let
@@ -773,9 +779,10 @@ selectField (Field field) model =
                     OptionSelected (ById id_)
             in
             field.update msg model
+                |> Tuple.mapFirst Model
 
         Nothing ->
-            ( model, Cmd.none )
+            ( Model model, Cmd.none )
 
 
 {-| Like `selectField`, but works on `( model, cmd )` tuples. Useful if you're chaining multiple updates.
@@ -810,7 +817,7 @@ selectField (Field field) model =
     --> Ok "Hurrah!"
 
 -}
-andSelectField : Field model msg HasId innerMsg output -> ( Model model, Cmd (Msg msg) ) -> ( Model model, Cmd (Msg msg) )
+andSelectField : Field model msg HasId innerMsg output -> ( Model model output2, Cmd (Msg msg) ) -> ( Model model output2, Cmd (Msg msg) )
 andSelectField field ( model, cmd1 ) =
     selectField field model
         |> Tuple.mapSecond (\cmd2 -> Cmd.batch [ cmd1, cmd2 ])
@@ -854,7 +861,7 @@ succeed f =
             \msg model ->
                 case msg of
                     OptionSelected locator ->
-                        locateOneOf locator model
+                        locateSumNode locator model
 
                     _ ->
                         ( model, Cmd.none )
@@ -893,7 +900,7 @@ fail e =
             \msg model ->
                 case msg of
                     OptionSelected locator ->
-                        locateOneOf locator model
+                        locateSumNode locator model
 
                     _ ->
                         ( model, Cmd.none )
@@ -943,7 +950,7 @@ failAt (Field failField) e =
             \msg model ->
                 case msg of
                     OptionSelected locator ->
-                        locateOneOf locator model
+                        locateSumNode locator model
 
                     _ ->
                         ( model, Cmd.none )
@@ -1065,7 +1072,7 @@ map2 f (Field field1) (Field field2) =
         , update =
             \msg model ->
                 case model of
-                    Product typ location model1 model2 ->
+                    Product Map2 location model1 model2 ->
                         let
                             ( newModel1, cmd1 ) =
                                 field1.update msg model1
@@ -1073,9 +1080,8 @@ map2 f (Field field1) (Field field2) =
                             ( newModel2, cmd2 ) =
                                 field2.update msg model2
                         in
-                        ( Product typ location newModel1 newModel2
-                        , Cmd.batch
-                            [ cmd1, cmd2 ]
+                        ( Product Map2 location newModel1 newModel2
+                        , Cmd.batch [ cmd1, cmd2 ]
                         )
 
                     _ ->
@@ -1961,8 +1967,8 @@ wrapWithTrees args =
 internalUpdate :
     (msg -> model -> ( model, Cmd a ))
     -> Msg msg
-    -> Model model
-    -> ( Model model, Cmd (Msg a) )
+    -> Node model
+    -> ( Node model, Cmd (Msg a) )
 internalUpdate update_ msg model =
     case model of
         Value location innerModel ->
@@ -2045,8 +2051,8 @@ internalUpdate update_ msg model =
             ( model, Cmd.none )
 
 
-locateOneOf : Locator -> Model model -> ( Model model, Cmd msg )
-locateOneOf locator model =
+locateSumNode : Locator -> Node model -> ( Node model, Cmd msg )
+locateSumNode locator model =
     case model of
         Sum location selection options ->
             case
@@ -2075,7 +2081,7 @@ locateOneOf locator model =
 
                         ( newModels, cmds ) =
                             models
-                                |> List.map (locateOneOf locator)
+                                |> List.map (locateSumNode locator)
                                 |> List.unzip
                     in
                     ( Sum location selection (List.Extra.zip labels newModels)
@@ -2088,14 +2094,13 @@ locateOneOf locator model =
         Product typ location model1 model2 ->
             let
                 ( newModel1, cmd1 ) =
-                    locateOneOf locator model1
+                    locateSumNode locator model1
 
                 ( newModel2, cmd2 ) =
-                    locateOneOf locator model2
+                    locateSumNode locator model2
             in
             ( Product typ location newModel1 newModel2
-            , Cmd.batch
-                [ cmd1, cmd2 ]
+            , Cmd.batch [ cmd1, cmd2 ]
             )
 
         Empty _ _ ->
@@ -2174,7 +2179,7 @@ newLocation path maybeId =
             Identified path id_
 
 
-locationFromModel : Model model -> Location
+locationFromModel : Node model -> Location
 locationFromModel model =
     case model of
         Value loc _ ->
@@ -2190,7 +2195,7 @@ locationFromModel model =
             loc
 
 
-pathFromModel : Model model -> Path
+pathFromModel : Node model -> Path
 pathFromModel =
     locationFromModel >> locationToPath
 
@@ -2231,7 +2236,7 @@ locationToLocator location =
             ById id_
 
 
-locatorFromModel : Model model -> Locator
+locatorFromModel : Node model -> Locator
 locatorFromModel =
     locationFromModel >> locationToLocator
 
@@ -2265,8 +2270,8 @@ using a tool such as <https://dreampuf.github.io/GraphvizOnline>
 As the first argument, you should pass in `Debug.toString`.
 
 -}
-toDOT : (model -> String) -> Model model -> String
-toDOT debugToString model =
+toDOT : (model -> String) -> Model model output -> String
+toDOT debugToString (Model model) =
     let
         escape str =
             str

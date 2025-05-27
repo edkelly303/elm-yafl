@@ -345,7 +345,7 @@ hasFleasField =
 -}
 
 
-main_ : Program () (Yafl.Model FormModel) (Yafl.Msg FormMsg)
+main_ : Program () (Yafl.Model FormModel Dog) (Yafl.Msg FormMsg)
 main_ =
     Browser.element
         { init =
@@ -392,7 +392,7 @@ type Msg
 
 
 type Model
-    = EditingForm (Yafl.Model FormModel)
+    = EditingForm (Yafl.Model FormModel Dog)
     | ViewingDog Dog
 
 

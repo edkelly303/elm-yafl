@@ -239,7 +239,7 @@ main =
         }
 
 -- DOC TESTS
-main --: Program () (Yafl.Model FormModel) (Yafl.Msg FormMsg )
+main --: Program () (Yafl.Model FormModel User) (Yafl.Msg FormMsg )
 ```
 
 For a slightly larger-scale example, take a look at the
