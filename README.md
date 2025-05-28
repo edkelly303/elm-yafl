@@ -83,15 +83,16 @@ stringWidget =
     { init = ( "", Cmd.none )
     , update = \msg model -> ( msg, Cmd.none )
     , view =
-        \{ label } model ->
-            [ H.label [ HA.for label ] [ H.text label ]
+        \{ label, id, feedback } model ->
+            [ H.label [ HA.for id ] [ H.text label ]
             , H.input
-                [ HA.id label
+                [ HA.id id
                 , HA.type_ "text"
                 , HA.value model
                 , HE.onInput identity
                 ]
                 []
+            , H.ul [] [ List.map (\f -> H.li [] [ H.text f ]) feedback ]
             ]
     , subscriptions = \model -> Sub.none
     , submit = \model -> Ok model
@@ -104,15 +105,16 @@ boolWidget =
         \msg model ->
             ( msg, Cmd.none )
     , view =
-        \{ label } model ->
-            [ H.label [ HA.for label ] [ H.text label ]
+        \{ label, id, feedback } model ->
+            [ H.label [ HA.for id ] [ H.text label ]
             , H.input
-                [ HA.id label
+                [ HA.id id
                 , HA.type_ "checkbox"
                 , HA.checked model
                 , HE.onCheck identity
                 ]
                 []
+                , H.ul [] [ List.map (\f -> H.li [] [ H.text f ]) feedback ]
             ]
     , subscriptions = \model -> Sub.none
     , submit = \model -> Ok model
