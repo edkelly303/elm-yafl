@@ -92,7 +92,7 @@ stringWidget =
                 , HE.onInput identity
                 ]
                 []
-            , H.ul [] [ List.map (\f -> H.li [] [ H.text f ]) feedback ]
+            , H.ul [] (List.map (\f -> H.li [] [ H.text f ]) feedback)
             ]
     , subscriptions = \model -> Sub.none
     , submit = \model -> Ok model
@@ -114,7 +114,7 @@ boolWidget =
                 , HE.onCheck identity
                 ]
                 []
-                , H.ul [] [ List.map (\f -> H.li [] [ H.text f ]) feedback ]
+                , H.ul [] (List.map (\f -> H.li [] [ H.text f ]) feedback)
             ]
     , subscriptions = \model -> Sub.none
     , submit = \model -> Ok model
