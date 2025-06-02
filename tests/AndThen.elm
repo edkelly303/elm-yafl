@@ -148,7 +148,9 @@ tests =
                     in
                     form
                         |> Yafl.init
+                        |> Tuple.mapFirst (Debug.log "init")
                         |> Yafl.andUpdateField str "a"
+                        |> Tuple.mapFirst (Debug.log "post update")
                         |> Yafl.andSelectField no
                         |> Tuple.first
                         |> Yafl.submit form

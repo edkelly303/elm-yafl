@@ -1485,9 +1485,6 @@ andThen f (Field field) =
 
                                     Sum location meta labelsAndModels ->
                                         let
-                                            _ =
-                                                Debug.log "hit Sum branch" ()
-
                                             ( labels, models ) =
                                                 List.unzip labelsAndModels
 
@@ -1505,7 +1502,57 @@ andThen f (Field field) =
                         in
                         updateHelper model
 
-                    _ ->
+                    OptionSelected locator ->
+                        let
+                            updateHelper model_ =
+                                case model_ of
+                                    Product AndThen location model1 model2 ->
+                                        let
+                                            ( newModel1, cmd1 ) =
+                                                updateHelper model1
+
+                                            ( newModel2, cmd2 ) =
+                                                updateHelper model2
+                                        in
+                                        ( Product AndThen location newModel1 newModel2
+                                        , Cmd.batch [ cmd1, cmd2 ]
+                                        )
+
+                                    Product Map2 location model1 model2 ->
+                                        let
+                                            ( newModel1, cmd1 ) =
+                                                updateHelper model1
+
+                                            ( newModel2, cmd2 ) =
+                                                updateHelper model2
+                                        in
+                                        ( Product Map2 location newModel1 newModel2
+                                        , Cmd.batch [ cmd1, cmd2 ]
+                                        )
+
+                                    Value location value ->
+                                        ( Value location value, Cmd.none )
+
+                                    Sum location meta labelsAndModels ->
+                                        let
+                                            ( labels, models ) =
+                                                List.unzip labelsAndModels
+
+                                            ( newModels, cmds ) =
+                                                List.map updateHelper models
+                                                    |> List.unzip
+
+                                            newLabelsAndModels =
+                                                List.Extra.zip labels newModels
+                                        in
+                                        ( Sum location meta newLabelsAndModels, Cmd.batch cmds )
+
+                                    Empty typ location ->
+                                        ( Empty typ location, Cmd.none )
+                        in
+                        updateHelper model
+
+                    Noop ->
                         ( model, Cmd.none )
         , view =
             \config model ->
@@ -1765,6 +1812,10 @@ option radioLabel (Field field) (Field choice_) =
                             choice_.submit choice_.checks (Sum location meta options)
 
                     _ ->
+                        let
+                            _ =
+                                Debug.log "model" model
+                        in
                         Err
                             [ { message = "Fatal error in `option` submit function"
                               , fail = True
