@@ -6,7 +6,7 @@ module Yafl exposing
     , map, andThen
     , map2, andMap
     , choice, option
-    , label
+    , label, validate
     , HasId, NoId, id, intercept, send, select
     , updateField, andUpdateField, selectField, andSelectField
     , toDOT
@@ -239,7 +239,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 # Customizing Fields
 
-@docs label
+@docs label, validate
 
 
 # Communicating between Fields
@@ -337,8 +337,10 @@ type Field formModel formMsg id fieldMsg output
             -> Node formModel
             -> List (H.Html (Msg formMsg))
         , submit :
-            Node formModel
+            List (output -> Maybe String)
+            -> Node formModel
             -> Result (List InternalFeedback) output
+        , checks : List (output -> Maybe String)
         , subscriptions :
             Node formModel
             -> Sub (Msg formMsg)
@@ -464,7 +466,7 @@ view : Field formModel formMsg id fieldMsg output -> Model formModel output -> L
 view (Field field) (Model model) =
     let
         feedback =
-            case field.submit model of
+            case field.submit field.checks model of
                 Ok _ ->
                     []
 
@@ -522,7 +524,7 @@ subscriptions (Field field) (Model model) =
 -}
 submit : Field formModel formMsg id fieldMsg output -> Model formModel output -> Result (List ( String, String )) output
 submit (Field field) (Model model) =
-    field.submit model
+    field.submit field.checks model
         |> Result.mapError (List.map (\{ message, locator } -> ( locatorToString locator, message )))
 
 
@@ -543,6 +545,11 @@ submit (Field field) (Model model) =
 label : String -> Field formModel formMsg id fieldMsg output -> Field formModel formMsg id fieldMsg output
 label label_ (Field field) =
     Field { field | label = label_ }
+
+
+validate : (output -> Maybe String) -> Field formModel formMsg id fieldMsg output -> Field formModel formMsg id fieldMsg output
+validate check (Field field) =
+    Field { field | checks = check :: field.checks }
 
 
 
@@ -867,7 +874,8 @@ succeed f =
                         ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
-        , submit = \_ -> Ok f
+        , submit = \_ _ -> Ok f
+        , checks = []
         , send = \_ _ -> Noop
         , intercept = \_ _ -> Nothing
         , label = ""
@@ -923,13 +931,14 @@ fail e =
                         ]
         , subscriptions = \_ -> Sub.none
         , submit =
-            \model ->
+            \checks model ->
                 Err
                     [ { message = e
                       , fail = True
                       , locator = locationFromModel model |> locationToLocator
                       }
                     ]
+        , checks = []
         , send = \_ _ -> Noop
         , intercept = \_ _ -> Nothing
         , label = ""
@@ -957,7 +966,7 @@ failAt (Field failField) e =
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
         , submit =
-            \model ->
+            \checks model ->
                 Err
                     [ case failField.maybeId of
                         Just id_ ->
@@ -972,6 +981,7 @@ failAt (Field failField) e =
                             , locator = locatorFromModel model
                             }
                     ]
+        , checks = []
         , send = \_ _ -> Noop
         , intercept = \_ _ -> Nothing
         , label = ""
@@ -1013,12 +1023,37 @@ map f (Field field) =
         , update = field.update
         , view = field.view
         , subscriptions = field.subscriptions
-        , submit = \model -> field.submit model |> Result.map f
+        , submit =
+            \checks model ->
+                field.submit field.checks model
+                    |> Result.map f
+                    |> Result.andThen (runChecks checks model)
+        , checks = []
         , send = field.send
         , intercept = field.intercept
         , label = field.label
         , maybeId = field.maybeId
         }
+
+
+runChecks : List (output2 -> Maybe String) -> Node formModel -> (output2 -> Result (List { message : String, fail : Bool, locator : Locator }) output2)
+runChecks checks model =
+    \output ->
+        case
+            List.filterMap (\check -> check output) checks
+                |> List.map
+                    (\m ->
+                        { message = m
+                        , fail = True
+                        , locator = locatorFromModel model
+                        }
+                    )
+        of
+            [] ->
+                Ok output
+
+            errs ->
+                Err errs
 
 
 {-| Combine the outputs of two [`Fields`](#Field) into a new output type.
@@ -1114,12 +1149,17 @@ map2 f (Field field1) (Field field2) =
                     _ ->
                         Sub.none
         , submit =
-            \model ->
+            \checks model ->
                 case model of
                     Product _ _ model1 model2 ->
-                        case ( field1.submit model1, field2.submit model2 ) of
+                        case
+                            ( field1.submit field1.checks model1
+                            , field2.submit field2.checks model2
+                            )
+                        of
                             ( Ok output1, Ok output2 ) ->
-                                Ok (f output1 output2)
+                                f output1 output2
+                                    |> runChecks checks model
 
                             ( Err errs, Ok _ ) ->
                                 Err errs
@@ -1137,6 +1177,7 @@ map2 f (Field field1) (Field field2) =
                               , locator = locatorFromModel model
                               }
                             ]
+        , checks = []
         , send = \_ msg -> never msg
         , intercept = \_ _ -> Nothing
         , label = ""
@@ -1266,7 +1307,7 @@ andThen f (Field field) =
                             path2 =
                                 1 :: path
                         in
-                        case field.submit model1 of
+                        case field.submit field.checks model1 of
                             Ok output ->
                                 let
                                     (Field field2) =
@@ -1297,7 +1338,7 @@ andThen f (Field field) =
                                                     field.update msg model1
 
                                                 ( newModel2, cmd2 ) =
-                                                    case field.submit newModel1 of
+                                                    case field.submit field.checks newModel1 of
                                                         Ok output ->
                                                             let
                                                                 (Field field2) =
@@ -1370,7 +1411,7 @@ andThen f (Field field) =
                 case model of
                     Product _ _ model1 model2 ->
                         field.view { config | id = locationFromModel model1 |> locationToString } model1
-                            ++ (case field.submit model1 of
+                            ++ (case field.submit field.checks model1 of
                                     Ok output ->
                                         let
                                             (Field field2) =
@@ -1390,7 +1431,7 @@ andThen f (Field field) =
                     Product _ _ model1 model2 ->
                         Sub.batch
                             [ field.subscriptions model1
-                            , case field.submit model1 of
+                            , case field.submit field.checks model1 of
                                 Ok output ->
                                     let
                                         (Field field2) =
@@ -1405,17 +1446,17 @@ andThen f (Field field) =
                     _ ->
                         Sub.none
         , submit =
-            \model ->
+            \checks model ->
                 case model of
                     Product _ _ model1 model2 ->
-                        field.submit model1
+                        field.submit field.checks model1
                             |> Result.andThen
                                 (\output ->
                                     let
                                         (Field field2) =
                                             f output
                                     in
-                                    field2.submit model2
+                                    field2.submit field2.checks model2
                                 )
 
                     _ ->
@@ -1425,6 +1466,7 @@ andThen f (Field field) =
                               , fail = True
                               }
                             ]
+        , checks = []
         , send = field.send
         , intercept = field.intercept
         , label = field.label
@@ -1441,7 +1483,8 @@ choice =
         , update = \_ model -> ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
-        , submit = \_ -> Err []
+        , submit = \_ _ -> Err []
+        , checks = []
         , send = \_ msg -> never msg
         , intercept = \_ _ -> Nothing
         , label = ""
@@ -1585,17 +1628,18 @@ option radioLabel (Field field) (Field choice_) =
                     _ ->
                         Sub.none
         , submit =
-            \model ->
+            \checks model ->
                 case model of
                     Sum location meta (( _, fieldModel ) :: options) ->
                         if meta.selected == List.length options then
-                            field.submit fieldModel
+                            field.submit field.checks fieldModel
 
                         else
-                            choice_.submit (Sum location meta options)
+                            choice_.submit choice_.checks (Sum location meta options)
 
                     _ ->
                         Err []
+        , checks = []
         , send = \_ msg -> never msg
         , intercept = \_ _ -> Nothing
         , label = choice_.label
@@ -1971,7 +2015,7 @@ wrapWithTrees args =
                     model_
                     |> List.map (H.map mapper)
         , submit =
-            \model ->
+            \checks model ->
                 case model of
                     Value location model_ ->
                         args.submit model_
@@ -1988,6 +2032,7 @@ wrapWithTrees args =
 
                     _ ->
                         Err []
+        , checks = []
         , subscriptions =
             \model ->
                 case model of
@@ -2334,7 +2379,6 @@ toDOT debugToString (Model model) =
     let
         escape str =
             String.replace "\"" "\\\"" str
-
 
         regex =
             Regex.fromString "(?<=Just )[^,]+"

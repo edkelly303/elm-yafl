@@ -635,15 +635,16 @@ stringWidget__Readme_0 =
     { init = ( "", Platform.Cmd.none )
     , update = \msg model -> ( msg, Platform.Cmd.none )
     , view =
-        \{ label } model ->
-            [ Html.label [ Html.Attributes.for label ] [ Html.text label ]
+        \{ label, id, feedback } model ->
+            [ Html.label [ Html.Attributes.for id ] [ Html.text label ]
             , Html.input
-                [ Html.Attributes.id label
+                [ Html.Attributes.id id
                 , Html.Attributes.type_ "text"
                 , Html.Attributes.value model
                 , Html.Events.onInput Basics.identity
                 ]
                 []
+            , Html.ul [] (List.map (\f -> Html.li [] [ Html.text f ]) feedback)
             ]
     , subscriptions = \model -> Platform.Sub.none
     , submit = \model -> Result.Ok model
@@ -655,15 +656,16 @@ boolWidget__Readme_0 =
     { init = ( Basics.False, Platform.Cmd.none )
     , update = \msg model -> ( msg, Platform.Cmd.none )
     , view =
-        \{ label } model ->
-            [ Html.label [ Html.Attributes.for label ] [ Html.text label ]
+        \{ label, id, feedback } model ->
+            [ Html.label [ Html.Attributes.for id ] [ Html.text label ]
             , Html.input
-                [ Html.Attributes.id label
+                [ Html.Attributes.id id
                 , Html.Attributes.type_ "checkbox"
                 , Html.Attributes.checked model
                 , Html.Events.onCheck Basics.identity
                 ]
                 []
+            , Html.ul [] (List.map (\f -> Html.li [] [ Html.text f ]) feedback)
             ]
     , subscriptions = \model -> Platform.Sub.none
     , submit = \model -> Result.Ok model
