@@ -552,6 +552,11 @@ validate check (Field field) =
     Field { field | checks = field.checks ++ [ check ] }
 
 
+errorIf :
+    (a -> Bool)
+    -> String
+    -> Field formModel formMsg id fieldMsg a
+    -> Field formModel formMsg id fieldMsg a
 errorIf check message field =
     validate
         (\output ->
@@ -853,6 +858,16 @@ andSelectField field ( model, cmd1 ) =
 
 
 -}
+{-
+   .d8888. db    db  .o88b.  .o88b. d88888b d88888b d8888b.
+   88'  YP 88    88 d8P  Y8 d8P  Y8 88'     88'     88  `8D
+   `8bo.   88    88 8P      8P      88ooooo 88ooooo 88   88
+     `Y8b. 88    88 8b      8b      88~~~~~ 88~~~~~ 88   88
+   db   8D 88b  d88 Y8b  d8 Y8b  d8 88.     88.     88  .8D
+   `8888Y' ~Y8888P'  `Y88P'  `Y88P' Y88888P Y88888P Y8888D'
+
+
+-}
 
 
 {-| A Field that always successfully generates the value that you supply.
@@ -893,6 +908,19 @@ succeed f =
         , label = ""
         , maybeId = Nothing
         }
+
+
+
+{-
+   d88888b  .d8b.  d888888b db
+   88'     d8' `8b   `88'   88
+   88ooo   88ooo88    88    88
+   88~~~   88~~~88    88    88
+   88      88   88   .88.   88booo.
+   YP      YP   YP Y888888P Y88888P
+
+
+-}
 
 
 {-| A Field that always fails on submission with the error message that you supply.
@@ -958,6 +986,19 @@ fail e =
         }
 
 
+
+{-
+   d88888b  .d8b.  d888888b db       .d8b.  d888888b
+   88'     d8' `8b   `88'   88      d8' `8b `~~88~~'
+   88ooo   88ooo88    88    88      88ooo88    88
+   88~~~   88~~~88    88    88      88~~~88    88
+   88      88   88   .88.   88booo. 88   88    88
+   YP      YP   YP Y888888P Y88888P YP   YP    YP
+
+
+-}
+
+
 {-| Like `fail`, except it will display the error message on a _different_
 Field. This can be useful in multi-field validation, when you have an error that
 results from a combination of several fields, but you only want to display the
@@ -999,6 +1040,19 @@ failAt (Field failField) e =
         , label = ""
         , maybeId = Nothing
         }
+
+
+
+{-
+   .88b  d88.  .d8b.  d8888b.
+   88'YbdP`88 d8' `8b 88  `8D
+   88  88  88 88ooo88 88oodD'
+   88  88  88 88~~~88 88~~~
+   88  88  88 88   88 88
+   YP  YP  YP YP   YP 88
+
+
+-}
 
 
 {-| Convert the output of a [`Field`](#Field) from one type to another.
@@ -1068,6 +1122,19 @@ runChecks checks model =
                 Err errs
 
 
+
+{-
+   .88b  d88.  .d8b.  d8888b. .d888b.
+   88'YbdP`88 d8' `8b 88  `8D VP  `8D
+   88  88  88 88ooo88 88oodD'    odD'
+   88  88  88 88~~~88 88~~~    .88'
+   88  88  88 88   88 88      j88.
+   YP  YP  YP YP   YP 88      888888D
+
+
+-}
+
+
 {-| Combine the outputs of two [`Fields`](#Field) into a new output type.
 
 You can use this to create tuples, records with two fields, custom type variants
@@ -1118,13 +1185,6 @@ map2 f (Field field1) (Field field2) =
                 )
         , update =
             \msg model ->
-                let
-                    _ =
-                        Debug.log "map2 model" model
-
-                    _ =
-                        Debug.log "map2 msg" msg
-                in
                 case model of
                     Product Map2 location model1 model2 ->
                         let
@@ -1197,6 +1257,19 @@ map2 f (Field field1) (Field field2) =
         }
 
 
+
+{-
+    .d8b.  d8b   db d8888b. .88b  d88.  .d8b.  d8888b.
+   d8' `8b 888o  88 88  `8D 88'YbdP`88 d8' `8b 88  `8D
+   88ooo88 88V8o 88 88   88 88  88  88 88ooo88 88oodD'
+   88~~~88 88 V8o88 88   88 88  88  88 88~~~88 88~~~
+   88   88 88  V888 88  .8D 88  88  88 88   88 88
+   YP   YP VP   V8P Y8888D' YP  YP  YP YP   YP 88
+
+
+-}
+
+
 {-| Combine multiple fields. This is useful when [`map2`](#map2) isn't enough.
 
 Use in combination with [`succeed`](#succeed).
@@ -1240,6 +1313,19 @@ andMap (Field field1) (Field field2) =
                         _ ->
                             []
         }
+
+
+
+{-
+    .d8b.  d8b   db d8888b. d888888b db   db d88888b d8b   db
+   d8' `8b 888o  88 88  `8D `~~88~~' 88   88 88'     888o  88
+   88ooo88 88V8o 88 88   88    88    88ooo88 88ooooo 88V8o 88
+   88~~~88 88 V8o88 88   88    88    88~~~88 88~~~~~ 88 V8o88
+   88   88 88  V888 88  .8D    88    88   88 88.     88  V888
+   YP   YP VP   V8P Y8888D'    YP    YP   YP Y88888P VP   V8P
+
+
+-}
 
 
 {-| Check the result of submitting a [`Field`](#Field), and optionally display
@@ -1399,6 +1485,9 @@ andThen f (Field field) =
 
                                     Sum location meta labelsAndModels ->
                                         let
+                                            _ =
+                                                Debug.log "hit Sum branch" ()
+
                                             ( labels, models ) =
                                                 List.unzip labelsAndModels
 
@@ -1486,6 +1575,19 @@ andThen f (Field field) =
         }
 
 
+
+{-
+    .o88b. db   db  .d88b.  d888888b  .o88b. d88888b
+   d8P  Y8 88   88 .8P  Y8.   `88'   d8P  Y8 88'
+   8P      88ooo88 88    88    88    8P      88ooooo
+   8b      88~~~88 88    88    88    8b      88~~~~~
+   Y8b  d8 88   88 `8b  d8'   .88.   Y8b  d8 88.
+    `Y88P' YP   YP  `Y88P'  Y888888P  `Y88P' Y88888P
+
+
+-}
+
+
 {-| Begin defining a `choice` between multiple [`option`](#option)s.
 -}
 choice : Field formModel formMsg NoId Never output
@@ -1495,13 +1597,26 @@ choice =
         , update = \_ model -> ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
-        , submit = \_ _ -> Err []
+        , submit = \_ model -> Err [ { message = "empty choice", fail = True, locator = locatorFromModel model } ]
         , checks = []
         , send = \_ msg -> never msg
         , intercept = \_ _ -> Nothing
         , label = ""
         , maybeId = Nothing
         }
+
+
+
+{-
+    .d88b.  d8888b. d888888b d888888b  .d88b.  d8b   db
+   .8P  Y8. 88  `8D `~~88~~'   `88'   .8P  Y8. 888o  88
+   88    88 88oodD'    88       88    88    88 88V8o 88
+   88    88 88~~~      88       88    88    88 88 V8o88
+   `8b  d8' 88         88      .88.   `8b  d8' 88  V888
+    `Y88P'  88         YP    Y888888P  `Y88P'  VP   V8P
+
+
+-}
 
 
 {-| Add an option to a [`choice`](#choice).
@@ -1627,7 +1742,7 @@ option radioLabel (Field field) (Field choice_) =
                                )
 
                     _ ->
-                        [ H.text "error: not a OneOf" ]
+                        [ H.text "Fatal error in `option` view function" ]
         , subscriptions =
             \model ->
                 case model of
@@ -1650,7 +1765,12 @@ option radioLabel (Field field) (Field choice_) =
                             choice_.submit choice_.checks (Sum location meta options)
 
                     _ ->
-                        Err []
+                        Err
+                            [ { message = "Fatal error in `option` submit function"
+                              , fail = True
+                              , locator = locatorFromModel model
+                              }
+                            ]
         , checks = []
         , send = \_ msg -> never msg
         , intercept = \_ _ -> Nothing

@@ -114,4 +114,44 @@ tests =
                     |> Yafl.submit form
                     |> Expect.equal (Ok "1")
             )
+        , Test.only <|
+            Test.test
+                "Can use andSelectField with a choice field that is within an andThen-ed field"
+                (\() ->
+                    let
+                        form =
+                            str
+                                |> Yafl.andThen
+                                    (\str_ ->
+                                        if str_ == "a" then
+                                            field
+
+                                        else
+                                            Yafl.succeed True
+                                    )
+
+                        str =
+                            Examples.fields.string
+                                |> Yafl.id "str"
+
+                        yes =
+                            Yafl.succeed True
+
+                        no =
+                            Yafl.succeed False
+                                |> Yafl.id "no"
+
+                        field =
+                            Yafl.choice
+                                |> Yafl.option "yes" yes
+                                |> Yafl.option "no" no
+                    in
+                    form
+                        |> Yafl.init
+                        |> Yafl.andUpdateField str "a"
+                        |> Yafl.andSelectField no
+                        |> Tuple.first
+                        |> Yafl.submit form
+                        |> Expect.equal (Ok False)
+                )
         ]
