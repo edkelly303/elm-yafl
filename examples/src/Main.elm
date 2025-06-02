@@ -230,7 +230,8 @@ nameField =
     fields.string
         |> Yafl.label "What is your dog's name?"
         |> Yafl.id "name-field"
-        |> Yafl.validate (\n -> if String.isEmpty n then Just "foo" else Nothing)
+        |> Yafl.validate (\n -> if String.isEmpty n then Just "Surely they must have a name?" else Nothing)
+        |> Yafl.errorIf String.isEmpty "Ssssstring is empty"
 
 
 

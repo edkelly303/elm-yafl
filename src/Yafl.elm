@@ -6,7 +6,7 @@ module Yafl exposing
     , map, andThen
     , map2, andMap
     , choice, option
-    , label, validate
+    , label, validate, errorIf
     , HasId, NoId, id, intercept, send, select
     , updateField, andUpdateField, selectField, andSelectField
     , toDOT
@@ -239,7 +239,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 # Customizing Fields
 
-@docs label, validate
+@docs label, validate, errorIf
 
 
 # Communicating between Fields
@@ -549,7 +549,19 @@ label label_ (Field field) =
 
 validate : (output -> Maybe String) -> Field formModel formMsg id fieldMsg output -> Field formModel formMsg id fieldMsg output
 validate check (Field field) =
-    Field { field | checks = check :: field.checks }
+    Field { field | checks = field.checks ++ [ check ] }
+
+
+errorIf check message field =
+    validate
+        (\output ->
+            if check output then
+                Just message
+
+            else
+                Nothing
+        )
+        field
 
 
 
@@ -2029,6 +2041,7 @@ wrapWithTrees args =
                                         )
                                         errs
                                 )
+                            |> Result.andThen (runChecks checks model)
 
                     _ ->
                         Err []
