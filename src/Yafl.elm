@@ -1535,17 +1535,35 @@ andThen f (Field field) =
 
                                     Sum location meta labelsAndModels ->
                                         let
-                                            ( labels, models ) =
-                                                List.unzip labelsAndModels
+                                            maybeIndex =
+                                                case locator of
+                                                    ById id_ ->
+                                                        getSelectedKidIndexById id_ labelsAndModels
 
-                                            ( newModels, cmds ) =
-                                                List.map updateHelper models
-                                                    |> List.unzip
-
-                                            newLabelsAndModels =
-                                                List.Extra.zip labels newModels
+                                                    ByPath path_ ->
+                                                        getSelectedKidIndex path_ location
                                         in
-                                        ( Sum location meta newLabelsAndModels, Cmd.batch cmds )
+                                        case maybeIndex of
+                                            Just index ->
+                                                ( Sum location { selected = index } labelsAndModels
+                                                , Cmd.none
+                                                )
+
+                                            Nothing ->
+                                                let
+                                                    ( labels, models ) =
+                                                        List.unzip labelsAndModels
+
+                                                    ( newModels, cmds ) =
+                                                        List.map updateHelper models
+                                                            |> List.unzip
+
+                                                    newLabelsAndModels =
+                                                        List.Extra.zip labels newModels
+                                                in
+                                                ( Sum location meta newLabelsAndModels
+                                                , Cmd.batch cmds
+                                                )
 
                                     Empty typ location ->
                                         ( Empty typ location, Cmd.none )
@@ -1620,6 +1638,35 @@ andThen f (Field field) =
         , label = field.label
         , maybeId = field.maybeId
         }
+
+
+getSelectedKidIndexById : String -> List ( String, Node formModel ) -> Maybe Int
+getSelectedKidIndexById id_ labelsAndChildNodes =
+    labelsAndChildNodes
+        |> List.map Tuple.second
+        |> List.foldl
+            (\childNode maybeIdx ->
+                if isLocated (ById id_) (locationFromModel childNode) then
+                    pathFromModel childNode |> List.head
+
+                else
+                    maybeIdx
+            )
+            Nothing
+
+
+getSelectedKidIndex : Path -> Location -> Maybe Int
+getSelectedKidIndex msgPath locn =
+    case msgPath of
+        kidIdx :: parentPath ->
+            if parentPath == locationToPath locn then
+                Just kidIdx
+
+            else
+                Nothing
+
+        [] ->
+            Nothing
 
 
 
@@ -2237,8 +2284,8 @@ wrapWithTrees args =
         , intercept =
             \maybeId msg ->
                 case ( maybeId, msg ) of
-                    ( Just id_, ValueChanged (ById msgAddress) msgTuple ) ->
-                        if msgAddress == id_ then
+                    ( Just id_, ValueChanged (ById msgId) msgTuple ) ->
+                        if msgId == id_ then
                             args.intercept msgTuple
 
                         else
