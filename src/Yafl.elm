@@ -316,6 +316,10 @@ type Msg formMsg
     | Noop
 
 
+type InnerMsg formMsg
+    = InnerMsg Path formMsg
+
+
 {-| An internal data type used to track the location of a [`Field`](#Field) within the form.
 -}
 type alias Path =
@@ -329,7 +333,7 @@ type Field formModel formMsg id fieldMsg output
         { init :
             Path -> MaybeId -> ( Node formModel, Cmd (Msg formMsg) )
         , update :
-            Msg formMsg
+            InnerMsg formMsg
             -> Node formModel
             -> ( Node formModel, Cmd (Msg formMsg) )
         , view :
@@ -438,9 +442,87 @@ init (Field field) =
 {-| Update your form by supplying a `Msg` and `Model`
 -}
 update : Field formModel formMsg id fieldMsg output -> Msg formMsg -> Model formModel output -> ( Model formModel output, Cmd (Msg formMsg) )
-update (Field field) msg (Model model) =
-    field.update msg model
-        |> Tuple.mapFirst Model
+update (Field field) msg (Model node) =
+    case msg of
+        ValueChanged locator formMsg ->
+            let
+                path =
+                    []
+            in
+            field.update (InnerMsg path formMsg) node
+                |> Tuple.mapFirst Model
+
+        OptionSelected locator ->
+            let
+                ( selected, path ) =
+                    case [] of
+                        selected_ :: path_ ->
+                            ( selected_, path_ )
+
+                        _ ->
+                            ( 0, [] )
+
+                helper node_ =
+                    case node_ of
+                        Value _ _ ->
+                            ( node, Cmd.none )
+
+                        Empty _ _ ->
+                            ( node, Cmd.none )
+
+                        Product Map2 loc node1 node2 ->
+                            let
+                                ( newNode1, cmd1 ) =
+                                    helper node1
+
+                                ( newNode2, cmd2 ) =
+                                    helper node2
+                            in
+                            ( Product Map2 loc newNode1 newNode2
+                            , Cmd.batch [ cmd1, cmd2 ]
+                            )
+
+                        Product AndThen loc node1 node2 ->
+                            let
+                                ( newNode1, cmd1 ) =
+                                    helper node1
+
+                                ( newNode2, cmd2 ) =
+                                    helper node2
+                            in
+                            ( Product AndThen loc newNode1 newNode2
+                            , Cmd.batch [ cmd1, cmd2 ]
+                            )
+
+                        Sum loc meta labelsAndChildNodes ->
+                            if locationToPath loc == path then
+                                ( Sum loc { selected = selected } labelsAndChildNodes
+                                , Cmd.none
+                                )
+
+                            else
+                                let
+                                    ( labels, childNodes ) =
+                                        List.unzip labelsAndChildNodes
+
+                                    newChildNodesAndCmds =
+                                        List.map helper childNodes
+
+                                    ( newChildNodes, cmds ) =
+                                        List.unzip newChildNodesAndCmds
+
+                                    labelsAndNewChildNodes =
+                                        List.Extra.zip labels newChildNodes
+                                in
+                                ( Sum loc meta labelsAndNewChildNodes
+                                , Cmd.batch cmds
+                                )
+            in
+            helper node
+                |> Tuple.mapFirst Model
+
+        Noop ->
+            ( Model node, Cmd.none )
 
 
 {-| View your form.
