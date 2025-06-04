@@ -1495,10 +1495,14 @@ andThen f (Field field) =
                                             newLabelsAndModels =
                                                 List.Extra.zip labels newModels
                                         in
-                                        ( Sum location meta newLabelsAndModels, Cmd.batch cmds )
+                                        ( Sum location meta newLabelsAndModels
+                                        , Cmd.batch cmds
+                                        )
 
                                     Empty typ location ->
-                                        ( Empty typ location, Cmd.none )
+                                        ( Empty typ location
+                                        , Cmd.none
+                                        )
                         in
                         updateHelper model
 
