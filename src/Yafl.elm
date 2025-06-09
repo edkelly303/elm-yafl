@@ -1450,9 +1450,12 @@ andMap (Field field1) (Field field2) =
 
 
 {-| Check the result of submitting a [`Field`](#Field), and optionally display
-another `Field`. This can be very useful for validation, or to ask the user for
-more information, or to convert an existing [`Widget`](#Widget) to return a
-different output type.
+another `Field`. This can be useful if you want to ask the user for more
+information, or to convert an existing [`Widget`](#Widget) to return a different
+output type.
+
+(You _can_ also use it for validating a field's output, but it will probably be
+better to use [`errorIf`](#errorIf) or [`validate`](#validate) instead.)
 
 The [`succeed`](#succeed) and [`fail`](#fail) functions are often useful in
 combination with this function.
@@ -1460,22 +1463,7 @@ combination with this function.
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
 
-    -- Example 1: Validating a field's output
-
-    fields.string
-        |> Yafl.label "Enter the first name of a Beatle"
-        |> Yafl.andThen
-            (\name ->
-                if List.member name [ "John", "Paul", "George", "Ringo" ] then
-                    Yafl.succeed name
-
-                else
-                    Yafl.fail "Invalid Beatle"
-            )
-
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String String
-
-    -- Example 2: Asking the user for additional information
+    -- Example 1: Asking the user for additional information
 
     fields.string
         |> Yafl.label "What would you like to say?"
@@ -1492,7 +1480,7 @@ combination with this function.
 
     --: Yafl.Field FormModel FormMsg Yafl.NoId String String
 
-    -- Example 3: Repurposing an existing widget
+    -- Example 2: Repurposing an existing widget to return a different type
 
     fields.string
             |> Yafl.label "Enter a floating-point number"
@@ -1507,6 +1495,21 @@ combination with this function.
                 )
 
     --: Yafl.Field FormModel FormMsg Yafl.NoId String Float
+
+    -- Example 3: Validating a field's output
+
+    fields.string
+        |> Yafl.label "Enter the first name of a Beatle"
+        |> Yafl.andThen
+            (\name ->
+                if List.member name [ "John", "Paul", "George", "Ringo" ] then
+                    Yafl.succeed name
+
+                else
+                    Yafl.fail "Invalid Beatle"
+            )
+
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String String
 
 -}
 andThen :
@@ -1545,158 +1548,72 @@ andThen f (Field field) =
                 )
         , update =
             \msg model ->
-                case msg of
-                    ValueChanged locator _ ->
-                        let
-                            updateHelper model_ =
-                                case model_ of
-                                    Product AndThen location model1 model2 ->
-                                        if isLocated locator (locationFromModel model1) then
-                                            let
-                                                ( newModel1, cmd1 ) =
-                                                    field.update msg model1
+                let
+                    updateHelper model_ =
+                        case model_ of
+                            Product AndThen location model1 model2 ->
+                                let
+                                    ( newModel1, cmd1 ) =
+                                        field.update msg model1
 
-                                                ( newModel2, cmd2 ) =
-                                                    case field.submit field.checks newModel1 of
-                                                        Ok output ->
-                                                            let
-                                                                (Field field2) =
-                                                                    f output
-                                                            in
-                                                            case model2 of
-                                                                Empty _ location2 ->
-                                                                    field2.init (locationToPath location2) field2.maybeId
-
-                                                                _ ->
-                                                                    field2.update msg model2
-
-                                                        Err _ ->
-                                                            ( model2, Cmd.none )
-                                            in
-                                            ( Product AndThen location newModel1 newModel2
-                                            , Cmd.batch [ cmd1, cmd2 ]
-                                            )
-
-                                        else
-                                            let
-                                                ( newModel1, cmd1 ) =
-                                                    updateHelper model1
-
-                                                ( newModel2, cmd2 ) =
-                                                    updateHelper model2
-                                            in
-                                            ( Product AndThen location newModel1 newModel2
-                                            , Cmd.batch [ cmd1, cmd2 ]
-                                            )
-
-                                    Product Map2 location model1 model2 ->
-                                        let
-                                            ( newModel1, cmd1 ) =
-                                                updateHelper model1
-
-                                            ( newModel2, cmd2 ) =
-                                                updateHelper model2
-                                        in
-                                        ( Product Map2 location newModel1 newModel2
-                                        , Cmd.batch [ cmd1, cmd2 ]
-                                        )
-
-                                    Value location value ->
-                                        ( Value location value, Cmd.none )
-
-                                    Sum location meta labelsAndModels ->
-                                        let
-                                            ( labels, models ) =
-                                                List.unzip labelsAndModels
-
-                                            ( newModels, cmds ) =
-                                                List.map updateHelper models
-                                                    |> List.unzip
-
-                                            newLabelsAndModels =
-                                                List.Extra.zip labels newModels
-                                        in
-                                        ( Sum location meta newLabelsAndModels
-                                        , Cmd.batch cmds
-                                        )
-
-                                    Empty typ location ->
-                                        ( Empty typ location
-                                        , Cmd.none
-                                        )
-                        in
-                        updateHelper model
-
-                    OptionSelected locator ->
-                        let
-                            updateHelper model_ =
-                                case model_ of
-                                    Product AndThen location model1 model2 ->
-                                        let
-                                            ( newModel1, cmd1 ) =
-                                                updateHelper model1
-
-                                            ( newModel2, cmd2 ) =
-                                                updateHelper model2
-                                        in
-                                        ( Product AndThen location newModel1 newModel2
-                                        , Cmd.batch [ cmd1, cmd2 ]
-                                        )
-
-                                    Product Map2 location model1 model2 ->
-                                        let
-                                            ( newModel1, cmd1 ) =
-                                                updateHelper model1
-
-                                            ( newModel2, cmd2 ) =
-                                                updateHelper model2
-                                        in
-                                        ( Product Map2 location newModel1 newModel2
-                                        , Cmd.batch [ cmd1, cmd2 ]
-                                        )
-
-                                    Value location value ->
-                                        ( Value location value, Cmd.none )
-
-                                    Sum location meta labelsAndModels ->
-                                        let
-                                            maybeIndex =
-                                                case locator of
-                                                    ById id_ ->
-                                                        getSelectedKidIndexById id_ labelsAndModels
-
-                                                    ByPath path_ ->
-                                                        getSelectedKidIndex path_ location
-                                        in
-                                        case maybeIndex of
-                                            Just index ->
-                                                ( Sum location { selected = index } labelsAndModels
-                                                , Cmd.none
-                                                )
-
-                                            Nothing ->
+                                    ( newModel2, cmd2 ) =
+                                        case field.submit field.checks newModel1 of
+                                            Ok output ->
                                                 let
-                                                    ( labels, models ) =
-                                                        List.unzip labelsAndModels
-
-                                                    ( newModels, cmds ) =
-                                                        List.map updateHelper models
-                                                            |> List.unzip
-
-                                                    newLabelsAndModels =
-                                                        List.Extra.zip labels newModels
+                                                    (Field field2) =
+                                                        f output
                                                 in
-                                                ( Sum location meta newLabelsAndModels
-                                                , Cmd.batch cmds
-                                                )
+                                                case model2 of
+                                                    Empty _ location2 ->
+                                                        field2.init (locationToPath location2) field2.maybeId
 
-                                    Empty typ location ->
-                                        ( Empty typ location, Cmd.none )
-                        in
-                        updateHelper model
+                                                    _ ->
+                                                        field2.update msg model2
 
-                    Noop ->
-                        ( model, Cmd.none )
+                                            Err _ ->
+                                                ( model2, Cmd.none )
+                                in
+                                ( Product AndThen location newModel1 newModel2
+                                , Cmd.batch [ cmd1, cmd2 ]
+                                )
+
+                            Product Map2 location model1 model2 ->
+                                let
+                                    ( newModel1, cmd1 ) =
+                                        updateHelper model1
+
+                                    ( newModel2, cmd2 ) =
+                                        updateHelper model2
+                                in
+                                ( Product Map2 location newModel1 newModel2
+                                , Cmd.batch [ cmd1, cmd2 ]
+                                )
+
+                            Value location value ->
+                                ( Value location value, Cmd.none )
+
+                            Sum location meta labelsAndModels ->
+                                let
+                                    ( labels, models ) =
+                                        List.unzip labelsAndModels
+
+                                    ( newModels, cmds ) =
+                                        List.map updateHelper models
+                                            |> List.unzip
+
+                                    newLabelsAndModels =
+                                        List.Extra.zip labels newModels
+                                in
+                                ( Sum location meta newLabelsAndModels
+                                , Cmd.batch cmds
+                                )
+
+                            Empty typ location ->
+                                ( Empty typ location
+                                , Cmd.none
+                                )
+                in
+                updateHelper model
         , view =
             \config model ->
                 case model of
@@ -1871,8 +1788,8 @@ will be rendered underneath the fieldset containing the radio buttons.
 option :
     String
     -> Field formModel formMsg id fieldMsg output
-    -> Field formModel formMsg NoId Never output
-    -> Field formModel formMsg NoId Never output
+    -> Field formModel formMsg id2 Never output
+    -> Field formModel formMsg id2 Never output
 option radioLabel (Field field) (Field choice_) =
     Field
         { init =

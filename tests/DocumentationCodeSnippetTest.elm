@@ -256,34 +256,6 @@ tests =
                                 unused =
                                     Examples.fields.string
                                         |> Yafl.label
-                                            "Enter the first name of a Beatle"
-                                        |> Yafl.andThen
-                                            (\name ->
-                                                if
-                                                    List.member
-                                                        name
-                                                        [ "John"
-                                                        , "Paul"
-                                                        , "George"
-                                                        , "Ringo"
-                                                        ]
-                                                then
-                                                    Yafl.succeed name
-
-                                                else
-                                                    Yafl.fail "Invalid Beatle"
-                                            )
-                            in
-                            Expect.pass
-                        )
-                    , Test.test
-                        "1"
-                        (\() ->
-                            let
-                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
-                                unused =
-                                    Examples.fields.string
-                                        |> Yafl.label
                                             "What would you like to say?"
                                         |> Yafl.andThen
                                             (\words ->
@@ -305,7 +277,7 @@ tests =
                             Expect.pass
                         )
                     , Test.test
-                        "2"
+                        "1"
                         (\() ->
                             let
                                 unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String Basics.Float
@@ -322,6 +294,34 @@ tests =
                                                     Maybe.Nothing ->
                                                         Yafl.fail
                                                             "That's not a valid float"
+                                            )
+                            in
+                            Expect.pass
+                        )
+                    , Test.test
+                        "2"
+                        (\() ->
+                            let
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
+                                unused =
+                                    Examples.fields.string
+                                        |> Yafl.label
+                                            "Enter the first name of a Beatle"
+                                        |> Yafl.andThen
+                                            (\name ->
+                                                if
+                                                    List.member
+                                                        name
+                                                        [ "John"
+                                                        , "Paul"
+                                                        , "George"
+                                                        , "Ringo"
+                                                        ]
+                                                then
+                                                    Yafl.succeed name
+
+                                                else
+                                                    Yafl.fail "Invalid Beatle"
                                             )
                             in
                             Expect.pass
