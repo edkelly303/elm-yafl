@@ -2,8 +2,9 @@
 
 ## DISCLAIMER
 
-This package is experimental, and the API may change. It's also pretty weird. 
-I would *not* recommend using it in production.
+This package is experimental, and the API may change. It's also pretty weird.
+I'm fairly sure there are still some bugs and oddities. I would *not* recommend
+using it in production.
 
 ## What does it do?
 
