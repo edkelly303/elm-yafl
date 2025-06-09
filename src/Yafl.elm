@@ -37,7 +37,7 @@ composing self-contained [`Widget`](#Widget)s.
 
 ### [Combining Fields](#combining-fields)
 
-[`succeed`](#succeed), [`fail`](#fail), [`failAtmap`](#failAtmap), [`andThen`](#andThen), [`map2`](#map2), [`andMap`](#andMap), [`choice`](#choice), [`option`](#option)
+[`succeed`](#succeed), [`fail`](#fail), [`failAt`](#failAt), [`map`](#map), [`andThen`](#andThen), [`map2`](#map2), [`andMap`](#andMap), [`choice`](#choice), [`option`](#option)
 
 
 ### [Customizing Fields](#customizing-fields)
@@ -230,6 +230,7 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 # Combining Fields
 
 [_Back to top_](#table-of-contents)
+
 
 ## Succeeding and failing
 
@@ -1111,7 +1112,7 @@ fail e =
                         ]
         , subscriptions = \_ -> Sub.none
         , submit =
-            \checks model ->
+            \_ model ->
                 Err
                     [ { message = e
                       , fail = True
@@ -1159,7 +1160,7 @@ failAt (Field failField) e =
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
         , submit =
-            \checks model ->
+            \_ model ->
                 Err
                     [ case failField.maybeId of
                         Just id_ ->
@@ -1736,7 +1737,7 @@ andThen f (Field field) =
                     _ ->
                         Sub.none
         , submit =
-            \checks model ->
+            \_ model ->
                 case model of
                     Product _ _ model1 model2 ->
                         field.submit field.checks model1
@@ -1980,7 +1981,7 @@ option radioLabel (Field field) (Field choice_) =
                     _ ->
                         Sub.none
         , submit =
-            \checks model ->
+            \_ model ->
                 case model of
                     Sum location meta (( _, fieldModel ) :: options) ->
                         if meta.selected == List.length options then
