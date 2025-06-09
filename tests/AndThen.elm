@@ -115,44 +115,44 @@ tests =
                     |> Expect.equal (Ok "1")
             )
         , Test.test
-                "Can use andSelectField with a choice field that is within an andThen-ed field"
-                (\() ->
-                    let
-                        form =
-                            str
-                                |> Yafl.andThen
-                                    (\str_ ->
-                                        if str_ == "a" then
-                                            field
+            "Can use andSelectField with a choice field that is within an andThen-ed field"
+            (\() ->
+                let
+                    form =
+                        str
+                            |> Yafl.andThen
+                                (\str_ ->
+                                    if str_ == "a" then
+                                        field
 
-                                        else
-                                            Yafl.succeed True
-                                    )
+                                    else
+                                        Yafl.succeed True
+                                )
 
-                        str =
-                            Examples.fields.string
-                                |> Yafl.id "str"
+                    str =
+                        Examples.fields.string
+                            |> Yafl.id "str"
 
-                        yes =
-                            Yafl.succeed True
+                    yes =
+                        Yafl.succeed True
 
-                        no =
-                            Yafl.succeed False
-                                |> Yafl.id "no"
+                    no =
+                        Yafl.succeed False
+                            |> Yafl.id "no"
 
-                        field =
-                            Yafl.choice
-                                |> Yafl.option "yes" yes
-                                |> Yafl.option "no" no
-                    in
-                    form
-                        |> Yafl.init
-                        |> Tuple.mapFirst (Debug.log "init")
-                        |> Yafl.andUpdateField form str "a"
-                        |> Tuple.mapFirst (Debug.log "post update")
-                        |> Yafl.andSelectField form no
-                        |> Tuple.first
-                        |> Yafl.submit form
-                        |> Expect.equal (Ok False)
-                )
+                    field =
+                        Yafl.choice
+                            |> Yafl.option "yes" yes
+                            |> Yafl.option "no" no
+                in
+                form
+                    |> Yafl.init
+                    |> Tuple.mapFirst (Debug.log "init")
+                    |> Yafl.andUpdateField form str "a"
+                    |> Tuple.mapFirst (Debug.log "post update")
+                    |> Yafl.andSelectField form no
+                    |> Tuple.first
+                    |> Yafl.submit form
+                    |> Expect.equal (Ok False)
+            )
         ]

@@ -230,7 +230,14 @@ nameField =
     fields.string
         |> Yafl.label "What is your dog's name?"
         |> Yafl.id "name-field"
-        |> Yafl.validate (\n -> if String.isEmpty n then Just "Surely they must have a name?" else Nothing)
+        |> Yafl.validate
+            (\name ->
+                if String.isEmpty name then
+                    Just "Surely they must have a name?"
+
+                else
+                    Nothing
+            )
         |> Yafl.errorIf String.isEmpty "Ssssstring is empty"
 
 
@@ -298,40 +305,48 @@ likesBonesField =
 -}
 
 
-hasFleasField : Yafl.Field FormModel FormMsg Yafl.NoId String FunFact
+hasFleasField : Yafl.Field FormModel FormMsg Yafl.HasId String FunFact
 hasFleasField =
     fields.int
+        |> Yafl.id "how-many-fleas"
         |> Yafl.label "How many fleas do they have?"
         |> Yafl.andThen
             (\numberOfFleas ->
                 if numberOfFleas < 1 then
                     Yafl.fail "They must have at least one?!"
+                        |> Yafl.id "at-least-one"
 
                 else if numberOfFleas < 10 then
                     Yafl.choice
+                        |> Yafl.id "ask-check-belly"
                         |> Yafl.label "Hmm, that's not very many, did you check their belly?"
-                        |> Yafl.option "Yes, that's really all the fleas they have" (Yafl.succeed True)
-                        |> Yafl.option "No, I'll check the belly..." (Yafl.succeed False)
+                        |> Yafl.option "Yes, that's really all the fleas they have" (Yafl.succeed True |> Yafl.id "really-all-fleas")
+                        |> Yafl.option "No, I'll check the belly..." (Yafl.succeed False |> Yafl.id "not-really-all-fleas")
                         |> Yafl.andThen
                             (\yes ->
                                 if yes then
                                     Yafl.succeed (HasFleas numberOfFleas)
+                                        |> Yafl.id "checked-belly-already"
 
                                 else
                                     fields.int
+                                        |> Yafl.id "check-belly-fleas"
                                         |> Yafl.label "Ok, how many extra fleas did you find on their belly?"
                                         |> Yafl.andThen
                                             (\extraFleas ->
                                                 if extraFleas < 0 then
                                                     Yafl.fail "C'mon, you can't have negative fleas!"
+                                                    |> Yafl.id "negative-fleas"
 
                                                 else
                                                     Yafl.succeed (HasFleas (numberOfFleas + extraFleas))
+                                                    |> Yafl.id "extra-fleas-success"
                                             )
                             )
 
                 else
                     Yafl.succeed (HasFleas numberOfFleas)
+                        |> Yafl.id "initia-fleas-success"
             )
 
 
