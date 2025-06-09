@@ -477,12 +477,12 @@ type alias InternalFeedback =
 
 
 {-
-   db    db .d8888. d888888b d8b   db  d888b       d88888b d888888b d88888b db      d8888b. .d8888.
-   88    88 88'  YP   `88'   888o  88 88' Y8b      88'       `88'   88'     88      88  `8D 88'  YP
-   88    88 `8bo.      88    88V8o 88 88           88ooo      88    88ooooo 88      88   88 `8bo.
-   88    88   `Y8b.    88    88 V8o88 88  ooo      88~~~      88    88~~~~~ 88      88   88   `Y8b.
-   88b  d88 db   8D   .88.   88  V888 88. ~8~      88        .88.   88.     88booo. 88  .8D db   8D
-   ~Y8888P' `8888Y' Y888888P VP   V8P  Y888P       YP      Y888888P Y88888P Y88888P Y8888D' `8888Y'
+   d888888b d8b   db d888888b d888888b
+     `88'   888o  88   `88'   `~~88~~'
+      88    88V8o 88    88       88
+      88    88 V8o88    88       88
+     .88.   88  V888   .88.      88
+   Y888888P VP   V8P Y888888P    YP
 
 
 -}
@@ -505,12 +505,38 @@ init (Field field) =
         |> Tuple.mapFirst Model
 
 
+
+{-
+   db    db d8888b. d8888b.  .d8b.  d888888b d88888b
+   88    88 88  `8D 88  `8D d8' `8b `~~88~~' 88'
+   88    88 88oodD' 88   88 88ooo88    88    88ooooo
+   88    88 88~~~   88   88 88~~~88    88    88~~~~~
+   88b  d88 88      88  .8D 88   88    88    88.
+   ~Y8888P' 88      Y8888D' YP   YP    YP    Y88888P
+
+
+-}
+
+
 {-| Update your form by supplying a `Msg` and `Model`
 -}
 update : Field formModel formMsg id fieldMsg output -> Msg formMsg -> Model formModel output -> ( Model formModel output, Cmd (Msg formMsg) )
 update (Field field) msg (Model node) =
     field.update msg node
         |> Tuple.mapFirst Model
+
+
+
+{-
+   db    db d888888b d88888b db   d8b   db
+   88    88   `88'   88'     88   I8I   88
+   Y8    8P    88    88ooooo 88   I8I   88
+   `8b  d8'    88    88~~~~~ Y8   I8I   88
+    `8bd8'    .88.   88.     `8b d8'8b d8'
+      YP    Y888888P Y88888P  `8b8' `8d8'
+
+
+-}
 
 
 {-| View your form.
@@ -551,6 +577,19 @@ view (Field field) (Model model) =
         model
 
 
+
+{-
+   .d8888. db    db d8888b. .d8888.  .o88b. d8888b. d888888b d8888b. d888888b d888888b  .d88b.  d8b   db .d8888.
+   88'  YP 88    88 88  `8D 88'  YP d8P  Y8 88  `8D   `88'   88  `8D `~~88~~'   `88'   .8P  Y8. 888o  88 88'  YP
+   `8bo.   88    88 88oooY' `8bo.   8P      88oobY'    88    88oodD'    88       88    88    88 88V8o 88 `8bo.
+     `Y8b. 88    88 88~~~b.   `Y8b. 8b      88`8b      88    88~~~      88       88    88    88 88 V8o88   `Y8b.
+   db   8D 88b  d88 88   8D db   8D Y8b  d8 88 `88.   .88.   88         88      .88.   `8b  d8' 88  V888 db   8D
+   `8888Y' ~Y8888P' Y8888P' `8888Y'  `Y88P' 88   YD Y888888P 88         YP    Y888888P  `Y88P'  VP   V8P `8888Y'
+
+
+-}
+
+
 {-| Generate subscriptions for your form.
 
     import Yafl
@@ -572,6 +611,19 @@ view (Field field) (Model model) =
 subscriptions : Field formModel formMsg id fieldMsg output -> Model formModel output -> Sub (Msg formMsg)
 subscriptions (Field field) (Model model) =
     field.subscriptions model
+
+
+
+{-
+   .d8888. db    db d8888b. .88b  d88. d888888b d888888b
+   88'  YP 88    88 88  `8D 88'YbdP`88   `88'   `~~88~~'
+   `8bo.   88    88 88oooY' 88  88  88    88       88
+     `Y8b. 88    88 88~~~b. 88  88  88    88       88
+   db   8D 88b  d88 88   8D 88  88  88   .88.      88
+   `8888Y' ~Y8888P' Y8888P' YP  YP  YP Y888888P    YP
+
+
+-}
 
 
 {-| Submit your form.
@@ -605,6 +657,19 @@ submit (Field field) (Model model) =
             )
 
 
+
+{-
+   db       .d8b.  d8888b. d88888b db
+   88      d8' `8b 88  `8D 88'     88
+   88      88ooo88 88oooY' 88ooooo 88
+   88      88~~~88 88~~~b. 88~~~~~ 88
+   88booo. 88   88 88   8D 88.     88booo.
+   Y88888P YP   YP Y8888P' Y88888P Y88888P
+
+
+-}
+
+
 {-| Add a label to a Field.
 
     import Yafl
@@ -622,6 +687,19 @@ submit (Field field) (Model model) =
 label : String -> Field formModel formMsg id fieldMsg output -> Field formModel formMsg id fieldMsg output
 label label_ (Field field) =
     Field { field | label = label_ }
+
+
+
+{-
+   db    db  .d8b.  db      d888888b d8888b.  .d8b.  d888888b d88888b
+   88    88 d8' `8b 88        `88'   88  `8D d8' `8b `~~88~~' 88'
+   Y8    8P 88ooo88 88         88    88   88 88ooo88    88    88ooooo
+   `8b  d8' 88~~~88 88         88    88   88 88~~~88    88    88~~~~~
+    `8bd8'  88   88 88booo.   .88.   88  .8D 88   88    88    88.
+      YP    YP   YP Y88888P Y888888P Y8888D' YP   YP    YP    Y88888P
+
+
+-}
 
 
 {-| Validate a field and specify an error message if validation fails. This is
@@ -654,6 +732,19 @@ value of the output in the error message.
 validate : (output -> Maybe String) -> Field formModel formMsg id fieldMsg output -> Field formModel formMsg id fieldMsg output
 validate check (Field field) =
     Field { field | checks = field.checks ++ [ check ] }
+
+
+
+{-
+   d88888b d8888b. d8888b.  .d88b.  d8888b. d888888b d88888b
+   88'     88  `8D 88  `8D .8P  Y8. 88  `8D   `88'   88'
+   88ooooo 88oobY' 88oobY' 88    88 88oobY'    88    88ooo
+   88~~~~~ 88`8b   88`8b   88    88 88`8b      88    88~~~
+   88.     88 `88. 88 `88. `8b  d8' 88 `88.   .88.   88
+   Y88888P 88   YD 88   YD  `Y88P'  88   YD Y888888P YP
+
+
+-}
 
 
 {-| Validate a field using a predicate. This is simpler than [`validate`](#validate), but
@@ -694,13 +785,13 @@ errorIf check message field =
 
 
 {-
-   d888888b d8888b.         .d8888. d88888b d8b   db d8888b.         d888888b d8b   db d888888b d88888b d8888b.  .o88b. d88888b d8888b. d888888b
-     `88'   88  `8D         88'  YP 88'     888o  88 88  `8D           `88'   888o  88 `~~88~~' 88'     88  `8D d8P  Y8 88'     88  `8D `~~88~~'
-      88    88   88         `8bo.   88ooooo 88V8o 88 88   88            88    88V8o 88    88    88ooooo 88oobY' 8P      88ooooo 88oodD'    88
-      88    88   88           `Y8b. 88~~~~~ 88 V8o88 88   88            88    88 V8o88    88    88~~~~~ 88`8b   8b      88~~~~~ 88~~~      88
-     .88.   88  .8D db      db   8D 88.     88  V888 88  .8D db        .88.   88  V888    88    88.     88 `88. Y8b  d8 88.     88         88
-   Y888888P Y8888D' V8      `8888Y' Y88888P VP   V8P Y8888D' V8      Y888888P VP   V8P    YP    Y88888P 88   YD  `Y88P' Y88888P 88         YP
-                     P                                        P
+   d888888b d8888b.
+     `88'   88  `8D
+      88    88   88
+      88    88   88
+     .88.   88  .8D
+   Y888888P Y8888D'
+
 
 -}
 
@@ -737,6 +828,19 @@ id sendId_ (Field field) =
     Field { field | maybeId = Just sendId_ }
 
 
+
+{-
+   .d8888. d88888b db      d88888b  .o88b. d888888b
+   88'  YP 88'     88      88'     d8P  Y8 `~~88~~'
+   `8bo.   88ooooo 88      88ooooo 8P         88
+     `Y8b. 88~~~~~ 88      88~~~~~ 8b         88
+   db   8D 88.     88booo. 88.     Y8b  d8    88
+   `8888Y' Y88888P Y88888P Y88888P  `Y88P'    YP
+
+
+-}
+
+
 {-| Create a `Cmd` that will select a specific `option` in a `choice` Field.
 
     import Yafl
@@ -766,6 +870,19 @@ select (Field field) =
             Cmd.none
 
 
+
+{-
+   .d8888. d88888b d8b   db d8888b.
+   88'  YP 88'     888o  88 88  `8D
+   `8bo.   88ooooo 88V8o 88 88   88
+     `Y8b. 88~~~~~ 88 V8o88 88   88
+   db   8D 88.     88  V888 88  .8D
+   `8888Y' Y88888P VP   V8P Y8888D'
+
+
+-}
+
+
 {-| Create a `Cmd` that will send a message to a specific `option` in a `choice` Field.
 
     import Yafl
@@ -785,6 +902,19 @@ send (Field field) msg =
     Task.perform identity (Task.succeed (field.send field.maybeId msg))
 
 
+
+{-
+   d888888b d8b   db d888888b d88888b d8888b.  .o88b. d88888b d8888b. d888888b
+     `88'   888o  88 `~~88~~' 88'     88  `8D d8P  Y8 88'     88  `8D `~~88~~'
+      88    88V8o 88    88    88ooooo 88oobY' 8P      88ooooo 88oodD'    88
+      88    88 V8o88    88    88~~~~~ 88`8b   8b      88~~~~~ 88~~~      88
+     .88.   88  V888    88    88.     88 `88. Y8b  d8 88.     88         88
+   Y888888P VP   V8P    YP    Y88888P 88   YD  `Y88P' Y88888P 88         YP
+
+
+-}
+
+
 {-| Intercept the top-level `Msg` sent to your form, and if it contains a message sent to the specified field, return that message.
 
     import Yafl
@@ -802,6 +932,19 @@ send (Field field) msg =
 intercept : Field formModel formMsg HasId widgetMsg output -> Msg formMsg -> Maybe widgetMsg
 intercept (Field field) =
     field.intercept field.maybeId
+
+
+
+{-
+   db    db d8888b. d8888b.  .d8b.  d888888b d88888b d88888b d888888b d88888b db      d8888b.
+   88    88 88  `8D 88  `8D d8' `8b `~~88~~' 88'     88'       `88'   88'     88      88  `8D
+   88    88 88oodD' 88   88 88ooo88    88    88ooooo 88ooo      88    88ooooo 88      88   88
+   88    88 88~~~   88   88 88~~~88    88    88~~~~~ 88~~~      88    88~~~~~ 88      88   88
+   88b  d88 88      88  .8D 88   88    88    88.     88        .88.   88.     88booo. 88  .8D
+   ~Y8888P' 88      Y8888D' YP   YP    YP    Y88888P YP      Y888888P Y88888P Y88888P Y8888D'
+
+
+-}
 
 
 {-| Update an individual Field within your form's `Model` by supplying a message for that Field.
@@ -853,6 +996,19 @@ updateField (Field form) (Field field) widgetMsg (Model model) =
         |> Tuple.mapFirst Model
 
 
+
+{-
+    .d8b.  d8b   db d8888b. db    db d8888b. d8888b.  .d8b.  d888888b d88888b d88888b d888888b d88888b db      d8888b.
+   d8' `8b 888o  88 88  `8D 88    88 88  `8D 88  `8D d8' `8b `~~88~~' 88'     88'       `88'   88'     88      88  `8D
+   88ooo88 88V8o 88 88   88 88    88 88oodD' 88   88 88ooo88    88    88ooooo 88ooo      88    88ooooo 88      88   88
+   88~~~88 88 V8o88 88   88 88    88 88~~~   88   88 88~~~88    88    88~~~~~ 88~~~      88    88~~~~~ 88      88   88
+   88   88 88  V888 88  .8D 88b  d88 88      88  .8D 88   88    88    88.     88        .88.   88.     88booo. 88  .8D
+   YP   YP VP   V8P Y8888D' ~Y8888P' 88      Y8888D' YP   YP    YP    Y88888P YP      Y888888P Y88888P Y88888P Y8888D'
+
+
+-}
+
+
 {-| Like `updateField`, but works on `( model, cmd )` tuples. Useful if you're chaining multiple updates.
 
     import Yafl
@@ -893,6 +1049,19 @@ andUpdateField :
 andUpdateField form field widgetMsg ( model, cmd1 ) =
     updateField form field widgetMsg model
         |> Tuple.mapSecond (\cmd2 -> Cmd.batch [ cmd1, cmd2 ])
+
+
+
+{-
+   .d8888. d88888b db      d88888b  .o88b. d888888b d88888b d888888b d88888b db      d8888b.
+   88'  YP 88'     88      88'     d8P  Y8 `~~88~~' 88'       `88'   88'     88      88  `8D
+   `8bo.   88ooooo 88      88ooooo 8P         88    88ooo      88    88ooooo 88      88   88
+     `Y8b. 88~~~~~ 88      88~~~~~ 8b         88    88~~~      88    88~~~~~ 88      88   88
+   db   8D 88.     88booo. 88.     Y8b  d8    88    88        .88.   88.     88booo. 88  .8D
+   `8888Y' Y88888P Y88888P Y88888P  `Y88P'    YP    YP      Y888888P Y88888P Y88888P Y8888D'
+
+
+-}
 
 
 {-| Select a specific `option` Field within your form's `Model`.
@@ -946,6 +1115,19 @@ selectField (Field form) (Field field) (Model model) =
             ( Model model, Cmd.none )
 
 
+
+{-
+    .d8b.  d8b   db d8888b. .d8888. d88888b db      d88888b  .o88b. d888888b d88888b d888888b d88888b db      d8888b.
+   d8' `8b 888o  88 88  `8D 88'  YP 88'     88      88'     d8P  Y8 `~~88~~' 88'       `88'   88'     88      88  `8D
+   88ooo88 88V8o 88 88   88 `8bo.   88ooooo 88      88ooooo 8P         88    88ooo      88    88ooooo 88      88   88
+   88~~~88 88 V8o88 88   88   `Y8b. 88~~~~~ 88      88~~~~~ 8b         88    88~~~      88    88~~~~~ 88      88   88
+   88   88 88  V888 88  .8D db   8D 88.     88booo. 88.     Y8b  d8    88    88        .88.   88.     88booo. 88  .8D
+   YP   YP VP   V8P Y8888D' `8888Y' Y88888P Y88888P Y88888P  `Y88P'    YP    YP      Y888888P Y88888P Y88888P Y8888D'
+
+
+-}
+
+
 {-| Like `selectField`, but works on `( model, cmd )` tuples. Useful if you're chaining multiple updates.
 
     import Yafl
@@ -989,16 +1171,6 @@ andSelectField form field ( model, cmd1 ) =
 
 
 
-{-
-    .o88b.  .d88b.  .88b  d88. d8888b. d888888b d8b   db  .d8b.  d888888b  .d88b.  d8888b. .d8888.
-   d8P  Y8 .8P  Y8. 88'YbdP`88 88  `8D   `88'   888o  88 d8' `8b `~~88~~' .8P  Y8. 88  `8D 88'  YP
-   8P      88    88 88  88  88 88oooY'    88    88V8o 88 88ooo88    88    88    88 88oobY' `8bo.
-   8b      88    88 88  88  88 88~~~b.    88    88 V8o88 88~~~88    88    88    88 88`8b     `Y8b.
-   Y8b  d8 `8b  d8' 88  88  88 88   8D   .88.   88  V888 88   88    88    `8b  d8' 88 `88. db   8D
-    `Y88P'  `Y88P'  YP  YP  YP Y8888P' Y888888P VP   V8P YP   YP    YP     `Y88P'  88   YD `8888Y'
-
-
--}
 {-
    .d8888. db    db  .o88b.  .o88b. d88888b d88888b d8888b.
    88'  YP 88    88 d8P  Y8 d8P  Y8 88'     88'     88  `8D
@@ -1928,12 +2100,12 @@ option radioLabel (Field field) (Field choice_) =
 
 
 {-
-   db   d8b   db d888888b d8888b.  d888b  d88888b d888888b .d8888.
-   88   I8I   88   `88'   88  `8D 88' Y8b 88'     `~~88~~' 88'  YP
-   88   I8I   88    88    88   88 88      88ooooo    88    `8bo.
-   Y8   I8I   88    88    88   88 88  ooo 88~~~~~    88      `Y8b.
-   `8b d8'8b d8'   .88.   88  .8D 88. ~8~ 88.        88    db   8D
-    `8b8' `8d8'  Y888888P Y8888D'  Y888P  Y88888P    YP    `8888Y'
+   d8888b. d88888b d88888b d888888b d8b   db d88888b d88888b d888888b d88888b db      d8888b.
+   88  `8D 88'     88'       `88'   888o  88 88'     88'       `88'   88'     88      88  `8D
+   88   88 88ooooo 88ooo      88    88V8o 88 88ooooo 88ooo      88    88ooooo 88      88   88
+   88   88 88~~~~~ 88~~~      88    88 V8o88 88~~~~~ 88~~~      88    88~~~~~ 88      88   88
+   88  .8D 88.     88        .88.   88  V888 88.     88        .88.   88.     88booo. 88  .8D
+   Y8888D' Y88888P YP      Y888888P VP   V8P Y88888P YP      Y888888P Y88888P Y88888P Y8888D'
 
 
 -}
@@ -1965,6 +2137,19 @@ defineFields ctor =
     , msgBlanks = NT.define
     , apply = NT.define
     }
+
+
+
+{-
+    .d8b.  d8888b. d8888b. db   d8b   db d888888b d8888b.  d888b  d88888b d888888b
+   d8' `8b 88  `8D 88  `8D 88   I8I   88   `88'   88  `8D 88' Y8b 88'     `~~88~~'
+   88ooo88 88   88 88   88 88   I8I   88    88    88   88 88      88ooooo    88
+   88~~~88 88   88 88   88 Y8   I8I   88    88    88   88 88  ooo 88~~~~~    88
+   88   88 88  .8D 88  .8D `8b d8'8b d8'   .88.   88  .8D 88. ~8~ 88.        88
+   YP   YP Y8888D' Y8888D'  `8b8' `8d8'  Y888888P Y8888D'  Y888P  Y88888P    YP
+
+
+-}
 
 
 {-| Add a Widget to the definition of the Fields you want to use in your forms.
@@ -2061,6 +2246,19 @@ addWidget widget builder =
     , msgBlanks = NT.appender Nothing builder.msgBlanks
     , apply = folder5 applier builder.apply
     }
+
+
+
+{-
+   d88888b d8b   db d8888b. d88888b d888888b d88888b db      d8888b. .d8888.
+   88'     888o  88 88  `8D 88'       `88'   88'     88      88  `8D 88'  YP
+   88ooooo 88V8o 88 88   88 88ooo      88    88ooooo 88      88   88 `8bo.
+   88~~~~~ 88 V8o88 88   88 88~~~      88    88~~~~~ 88      88   88   `Y8b.
+   88.     88  V888 88  .8D 88        .88.   88.     88booo. 88  .8D db   8D
+   Y88888P VP   V8P Y8888D' YP      Y888888P Y88888P Y88888P Y8888D' `8888Y'
+
+
+-}
 
 
 {-| Finalize the definition of the Fields you want to use in your forms.
