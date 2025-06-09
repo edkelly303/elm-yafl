@@ -422,14 +422,14 @@ type Field formModel formMsg id fieldMsg output
 
 
 {-| Indicates that a [`Field`](#Field) has been given an `id`, and can therefore be
-used with `intercept`, `send`, etc. See the docs for `id`.
+used with [`intercept`](#intercept), [`send`](#send), etc. See the docs for [`id`](#id).
 -}
 type HasId
     = HasId Never
 
 
 {-| Indicates that a [`Field`](#Field) has not been given an `id`. See the docs for
-`id`.
+[`id`](#id).
 -}
 type NoId
     = NoId Never
@@ -796,7 +796,7 @@ errorIf check message field =
 -}
 
 
-{-| Add a unique identifier to a Field, which can be used to send and intercept
+{-| Add a unique identifier to a [`Field`](#Field), which can be used to send and intercept
 messages to that Field.
 
     import Yafl import Examples exposing (FormModel, FormMsg, fields)
@@ -841,19 +841,15 @@ id sendId_ (Field field) =
 -}
 
 
-{-| Create a `Cmd` that will select a specific `option` in a `choice` Field.
+{-| Create a `Cmd` that will select a specific [`option`](#option) in a
+[`choice`](#choice) Field.
 
-    import Yafl
-    import Examples exposing (FormModel, FormMsg, fields)
+    import Yafl import Examples exposing (FormModel, FormMsg, fields)
 
-    holyGrail =
-        fields.string
-            |> Yafl.id "any-string-as-long-as-it's-unique"
+    holyGrail = fields.string |> Yafl.id "any-string-as-long-as-it's-unique"
 
-    myChoiceField =
-        Yafl.choice
-            |> Yafl.option "Cup of a carpenter" holyGrail
-            |> Yafl.option "Fancy chalice" (Yafl.fail "You chose... poorly")
+    myChoiceField = Yafl.choice |> Yafl.option "Cup of a carpenter" holyGrail |>
+        Yafl.option "Fancy chalice" (Yafl.fail "You chose... poorly")
 
     Yafl.select holyGrail
 
@@ -883,14 +879,12 @@ select (Field field) =
 -}
 
 
-{-| Create a `Cmd` that will send a message to a specific `option` in a `choice` Field.
+{-| Create a `Cmd` that will send a message to a specific [`option`](#option) in
+a [`choice`](#choice) Field.
 
-    import Yafl
-    import Examples exposing (FormModel, FormMsg, fields)
+    import Yafl import Examples exposing (FormModel, FormMsg, fields)
 
-    myFieldWithId =
-        fields.string
-            |> Yafl.id "any-string-as-long-as-it's-unique"
+    myFieldWithId = fields.string |> Yafl.id "any-string-as-long-as-it's-unique"
 
     Yafl.send myFieldWithId "Hello!"
 
