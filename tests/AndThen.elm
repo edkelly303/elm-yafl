@@ -26,7 +26,7 @@ tests =
                 in
                 form
                     |> Yafl.init
-                    |> Yafl.andUpdateField field "1"
+                    |> Yafl.andUpdateField form field "1"
                     |> Tuple.first
                     |> Yafl.submit form
                     |> Expect.equal (Ok ( "1", () ))
@@ -46,7 +46,7 @@ tests =
                 in
                 form
                     |> Yafl.init
-                    |> Yafl.andUpdateField field "1"
+                    |> Yafl.andUpdateField form field "1"
                     |> Tuple.first
                     |> Yafl.submit form
                     |> Expect.equal (Ok "1")
@@ -67,7 +67,7 @@ tests =
                 in
                 form
                     |> Yafl.init
-                    |> Yafl.andUpdateField field "1"
+                    |> Yafl.andUpdateField form field "1"
                     |> Tuple.first
                     |> Yafl.submit form
                     |> Expect.equal (Ok ( (), "1" ))
@@ -89,7 +89,7 @@ tests =
                 in
                 form
                     |> Yafl.init
-                    |> Yafl.andUpdateField field "1"
+                    |> Yafl.andUpdateField form field "1"
                     |> Tuple.first
                     |> Yafl.submit form
                     |> Expect.equal (Ok ( (), "1", () ))
@@ -109,13 +109,12 @@ tests =
                 in
                 form
                     |> Yafl.init
-                    |> Yafl.andUpdateField field "1"
+                    |> Yafl.andUpdateField form field "1"
                     |> Tuple.first
                     |> Yafl.submit form
                     |> Expect.equal (Ok "1")
             )
-        , Test.only <|
-            Test.test
+        , Test.test
                 "Can use andSelectField with a choice field that is within an andThen-ed field"
                 (\() ->
                     let
@@ -149,9 +148,9 @@ tests =
                     form
                         |> Yafl.init
                         |> Tuple.mapFirst (Debug.log "init")
-                        |> Yafl.andUpdateField str "a"
+                        |> Yafl.andUpdateField form str "a"
                         |> Tuple.mapFirst (Debug.log "post update")
-                        |> Yafl.andSelectField no
+                        |> Yafl.andSelectField form no
                         |> Tuple.first
                         |> Yafl.submit form
                         |> Expect.equal (Ok False)

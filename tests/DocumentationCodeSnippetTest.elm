@@ -235,6 +235,7 @@ tests =
                         (\() ->
                             modelAndCmd__Yafl__andSelectField_0
                                 |> Yafl.andSelectField
+                                    myChoiceField__Yafl__andSelectField_0
                                     myFieldWithId__Yafl__andSelectField_0
                                 |> Tuple.first
                                 |> Yafl.submit
@@ -511,6 +512,7 @@ tests =
                         (\() ->
                             model__Yafl__selectField_0
                                 |> Yafl.selectField
+                                    myChoiceField__Yafl__selectField_0
                                     myFieldWithId__Yafl__selectField_0
                                 |> Tuple.first
                                 |> Yafl.submit
@@ -810,8 +812,14 @@ secondField__Yafl__andUpdateField_0 =
 updatedModel__Yafl__andUpdateField_0 =
     fooField__Yafl__andUpdateField_0
         |> Yafl.init
-        |> Yafl.andUpdateField firstField__Yafl__andUpdateField_0 "Hello"
-        |> Yafl.andUpdateField secondField__Yafl__andUpdateField_0 "World"
+        |> Yafl.andUpdateField
+            fooField__Yafl__andUpdateField_0
+            firstField__Yafl__andUpdateField_0
+            "Hello"
+        |> Yafl.andUpdateField
+            fooField__Yafl__andUpdateField_0
+            secondField__Yafl__andUpdateField_0
+            "World"
         |> Tuple.first
 
 
@@ -932,7 +940,10 @@ model__Yafl__updateField_0 =
 
 updatedModel__Yafl__updateField_0 =
     model__Yafl__updateField_0
-        |> Yafl.updateField firstField__Yafl__updateField_0 "Hello!"
+        |> Yafl.updateField
+            fooField__Yafl__updateField_0
+            firstField__Yafl__updateField_0
+            "Hello!"
         |> Tuple.first
 
 

@@ -316,10 +316,6 @@ type Msg formMsg
     | Noop
 
 
-type InnerMsg formMsg
-    = InnerMsg Path formMsg
-
-
 {-| An internal data type used to track the location of a [`Field`](#Field) within the form.
 -}
 type alias Path =
@@ -333,7 +329,7 @@ type Field formModel formMsg id fieldMsg output
         { init :
             Path -> MaybeId -> ( Node formModel, Cmd (Msg formMsg) )
         , update :
-            InnerMsg formMsg
+            Msg formMsg
             -> Node formModel
             -> ( Node formModel, Cmd (Msg formMsg) )
         , view :
@@ -443,86 +439,8 @@ init (Field field) =
 -}
 update : Field formModel formMsg id fieldMsg output -> Msg formMsg -> Model formModel output -> ( Model formModel output, Cmd (Msg formMsg) )
 update (Field field) msg (Model node) =
-    case msg of
-        ValueChanged locator formMsg ->
-            let
-                path =
-                    []
-            in
-            field.update (InnerMsg path formMsg) node
-                |> Tuple.mapFirst Model
-
-        OptionSelected locator ->
-            let
-                ( selected, path ) =
-                    case [] of
-                        selected_ :: path_ ->
-                            ( selected_, path_ )
-
-                        _ ->
-                            ( 0, [] )
-
-                helper node_ =
-                    case node_ of
-                        Value _ _ ->
-                            ( node, Cmd.none )
-
-                        Empty _ _ ->
-                            ( node, Cmd.none )
-
-                        Product Map2 loc node1 node2 ->
-                            let
-                                ( newNode1, cmd1 ) =
-                                    helper node1
-
-                                ( newNode2, cmd2 ) =
-                                    helper node2
-                            in
-                            ( Product Map2 loc newNode1 newNode2
-                            , Cmd.batch [ cmd1, cmd2 ]
-                            )
-
-                        Product AndThen loc node1 node2 ->
-                            let
-                                ( newNode1, cmd1 ) =
-                                    helper node1
-
-                                ( newNode2, cmd2 ) =
-                                    helper node2
-                            in
-                            ( Product AndThen loc newNode1 newNode2
-                            , Cmd.batch [ cmd1, cmd2 ]
-                            )
-
-                        Sum loc meta labelsAndChildNodes ->
-                            if locationToPath loc == path then
-                                ( Sum loc { selected = selected } labelsAndChildNodes
-                                , Cmd.none
-                                )
-
-                            else
-                                let
-                                    ( labels, childNodes ) =
-                                        List.unzip labelsAndChildNodes
-
-                                    newChildNodesAndCmds =
-                                        List.map helper childNodes
-
-                                    ( newChildNodes, cmds ) =
-                                        List.unzip newChildNodesAndCmds
-
-                                    labelsAndNewChildNodes =
-                                        List.Extra.zip labels newChildNodes
-                                in
-                                ( Sum loc meta labelsAndNewChildNodes
-                                , Cmd.batch cmds
-                                )
-            in
-            helper node
-                |> Tuple.mapFirst Model
-
-        Noop ->
-            ( Model node, Cmd.none )
+    field.update msg node
+        |> Tuple.mapFirst Model
 
 
 {-| View your form.
@@ -793,7 +711,7 @@ intercept (Field field) =
 
     updatedModel =
         model
-            |> Yafl.updateField firstField "Hello!"
+            |> Yafl.updateField fooField firstField "Hello!"
             |> Tuple.first
 
     Yafl.submit fooField updatedModel
@@ -801,9 +719,14 @@ intercept (Field field) =
     --> Ok (Foo "Hello!" "")
 
 -}
-updateField : Field formModel formMsg HasId widgetMsg output -> widgetMsg -> Model formModel output2 -> ( Model formModel output2, Cmd (Msg formMsg) )
-updateField (Field field) widgetMsg (Model model) =
-    field.update (field.send field.maybeId widgetMsg) model
+updateField :
+    Field formModel formMsg id anyMsg formOutput
+    -> Field formModel formMsg HasId widgetMsg widgetOutput
+    -> widgetMsg
+    -> Model formModel formOutput
+    -> ( Model formModel formOutput, Cmd (Msg formMsg) )
+updateField (Field form) (Field field) widgetMsg (Model model) =
+    form.update (field.send field.maybeId widgetMsg) model
         |> Tuple.mapFirst Model
 
 
@@ -829,8 +752,8 @@ updateField (Field field) widgetMsg (Model model) =
     updatedModel =
         fooField
             |> Yafl.init
-            |> Yafl.andUpdateField firstField "Hello"
-            |> Yafl.andUpdateField secondField "World"
+            |> Yafl.andUpdateField fooField firstField "Hello"
+            |> Yafl.andUpdateField fooField secondField "World"
             |> Tuple.first
 
     Yafl.submit fooField updatedModel
@@ -838,9 +761,14 @@ updateField (Field field) widgetMsg (Model model) =
     --> Ok (Foo "Hello" "World")
 
 -}
-andUpdateField : Field formModel formMsg HasId widgetMsg output -> widgetMsg -> ( Model formModel output2, Cmd (Msg formMsg) ) -> ( Model formModel output2, Cmd (Msg formMsg) )
-andUpdateField field widgetMsg ( model, cmd1 ) =
-    updateField field widgetMsg model
+andUpdateField :
+    Field formModel formMsg id anyMsg formOutput
+    -> Field formModel formMsg HasId widgetMsg widgetOutput
+    -> widgetMsg
+    -> ( Model formModel formOutput, Cmd (Msg formMsg) )
+    -> ( Model formModel formOutput, Cmd (Msg formMsg) )
+andUpdateField form field widgetMsg ( model, cmd1 ) =
+    updateField form field widgetMsg model
         |> Tuple.mapSecond (\cmd2 -> Cmd.batch [ cmd1, cmd2 ])
 
 
@@ -869,22 +797,26 @@ andUpdateField field widgetMsg ( model, cmd1 ) =
     --> Err [ ( "0.0", "Oh no, you failed!" ) ]
 
     model
-        |> Yafl.selectField myFieldWithId
+        |> Yafl.selectField myChoiceField myFieldWithId
         |> Tuple.first
         |> Yafl.submit myChoiceField
 
     --> Ok "Hurrah!"
 
 -}
-selectField : Field formModel formMsg HasId widgetMsg output -> Model formModel output2 -> ( Model formModel output2, Cmd (Msg formMsg) )
-selectField (Field field) (Model model) =
+selectField :
+    Field formModel formMsg id anyMsg formOutput
+    -> Field formModel formMsg HasId widgetMsg widgetOutput
+    -> Model formModel formOutput
+    -> ( Model formModel formOutput, Cmd (Msg formMsg) )
+selectField (Field form) (Field field) (Model model) =
     case field.maybeId of
         Just id_ ->
             let
                 msg =
                     OptionSelected (ById id_)
             in
-            field.update msg model
+            form.update msg model
                 |> Tuple.mapFirst Model
 
         Nothing ->
@@ -916,16 +848,20 @@ selectField (Field field) (Model model) =
     --> Err [ ("0.0", "Oh no, you failed!" ) ]
 
     modelAndCmd
-        |> Yafl.andSelectField myFieldWithId
+        |> Yafl.andSelectField myChoiceField myFieldWithId
         |> Tuple.first
         |> Yafl.submit myChoiceField
 
     --> Ok "Hurrah!"
 
 -}
-andSelectField : Field formModel formMsg HasId widgetMsg output -> ( Model formModel output2, Cmd (Msg formMsg) ) -> ( Model formModel output2, Cmd (Msg formMsg) )
-andSelectField field ( model, cmd1 ) =
-    selectField field model
+andSelectField :
+    Field formModel formMsg id anyMsg formOutput
+    -> Field formModel formMsg HasId widgetMsg widgetOutput
+    -> ( Model formModel formOutput, Cmd (Msg formMsg) )
+    -> ( Model formModel formOutput, Cmd (Msg formMsg) )
+andSelectField form field ( model, cmd1 ) =
+    selectField form field model
         |> Tuple.mapSecond (\cmd2 -> Cmd.batch [ cmd1, cmd2 ])
 
 
