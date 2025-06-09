@@ -349,6 +349,24 @@ tests =
                     ]
                 ]
             , Test.describe
+                "errorIf"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            form__Yafl__errorIf_0
+                                |> Yafl.init
+                                |> Tuple.first
+                                |> Yafl.submit form__Yafl__errorIf_0
+                                |> Expect.equal
+                                    (Result.Err
+                                        [ ( "0", "Cannot be less than 1" ) ]
+                                    )
+                        )
+                    ]
+                ]
+            , Test.describe
                 "fail"
                 [ Test.describe
                     "code snippet 0"
@@ -612,6 +630,27 @@ tests =
                     ]
                 ]
             , Test.describe
+                "validate"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            form__Yafl__validate_0
+                                |> Yafl.init
+                                |> Tuple.first
+                                |> Yafl.submit form__Yafl__validate_0
+                                |> Expect.equal
+                                    (Result.Err
+                                        [ ( "0"
+                                          , "Must be greater than 0, but the value is 0"
+                                          )
+                                        ]
+                                    )
+                        )
+                    ]
+                ]
+            , Test.describe
                 "view"
                 [ Test.describe
                     "code snippet 0"
@@ -823,6 +862,10 @@ updatedModel__Yafl__andUpdateField_0 =
         |> Tuple.first
 
 
+form__Yafl__errorIf_0 =
+    Yafl.succeed 0 |> Yafl.errorIf (\int -> int < 1) "Cannot be less than 1"
+
+
 form__Yafl__fail_0 =
     Yafl.fail "Oh dear!"
 
@@ -945,6 +988,21 @@ updatedModel__Yafl__updateField_0 =
             firstField__Yafl__updateField_0
             "Hello!"
         |> Tuple.first
+
+
+form__Yafl__validate_0 =
+    Yafl.succeed 0
+        |> Yafl.validate
+            (\int ->
+                if int > 0 then
+                    Maybe.Nothing
+
+                else
+                    Maybe.Just
+                        ("Must be greater than 0, but the value is "
+                            ++ String.fromInt int
+                        )
+            )
 
 
 form__Yafl__view_0 =

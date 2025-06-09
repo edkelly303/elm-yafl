@@ -6,7 +6,8 @@ module Yafl exposing
     , map, andThen
     , map2, andMap
     , choice, option
-    , label, validate, errorIf
+    , label
+    , errorIf, validate
     , HasId, NoId, id, intercept, send, select
     , updateField, andUpdateField, selectField, andSelectField
     , toDOT
@@ -16,7 +17,57 @@ module Yafl exposing
 composing self-contained [`Widget`](#Widget)s.
 
 
+## Table of contents
+
+
+### [Creating Widgets](#creating-widgets)
+
+[`Widget`](#Widget)
+
+
+### [Turning Widgets into Fields](#turning-widgets-into-fields)
+
+[`Field`](#Field), [`defineFields`](#defineFields), [`addWidget`](#addWidget), [`endFields`](#endFields)
+
+
+### [Turning Fields into forms](#turning-fields-into-forms)
+
+[`Model`](#Model), [`Msg`](#Msg), [`init`](#init), [`update`](#update), [`view`](#view), [`ViewConfig`](#ViewConfig), [`Feedback`](#Feedback), [`subscriptions`](#subscriptions), [`submit`](#submit)
+
+
+### [Combining Fields](#combining-fields)
+
+[`succeed`](#succeed), [`fail`](#fail), [`failAtmap`](#failAtmap), [`andThen`](#andThen), [`map2`](#map2), [`andMap`](#andMap), [`choice`](#choice), [`option`](#option)
+
+
+### [Customizing Fields](#customizing-fields)
+
+[`label`](#label)
+
+
+### [Validating fields](#validating-fields)
+
+[`errorIf`](#errorIf), [`validate`](#validate)
+
+
+### [Communicating between Fields](#communicating-between-fields)
+
+[`HasId`](#HasId), [`NoId`](#NoId), [`id`](#id), [`intercept`](#intercept), [`send`](#send), [`select`](#select)
+
+
+### [Updating Fields synchronously](#updating-fields-synchronously)
+
+[`updateField`](#updateField), [`andUpdateField`](#andUpdateField), [`selectField`](#selectField), [`andSelectField`](#andSelectField)
+
+
+### [Debugging](#debugging)
+
+[`toDOT`](#toDOT)
+
+
 # Creating Widgets
+
+[_Back to top_](#table-of-contents)
 
 [`Widget`](#Widget)s are the basic building blocks of this package. Each widget is
 effectively a little Elm application, with its own `init`, `update`, `view` and
@@ -90,6 +141,8 @@ can use in the code snippets in these docs.
 
 
 # Turning Widgets into Fields
+
+[_Back to top_](#table-of-contents)
 
 Before we can use our [`Widget`](#Widget)s to create a form, we need to convert them into
 [`Field`](#Field)s. This conversion process effectively combines the internal `model` and
@@ -176,6 +229,7 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 
 # Combining Fields
 
+[_Back to top_](#table-of-contents)
 
 ## Succeeding and failing
 
@@ -239,20 +293,35 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 # Customizing Fields
 
-@docs label, validate, errorIf
+[_Back to top_](#table-of-contents)
+
+@docs label
+
+
+# Validating fields
+
+[_Back to top_](#table-of-contents)
+
+@docs errorIf, validate
 
 
 # Communicating between Fields
+
+[_Back to top_](#table-of-contents)
 
 @docs HasId, NoId, id, intercept, send, select
 
 
 # Updating Fields synchronously
 
+[_Back to top_](#table-of-contents)
+
 @docs updateField, andUpdateField, selectField, andSelectField
 
 
 # Debugging
+
+[_Back to top_](#table-of-contents)
 
 @docs toDOT
 
@@ -525,10 +594,17 @@ subscriptions (Field field) (Model model) =
 submit : Field formModel formMsg id fieldMsg output -> Model formModel output -> Result (List ( String, String )) output
 submit (Field field) (Model model) =
     field.submit field.checks model
-        |> Result.mapError (List.map (\{ message, locator } -> ( locatorToString locator, message )))
+        |> Result.mapError
+            (List.map
+                (\{ message, locator } ->
+                    ( locatorToString locator
+                    , message
+                    )
+                )
+            )
 
 
-{-| Add a label to a Field
+{-| Add a label to a Field.
 
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
@@ -547,11 +623,57 @@ label label_ (Field field) =
     Field { field | label = label_ }
 
 
+{-| Validate a field and specify an error message if validation fails. This is
+more powerful than [`errorIf`](#errorIf) because it allows you to refer to the
+value of the output in the error message.
+
+    import Yafl
+
+    form =
+        Yafl.succeed 0
+            |> Yafl.validate
+                (\int ->
+                    if int > 0 then
+                        Nothing
+                    else
+                        Just
+                            ("Must be greater than 0, but the value is "
+                                ++ String.fromInt int
+                            )
+                )
+
+    form
+        |> Yafl.init
+        |> Tuple.first
+        |> Yafl.submit form
+
+    --> Err [ ( "0", "Must be greater than 0, but the value is 0" ) ]
+
+-}
 validate : (output -> Maybe String) -> Field formModel formMsg id fieldMsg output -> Field formModel formMsg id fieldMsg output
 validate check (Field field) =
     Field { field | checks = field.checks ++ [ check ] }
 
 
+{-| Validate a field using a predicate. This is simpler than [`validate`](#validate), but
+slightly less powerful.
+
+    import Yafl
+
+    form =
+        Yafl.succeed 0
+            |> Yafl.errorIf
+                (\int -> int < 1)
+                "Cannot be less than 1"
+
+    form
+        |> Yafl.init
+        |> Tuple.first
+        |> Yafl.submit form
+
+    --> Err [ ( "0", "Cannot be less than 1" ) ]
+
+-}
 errorIf :
     (a -> Bool)
     -> String
@@ -906,7 +1028,7 @@ andSelectField form field ( model, cmd1 ) =
 
 -}
 succeed : output -> Field formModel formMsg id fieldMsg output
-succeed f =
+succeed output =
     Field
         { init = \path maybeId -> ( Empty Succeed (newLocation path maybeId), Cmd.none )
         , update =
@@ -919,7 +1041,7 @@ succeed f =
                         ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
-        , submit = \_ _ -> Ok f
+        , submit = \checks model -> runChecks checks model output
         , checks = []
         , send = \_ _ -> Noop
         , intercept = \_ _ -> Nothing
@@ -1118,26 +1240,6 @@ map f (Field field) =
         , label = field.label
         , maybeId = field.maybeId
         }
-
-
-runChecks : List (output2 -> Maybe String) -> Node formModel -> (output2 -> Result (List { message : String, fail : Bool, locator : Locator }) output2)
-runChecks checks model =
-    \output ->
-        case
-            List.filterMap (\check -> check output) checks
-                |> List.map
-                    (\m ->
-                        { message = m
-                        , fail = True
-                        , locator = locatorFromModel model
-                        }
-                    )
-        of
-            [] ->
-                Ok output
-
-            errs ->
-                Err errs
 
 
 
@@ -1713,7 +1815,14 @@ choice =
         , update = \_ model -> ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
-        , submit = \_ model -> Err [ { message = "empty choice", fail = True, locator = locatorFromModel model } ]
+        , submit =
+            \_ model ->
+                Err
+                    [ { message = "empty choice"
+                      , fail = True
+                      , locator = locatorFromModel model
+                      }
+                    ]
         , checks = []
         , send = \_ msg -> never msg
         , intercept = \_ _ -> Nothing
@@ -2405,6 +2514,37 @@ internalUpdate update_ msg model =
 
         Empty _ _ ->
             ( model, Cmd.none )
+
+
+runChecks :
+    List (output2 -> Maybe String)
+    -> Node formModel
+    -> output2
+    ->
+        Result
+            (List
+                { message : String
+                , fail : Bool
+                , locator : Locator
+                }
+            )
+            output2
+runChecks checks model output =
+    case
+        List.filterMap (\check -> check output) checks
+            |> List.map
+                (\m ->
+                    { message = m
+                    , fail = True
+                    , locator = locatorFromModel model
+                    }
+                )
+    of
+        [] ->
+            Ok output
+
+        errs ->
+            Err errs
 
 
 locateSumNode : Locator -> Node model -> ( Node model, Cmd msg )
