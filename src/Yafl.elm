@@ -394,7 +394,7 @@ type alias Path =
 
 {-| Forms are composed of `Field`s - this is the main data type we'll be using in this package.
 -}
-type Field formModel formMsg id fieldMsg output
+type Field formModel formMsg id widgetMsg output
     = Field
         { init :
             Path -> MaybeId -> ( Node formModel, Cmd (Msg formMsg) )
@@ -414,8 +414,8 @@ type Field formModel formMsg id fieldMsg output
         , subscriptions :
             Node formModel
             -> Sub (Msg formMsg)
-        , send : MaybeId -> fieldMsg -> Msg formMsg
-        , intercept : MaybeId -> Msg formMsg -> Maybe fieldMsg
+        , send : MaybeId -> widgetMsg -> Msg formMsg
+        , intercept : MaybeId -> Msg formMsg -> Maybe widgetMsg
         , label : String
         , maybeId : MaybeId
         }
@@ -499,7 +499,7 @@ type alias InternalFeedback =
     --: ( Yafl.Model FormModel Bool, Cmd (Yafl.Msg FormMsg) )
 
 -}
-init : Field formModel formMsg id fieldMsg output -> ( Model formModel output, Cmd (Msg formMsg) )
+init : Field formModel formMsg id widgetMsg output -> ( Model formModel output, Cmd (Msg formMsg) )
 init (Field field) =
     field.init [ 0 ] field.maybeId
         |> Tuple.mapFirst Model
@@ -520,7 +520,7 @@ init (Field field) =
 
 {-| Update your form by supplying a `Msg` and `Model`
 -}
-update : Field formModel formMsg id fieldMsg output -> Msg formMsg -> Model formModel output -> ( Model formModel output, Cmd (Msg formMsg) )
+update : Field formModel formMsg id widgetMsg output -> Msg formMsg -> Model formModel output -> ( Model formModel output, Cmd (Msg formMsg) )
 update (Field field) msg (Model node) =
     field.update msg node
         |> Tuple.mapFirst Model
@@ -558,7 +558,7 @@ update (Field field) msg (Model node) =
     --: List (Html (Yafl.Msg FormMsg))
 
 -}
-view : Field formModel formMsg id fieldMsg output -> Model formModel output -> List (H.Html (Msg formMsg))
+view : Field formModel formMsg id widgetMsg output -> Model formModel output -> List (H.Html (Msg formMsg))
 view (Field field) (Model model) =
     let
         feedback =
@@ -608,7 +608,7 @@ view (Field field) (Model model) =
     --: Sub (Yafl.Msg FormMsg)
 
 -}
-subscriptions : Field formModel formMsg id fieldMsg output -> Model formModel output -> Sub (Msg formMsg)
+subscriptions : Field formModel formMsg id widgetMsg output -> Model formModel output -> Sub (Msg formMsg)
 subscriptions (Field field) (Model model) =
     field.subscriptions model
 
@@ -644,7 +644,7 @@ subscriptions (Field field) (Model model) =
     --> Ok ""
 
 -}
-submit : Field formModel formMsg id fieldMsg output -> Model formModel output -> Result (List ( String, String )) output
+submit : Field formModel formMsg id widgetMsg output -> Model formModel output -> Result (List ( String, String )) output
 submit (Field field) (Model model) =
     field.submit field.checks model
         |> Result.mapError
@@ -684,7 +684,7 @@ submit (Field field) (Model model) =
     --: Yafl.Field FormModel FormMsg Yafl.NoId String String
 
 -}
-label : String -> Field formModel formMsg id fieldMsg output -> Field formModel formMsg id fieldMsg output
+label : String -> Field formModel formMsg id widgetMsg output -> Field formModel formMsg id widgetMsg output
 label label_ (Field field) =
     Field { field | label = label_ }
 
@@ -729,7 +729,10 @@ value of the output in the error message.
     --> Err [ ( "0", "Must be greater than 0, but the value is 0" ) ]
 
 -}
-validate : (output -> Maybe String) -> Field formModel formMsg id fieldMsg output -> Field formModel formMsg id fieldMsg output
+validate :
+    (output -> Maybe String)
+    -> Field formModel formMsg id widgetMsg output
+    -> Field formModel formMsg id widgetMsg output
 validate check (Field field) =
     Field { field | checks = field.checks ++ [ check ] }
 
@@ -767,10 +770,10 @@ slightly less powerful.
 
 -}
 errorIf :
-    (a -> Bool)
+    (output -> Bool)
     -> String
-    -> Field formModel formMsg id fieldMsg a
-    -> Field formModel formMsg id fieldMsg a
+    -> Field formModel formMsg id widgetMsg output
+    -> Field formModel formMsg id widgetMsg output
 errorIf check message field =
     validate
         (\output ->
@@ -823,7 +826,10 @@ Widget, you can use the `id` field of the `ViewConfig` to set the
 `Html.Attributes.id` of the HTML input.
 
 -}
-id : String -> Field formModel formMsg NoId widgetMsg output -> Field formModel formMsg HasId widgetMsg output
+id :
+    String
+    -> Field formModel formMsg NoId widgetMsg output
+    -> Field formModel formMsg HasId widgetMsg output
 id sendId_ (Field field) =
     Field { field | maybeId = Just sendId_ }
 
@@ -1194,7 +1200,7 @@ andSelectField form field ( model, cmd1 ) =
     --> Ok "Hurrah!"
 
 -}
-succeed : output -> Field formModel formMsg id fieldMsg output
+succeed : output -> Field formModel formMsg id widgetMsg output
 succeed output =
     Field
         { init = \path maybeId -> ( Empty Succeed (newLocation path maybeId), Cmd.none )
@@ -1247,7 +1253,7 @@ succeed output =
     --> Err [ ("0", "Oh dear!") ]
 
 -}
-fail : String -> Field formModel formMsg id fieldMsg output
+fail : String -> Field formModel formMsg id widgetMsg output
 fail e =
     Field
         { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
@@ -1311,7 +1317,10 @@ Field. This can be useful in multi-field validation, when you have an error that
 results from a combination of several fields, but you only want to display the
 error message on one specific field.
 -}
-failAt : Field formModel formMsg HasId innerMsg1 output1 -> String -> Field formModel formMsg address2 innerMsg2 output2
+failAt :
+    Field formModel formMsg HasId widgetMsg1 output1
+    -> String
+    -> Field formModel formMsg address2 widgetMsg2 output2
 failAt (Field failField) e =
     Field
         { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
@@ -1388,8 +1397,8 @@ type variants.
 -}
 map :
     (output -> output2)
-    -> Field formModel formMsg id fieldMsg output
-    -> Field formModel formMsg id fieldMsg output2
+    -> Field formModel formMsg id widgetMsg output
+    -> Field formModel formMsg id widgetMsg output2
 map f (Field field) =
     Field
         { init = field.init
@@ -1450,8 +1459,8 @@ If you need to combine the outputs of more than two fields, check out
 -}
 map2 :
     (output1 -> output2 -> output3)
-    -> Field formModel formMsg address1 innerMsg1 output1
-    -> Field formModel formMsg address2 innerMsg2 output2
+    -> Field formModel formMsg address1 widgetMsg1 output1
+    -> Field formModel formMsg address2 widgetMsg2 output2
     -> Field formModel formMsg NoId Never output3
 map2 f (Field field1) (Field field2) =
     Field
@@ -1580,8 +1589,8 @@ Use in combination with [`succeed`](#succeed).
 
 -}
 andMap :
-    Field formModel formMsg address1 innerMsg1 output1
-    -> Field formModel formMsg address2 innerMsg2 (output1 -> output2)
+    Field formModel formMsg address1 widgetMsg1 output1
+    -> Field formModel formMsg address2 widgetMsg2 (output1 -> output2)
     -> Field formModel formMsg NoId Never output2
 andMap (Field field1) (Field field2) =
     let
@@ -1679,9 +1688,9 @@ combination with this function.
 
 -}
 andThen :
-    (output -> Field formModel formMsg id2 innerMsg2 output2)
-    -> Field formModel formMsg id fieldMsg output
-    -> Field formModel formMsg id fieldMsg output2
+    (output -> Field formModel formMsg id2 widgetMsg2 output2)
+    -> Field formModel formMsg id widgetMsg output
+    -> Field formModel formMsg id widgetMsg output2
 andThen f (Field field) =
     Field
         { init =
@@ -1953,7 +1962,7 @@ will be rendered underneath the fieldset containing the radio buttons.
 -}
 option :
     String
-    -> Field formModel formMsg id fieldMsg output
+    -> Field formModel formMsg id widgetMsg output
     -> Field formModel formMsg id2 Never output
     -> Field formModel formMsg id2 Never output
 option radioLabel (Field field) (Field choice_) =
