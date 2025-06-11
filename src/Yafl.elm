@@ -1857,35 +1857,6 @@ andThen f (Field field) =
         }
 
 
-getSelectedKidIndexById : String -> List ( String, Node formModel ) -> Maybe Int
-getSelectedKidIndexById id_ labelsAndChildNodes =
-    labelsAndChildNodes
-        |> List.map Tuple.second
-        |> List.foldl
-            (\childNode maybeIdx ->
-                if isLocated (ById id_) (locationFromModel childNode) then
-                    pathFromModel childNode |> List.head
-
-                else
-                    maybeIdx
-            )
-            Nothing
-
-
-getSelectedKidIndex : Path -> Location -> Maybe Int
-getSelectedKidIndex msgPath locn =
-    case msgPath of
-        kidIdx :: parentPath ->
-            if parentPath == locationToPath locn then
-                Just kidIdx
-
-            else
-                Nothing
-
-        [] ->
-            Nothing
-
-
 
 {-
     .o88b. db   db  .d88b.  d888888b  .o88b. d88888b
