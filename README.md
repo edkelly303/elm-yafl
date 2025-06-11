@@ -380,11 +380,6 @@ might be better left in userland.
   terribly useful in the real world. Nevertheless, loading data into a form is
   more of a hassle in `elm-yafl`.
 
-* Multi-field validation is still possible, but currently there's no way to
-  specify which field(s) should display the error message. This is something I
-  might add in future versions if I can think of an API that isn't too
-  complicated.
-
 There are various other things I'd like to add, but I'm dogfooding the current
 version first to see what my real-world requirements are. (If I'd done this with
 `elm-any-type-forms`, I could have saved myself a lot of work!)
