@@ -364,7 +364,7 @@ work with. It's also 9,500 lines of code in one main file, with literally
 thousands of lines of type annotations.
 
 By contrast, `elm-yafl` builds on `elm-nested-tuples`, which reduces the
-complexity significantly. It also comes in at just over 2,000 lines of code
+complexity significantly. It also comes in at just under 3,000 lines of code
 including type annotations and documentation.
 
 ### Trade-offs
