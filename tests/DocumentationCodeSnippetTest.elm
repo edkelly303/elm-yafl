@@ -349,24 +349,6 @@ tests =
                     ]
                 ]
             , Test.describe
-                "errorIf"
-                [ Test.describe
-                    "code snippet 0"
-                    [ Test.test
-                        "0"
-                        (\() ->
-                            form__Yafl__errorIf_0
-                                |> Yafl.init
-                                |> Tuple.first
-                                |> Yafl.submit form__Yafl__errorIf_0
-                                |> Expect.equal
-                                    (Result.Err
-                                        [ ( "0", "Cannot be less than 1" ) ]
-                                    )
-                        )
-                    ]
-                ]
-            , Test.describe
                 "fail"
                 [ Test.describe
                     "code snippet 0"
@@ -651,6 +633,35 @@ tests =
                     ]
                 ]
             , Test.describe
+                "validateAt"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            form__Yafl__validateAt_0
+                                |> Yafl.init
+                                |> Yafl.andUpdateField
+                                    form__Yafl__validateAt_0
+                                    passwordField__Yafl__validateAt_0
+                                    "password123"
+                                |> Yafl.andUpdateField
+                                    form__Yafl__validateAt_0
+                                    confirmField__Yafl__validateAt_0
+                                    "password124"
+                                |> Tuple.first
+                                |> Yafl.submit form__Yafl__validateAt_0
+                                |> Expect.equal
+                                    (Result.Err
+                                        [ ( "confirm"
+                                          , "Passwords do not match"
+                                          )
+                                        ]
+                                    )
+                        )
+                    ]
+                ]
+            , Test.describe
                 "view"
                 [ Test.describe
                     "code snippet 0"
@@ -862,10 +873,6 @@ updatedModel__Yafl__andUpdateField_0 =
         |> Tuple.first
 
 
-form__Yafl__errorIf_0 =
-    Yafl.succeed 0 |> Yafl.errorIf (\int -> int < 1) "Cannot be less than 1"
-
-
 form__Yafl__fail_0 =
     Yafl.fail "Oh dear!"
 
@@ -1002,6 +1009,30 @@ form__Yafl__validate_0 =
                         ("Must be greater than 0, but the value is "
                             ++ String.fromInt int
                         )
+            )
+
+
+passwordField__Yafl__validateAt_0 =
+    Examples.fields.string |> Yafl.id "password"
+
+
+confirmField__Yafl__validateAt_0 =
+    Examples.fields.string |> Yafl.id "confirm"
+
+
+form__Yafl__validateAt_0 =
+    Yafl.succeed
+        (\password confirm -> { password = password, confirm = confirm })
+        |> Yafl.andMap passwordField__Yafl__validateAt_0
+        |> Yafl.andMap confirmField__Yafl__validateAt_0
+        |> Yafl.validateAt
+            confirmField__Yafl__validateAt_0
+            (\{ password, confirm } ->
+                if password == confirm then
+                    Maybe.Nothing
+
+                else
+                    Maybe.Just "Passwords do not match"
             )
 
 

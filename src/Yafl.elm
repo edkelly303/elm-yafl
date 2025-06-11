@@ -7,7 +7,7 @@ module Yafl exposing
     , map2, andMap
     , choice, option
     , label
-    , errorIf, validate
+    , validate, validateAt
     , HasId, NoId, id, intercept, send, select
     , updateField, andUpdateField, selectField, andSelectField
     , toDOT
@@ -47,7 +47,7 @@ composing self-contained [`Widget`](#Widget)s.
 
 ### [Validating fields](#validating-fields)
 
-[`errorIf`](#errorIf), [`validate`](#validate)
+[`validate`](#validate), [`validateAt`](#validateAt)
 
 
 ### [Communicating between Fields](#communicating-between-fields)
@@ -303,7 +303,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 [_Back to top_](#table-of-contents)
 
-@docs errorIf, validate
+@docs validate, validateAt
 
 
 # Communicating between Fields
@@ -407,10 +407,10 @@ type Field formModel formMsg id widgetMsg output
             -> Node formModel
             -> List (H.Html (Msg formMsg))
         , submit :
-            List (output -> Maybe String)
+            List ( MaybeId, output -> Maybe String )
             -> Node formModel
             -> Result (List InternalFeedback) output
-        , checks : List (output -> Maybe String)
+        , checks : List ( MaybeId, output -> Maybe String )
         , subscriptions :
             Node formModel
             -> Sub (Msg formMsg)
@@ -702,9 +702,7 @@ label label_ (Field field) =
 -}
 
 
-{-| Validate a field and specify an error message if validation fails. This is
-more powerful than [`errorIf`](#errorIf) because it allows you to refer to the
-value of the output in the error message.
+{-| Validate a field and specify an error message if validation fails.
 
     import Yafl
 
@@ -734,56 +732,68 @@ validate :
     -> Field formModel formMsg id widgetMsg output
     -> Field formModel formMsg id widgetMsg output
 validate check (Field field) =
-    Field { field | checks = field.checks ++ [ check ] }
+    Field { field | checks = field.checks ++ [ ( Nothing, check ) ] }
 
 
 
 {-
-   d88888b d8888b. d8888b.  .d88b.  d8888b. d888888b d88888b
-   88'     88  `8D 88  `8D .8P  Y8. 88  `8D   `88'   88'
-   88ooooo 88oobY' 88oobY' 88    88 88oobY'    88    88ooo
-   88~~~~~ 88`8b   88`8b   88    88 88`8b      88    88~~~
-   88.     88 `88. 88 `88. `8b  d8' 88 `88.   .88.   88
-   Y88888P 88   YD 88   YD  `Y88P'  88   YD Y888888P YP
+   db    db  .d8b.  db      d888888b d8888b.  .d8b.  d888888b d88888b  .d8b.  d888888b
+   88    88 d8' `8b 88        `88'   88  `8D d8' `8b `~~88~~' 88'     d8' `8b `~~88~~'
+   Y8    8P 88ooo88 88         88    88   88 88ooo88    88    88ooooo 88ooo88    88
+   `8b  d8' 88~~~88 88         88    88   88 88~~~88    88    88~~~~~ 88~~~88    88
+    `8bd8'  88   88 88booo.   .88.   88  .8D 88   88    88    88.     88   88    88
+      YP    YP   YP Y88888P Y888888P Y8888D' YP   YP    YP    Y88888P YP   YP    YP
 
 
 -}
 
 
-{-| Validate a field using a predicate. This is simpler than [`validate`](#validate), but
-slightly less powerful.
+{-| Validate a field and specify an error to display on a _different_ field.
+This is useful when you are doing validation that involves multiple fields, but
+you only want to display an error on one field.
 
     import Yafl
+    import Examples exposing (fields)
+
+    passwordField =
+        fields.string
+            |> Yafl.id "password"
+
+    confirmField =
+        fields.string
+            |> Yafl.id "confirm"
 
     form =
-        Yafl.succeed 0
-            |> Yafl.errorIf
-                (\int -> int < 1)
-                "Cannot be less than 1"
+        Yafl.succeed
+            (\password confirm -> { password = password, confirm = confirm })
+            |> Yafl.andMap passwordField
+            |> Yafl.andMap confirmField
+            |> Yafl.validateAt confirmField
+                (\{password, confirm} ->
+                    if password == confirm then
+                        Nothing
+                    else
+                        Just "Passwords do not match"
+
+                )
 
     form
         |> Yafl.init
+        |> Yafl.andUpdateField form passwordField "password123"
+        |> Yafl.andUpdateField form confirmField "password124"
         |> Tuple.first
         |> Yafl.submit form
 
-    --> Err [ ( "0", "Cannot be less than 1" ) ]
+    --> Err [ ( "confirm", "Passwords do not match" ) ]
 
 -}
-errorIf :
-    (output -> Bool)
-    -> String
+validateAt :
+    Field formModel formMsg HasId widgetMsg2 output2
+    -> (output -> Maybe String)
     -> Field formModel formMsg id widgetMsg output
     -> Field formModel formMsg id widgetMsg output
-errorIf check message field =
-    validate
-        (\output ->
-            if check output then
-                Just message
-
-            else
-                Nothing
-        )
-        field
+validateAt (Field target) check (Field field) =
+    Field { field | checks = field.checks ++ [ ( target.maybeId, check ) ] }
 
 
 
@@ -802,7 +812,8 @@ errorIf check message field =
 {-| Add a unique identifier to a [`Field`](#Field), which can be used to send and intercept
 messages to that Field.
 
-    import Yafl import Examples exposing (FormModel, FormMsg, fields)
+    import Yafl
+    import Examples exposing (FormModel, FormMsg, fields)
 
     myField = fields.string
 
@@ -810,7 +821,9 @@ messages to that Field.
 
     --: Yafl.Field FormModel FormMsg Yafl.NoId String String
 
-    myFieldWithId = myField |> Yafl.id "any-string-as-long-as-it's-unique"
+    myFieldWithId =
+        myField
+            |> Yafl.id "any-string-as-long-as-it's-unique"
 
     myFieldWithId
 
@@ -850,12 +863,17 @@ id sendId_ (Field field) =
 {-| Create a `Cmd` that will select a specific [`option`](#option) in a
 [`choice`](#choice) Field.
 
-    import Yafl import Examples exposing (FormModel, FormMsg, fields)
+    import Yafl
+    import Examples exposing (FormModel, FormMsg, fields)
 
-    holyGrail = fields.string |> Yafl.id "any-string-as-long-as-it's-unique"
+    holyGrail =
+        fields.string
+            |> Yafl.id "any-string-as-long-as-it's-unique"
 
-    myChoiceField = Yafl.choice |> Yafl.option "Cup of a carpenter" holyGrail |>
-        Yafl.option "Fancy chalice" (Yafl.fail "You chose... poorly")
+    myChoiceField =
+        Yafl.choice
+            |> Yafl.option "Cup of a carpenter" holyGrail
+            |> Yafl.option "Fancy chalice" (Yafl.fail "You chose... poorly")
 
     Yafl.select holyGrail
 
@@ -888,9 +906,12 @@ select (Field field) =
 {-| Create a `Cmd` that will send a message to a specific [`option`](#option) in
 a [`choice`](#choice) Field.
 
-    import Yafl import Examples exposing (FormModel, FormMsg, fields)
+    import Yafl
+    import Examples exposing (FormModel, FormMsg, fields)
 
-    myFieldWithId = fields.string |> Yafl.id "any-string-as-long-as-it's-unique"
+    myFieldWithId =
+        fields.string
+            |> Yafl.id "any-string-as-long-as-it's-unique"
 
     Yafl.send myFieldWithId "Hello!"
 
@@ -1630,7 +1651,7 @@ information, or to convert an existing [`Widget`](#Widget) to return a different
 output type.
 
 (You _can_ also use it for validating a field's output, but it will probably be
-better to use [`errorIf`](#errorIf) or [`validate`](#validate) instead.)
+better to use [`validate`](#validate) or [`validateAt`](#validateAt) instead.)
 
 The [`succeed`](#succeed) and [`fail`](#fail) functions are often useful in
 combination with this function.
@@ -2607,7 +2628,7 @@ internalUpdate update_ msg model =
 
 
 runChecks :
-    List (output2 -> Maybe String)
+    List ( MaybeId, output2 -> Maybe String )
     -> Node formModel
     -> output2
     ->
@@ -2621,14 +2642,24 @@ runChecks :
             output2
 runChecks checks model output =
     case
-        List.filterMap (\check -> check output) checks
-            |> List.map
-                (\m ->
-                    { message = m
-                    , fail = True
-                    , locator = locatorFromModel model
-                    }
-                )
+        List.filterMap
+            (\( maybeId, check ) ->
+                check output
+                    |> Maybe.map
+                        (\m ->
+                            { message = m
+                            , fail = True
+                            , locator =
+                                case maybeId of
+                                    Nothing ->
+                                        locatorFromModel model
+
+                                    Just id_ ->
+                                        ById id_
+                            }
+                        )
+            )
+            checks
     of
         [] ->
             Ok output
