@@ -10,7 +10,7 @@ module Yafl exposing
     , validate, validateAt
     , HasId, NoId, id, intercept, send, select
     , updateField, andUpdateField, selectField, andSelectField
-    , toDOT
+    , studio, toDOT
     )
 
 {-| This library helps you build user input forms in Elm by creating and
@@ -62,7 +62,7 @@ composing self-contained [`Widget`](#Widget)s.
 
 ### [Debugging](#debugging)
 
-[`toDOT`](#toDOT)
+[`studio`](#studio), [`toDOT`](#toDOT)
 
 
 # Creating Widgets
@@ -324,10 +324,11 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 [_Back to top_](#table-of-contents)
 
-@docs toDOT
+@docs studio, toDOT
 
 -}
 
+import Browser
 import Dict
 import Html as H
 import Html.Attributes as HA
@@ -2991,3 +2992,62 @@ toDOT debugToString (Model model) =
                 |> Tuple.mapBoth (List.sort >> String.concat) (List.sort >> String.concat)
     in
     "strict graph {\n" ++ nodes ++ edges ++ "}"
+
+
+
+{-
+   .d8888. d888888b db    db d8888b. d888888b  .d88b.
+   88'  YP `~~88~~' 88    88 88  `8D   `88'   .8P  Y8.
+   `8bo.      88    88    88 88   88    88    88    88
+     `Y8b.    88    88    88 88   88    88    88    88
+   db   8D    88    88b  d88 88  .8D   .88.   `8b  d8'
+   `8888Y'    YP    ~Y8888P' Y8888D' Y888888P  `Y88P'
+
+
+-}
+
+
+{-| Turn a [`Field`](#Field) into an Elm `Program` that you can view in your
+browser with in `elm reactor` for testing purposes.
+
+This should only be used in development - to help you avoid accidentally
+deploying it in production, you should pass in `Debug.toString` as the first
+argument.
+
+-}
+studio :
+    (output -> String)
+    -> Field formModel formMsg id widgetMsg output
+    -> Program () (Model formModel output) (Msg formMsg)
+studio debugToString field =
+    Browser.document
+        { init = \() -> init field
+        , update = update field
+        , view =
+            \model ->
+                { title = "Yafl Studio"
+                , body =
+                    [ H.h1 [] [ H.text "Your form" ]
+                    , H.form [] (view field model)
+                    , H.h2 [] [ H.text "Output" ]
+                    , case submit field model of
+                        Ok output ->
+                            H.div []
+                                [ H.text "Validation succeeded!"
+                                , H.pre [] [ H.text (debugToString output) ]
+                                ]
+
+                        Err errors ->
+                            H.div []
+                                [ H.text "Validation failed!"
+                                , H.ul [] <|
+                                    List.map
+                                        (\( id_, err ) ->
+                                            H.li [] [ H.text (id_ ++ ": " ++ err) ]
+                                        )
+                                        errors
+                                ]
+                    ]
+                }
+        , subscriptions = subscriptions field
+        }

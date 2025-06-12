@@ -238,7 +238,6 @@ nameField =
                 else
                     Nothing
             )
-        |> Yafl.errorIf String.isEmpty "Ssssstring is empty"
 
 
 
@@ -379,7 +378,12 @@ main_ =
                 Yafl.subscriptions dogField model
         }
 
+{-
+    For quick iteration during development, you can use `Yafl.studio`
+-}
 
+main = 
+    Yafl.studio Debug.toString dogField
 
 {-
    Appendix: Advanced stuff!
@@ -413,8 +417,8 @@ type Model
     | ViewingDog Dog
 
 
-main : Program () Model Msg
-main =
+main__ : Program () Model Msg
+main__ =
     Browser.element
         { init =
             \() ->
