@@ -1625,8 +1625,8 @@ andMap (Field field1) (Field field2) =
                 \config model ->
                     case model of
                         Product _ _ model1 model2 ->
-                            field2.view { config | label = field2.label, id = locationFromModel model1 |> locationToString } model2
-                                ++ field1.view { config | label = field1.label, id = locationFromModel model2 |> locationToString } model1
+                            field2.view { config | label = field2.label, id = locationFromModel model2 |> locationToString } model2
+                                ++ field1.view { config | label = field1.label, id = locationFromModel model1 |> locationToString } model1
 
                         _ ->
                             []
@@ -3028,7 +3028,10 @@ studio debugToString field =
                 { title = "Yafl Studio"
                 , body =
                     [ H.h1 [] [ H.text "Your form" ]
-                    , H.form [] (view field model)
+                    , H.form []
+                        (view field model
+                            |> List.map (\item -> H.div [] [ item ])
+                        )
                     , H.h2 [] [ H.text "Output" ]
                     , case submit field model of
                         Ok output ->
