@@ -7,8 +7,7 @@ import Yafl
 
 
 main =
-    form
-        |> Yafl.studio Debug.toString
+    Yafl.studio Debug.toString form
 
 
 fields =
@@ -20,26 +19,18 @@ fields =
 
 
 type alias Person =
-    { name : String, isCool : Bool, hasCat : Bool }
+    { name : String
+    , isCool : Bool
+    , hasCat : Bool
+    }
 
 
 form =
-    Yafl.succeed (\name_ (isCool_, hasCat_) -> Person name_ isCool_ hasCat_)
+    Yafl.succeed Person
         |> Yafl.andMap name
-        |> Yafl.andMap 
-            (Yafl.succeed Tuple.pair
-                |> Yafl.andMap isCool
-                |> Yafl.andMap hasCat
-                |> Yafl.validateAt isCool
-                    (\(isCool_, hasCat_) ->
-                        if isCool_ && not hasCat_ then
-                            Just "How can they be cool if they don't have a cat?"
-
-                        else
-                            Nothing
-                    )
-            )
-
+        |> Yafl.andMap isCool
+        |> Yafl.andMap hasCat
+        
 
 name =
     fields.string
