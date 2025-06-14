@@ -1745,72 +1745,35 @@ andThen f (Field field) =
                 )
         , update =
             \msg model ->
-                let
-                    updateHelper model_ =
-                        case model_ of
-                            Product AndThen location model1 model2 ->
-                                let
-                                    ( newModel1, cmd1 ) =
-                                        field.update msg model1
+                case model of
+                    Product AndThen location model1 model2 ->
+                        let
+                            ( newModel1, cmd1 ) =
+                                field.update msg model1
 
-                                    ( newModel2, cmd2 ) =
-                                        case field.submit field.checks newModel1 of
-                                            Ok output ->
-                                                let
-                                                    (Field field2) =
-                                                        f output
-                                                in
-                                                case model2 of
-                                                    Empty _ location2 ->
-                                                        field2.init (locationToPath location2) field2.maybeId
+                            ( newModel2, cmd2 ) =
+                                case field.submit field.checks newModel1 of
+                                    Ok output ->
+                                        let
+                                            (Field field2) =
+                                                f output
+                                        in
+                                        case model2 of
+                                            Empty _ location2 ->
+                                                field2.init (locationToPath location2) field2.maybeId
 
-                                                    _ ->
-                                                        field2.update msg model2
+                                            _ ->
+                                                field2.update msg model2
 
-                                            Err _ ->
-                                                ( model2, Cmd.none )
-                                in
-                                ( Product AndThen location newModel1 newModel2
-                                , Cmd.batch [ cmd1, cmd2 ]
-                                )
+                                    Err _ ->
+                                        ( model2, Cmd.none )
+                        in
+                        ( Product AndThen location newModel1 newModel2
+                        , Cmd.batch [ cmd1, cmd2 ]
+                        )
 
-                            Product Map2 location model1 model2 ->
-                                let
-                                    ( newModel1, cmd1 ) =
-                                        updateHelper model1
-
-                                    ( newModel2, cmd2 ) =
-                                        updateHelper model2
-                                in
-                                ( Product Map2 location newModel1 newModel2
-                                , Cmd.batch [ cmd1, cmd2 ]
-                                )
-
-                            Value location value ->
-                                ( Value location value, Cmd.none )
-
-                            Sum location meta labelsAndModels ->
-                                let
-                                    ( labels, models ) =
-                                        List.unzip labelsAndModels
-
-                                    ( newModels, cmds ) =
-                                        List.map updateHelper models
-                                            |> List.unzip
-
-                                    newLabelsAndModels =
-                                        List.Extra.zip labels newModels
-                                in
-                                ( Sum location meta newLabelsAndModels
-                                , Cmd.batch cmds
-                                )
-
-                            Empty typ location ->
-                                ( Empty typ location
-                                , Cmd.none
-                                )
-                in
-                updateHelper model
+                    _ ->
+                        ( model, Cmd.none )
         , view =
             \config model ->
                 case model of
@@ -1866,7 +1829,7 @@ andThen f (Field field) =
 
                     _ ->
                         Err
-                            [ { message = "Fatal error, expecting a `Both` node"
+                            [ { message = "Fatal error, expecting a `Product` node"
                               , locator = locatorFromModel model
                               , fail = True
                               }
@@ -1878,6 +1841,8 @@ andThen f (Field field) =
         , maybeId = field.maybeId
         }
 
+
+x = Result.andThen
 
 
 {-
@@ -2902,8 +2867,8 @@ toDOT debugToString (Model model) =
         match val =
             Regex.find regex (escape (debugToString val)) |> List.map .match |> List.head |> Maybe.withDefault ""
 
-        bothTypeToString bothType =
-            case bothType of
+        productTypeToString productType =
+            case productType of
                 Map2 ->
                     { label = "Map2", shape = "larrow" }
 
@@ -2935,8 +2900,8 @@ toDOT debugToString (Model model) =
 
                 Product typ loc m1 m2 ->
                     ( locationToPath loc
-                    , nodeLabel loc (bothTypeToString typ).label
-                    , (bothTypeToString typ).shape
+                    , nodeLabel loc (productTypeToString typ).label
+                    , (productTypeToString typ).shape
                     )
                         :: toPathsAndLabels m1
                         ++ toPathsAndLabels m2

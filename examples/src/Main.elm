@@ -21,15 +21,14 @@ fields =
 type alias Person =
     { name : String
     , isCool : Bool
-    , hasCat : Bool
     }
 
 
 form =
     Yafl.succeed Person
         |> Yafl.andMap name
-        |> Yafl.andMap isCool
-        |> Yafl.andMap hasCat
+        |> Yafl.andMap (isCool |> Yafl.andThen (\isCool_ -> if isCool_ then
+        hasCat else Yafl.succeed isCool_))
         
 
 name =
