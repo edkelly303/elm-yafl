@@ -1842,8 +1842,6 @@ andThen f (Field field) =
         }
 
 
-x = Result.andThen
-
 
 {-
     .o88b. db   db  .d88b.  d888888b  .o88b. d88888b
