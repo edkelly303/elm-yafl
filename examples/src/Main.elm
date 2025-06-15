@@ -20,24 +20,70 @@ fields =
 
 type alias Person =
     { name : String
-    , isCool : Bool
+    , isCool : Foo
     }
 
 
 form =
     Yafl.succeed Person
         |> Yafl.andMap name
-        |> Yafl.andMap
-            (isCool
-                |> Yafl.andThen
-                    (\isCool_ ->
-                        if isCool_ then
-                            hasCat
+        |> Yafl.andMap foo
+
+
+choice : Yafl.Field formModel formMsg id widgetMsg a -> Yafl.Field formModel formMsg id widgetMsg ( a, Maybe b )
+choice field =
+    Yafl.map (\output -> ( output, Nothing )) field
+
+
+option :
+    a
+    -> Yafl.Field formModel formMsg id widgetMsg b
+    -> Yafl.Field formModel formMsg c d ( a, Maybe b )
+    -> Yafl.Field formModel formMsg c d ( a, Maybe b )
+option x field choiceField =
+    choiceField
+        |> Yafl.andThen
+            (\( a, maybe ) ->
+                case maybe of
+                    Nothing ->
+                        if a == x then
+                            field |> Yafl.map (\output -> ( a, Just output ))
 
                         else
-                            Yafl.succeed isCool_
-                    )
+                            Yafl.succeed ( a, maybe )
+
+                    Just output ->
+                        Yafl.succeed ( a, Just output )
             )
+
+
+endOptions :
+    Yafl.Field formModel formMsg id widgetMsg ( a, Maybe output )
+    -> Yafl.Field formModel formMsg id widgetMsg output
+endOptions choiceField =
+    choiceField
+        |> Yafl.andThen
+            (\( _, maybe ) ->
+                case maybe of
+                    Just output ->
+                        Yafl.succeed output
+
+                    Nothing ->
+                        Yafl.fail "no valid option selected"
+            )
+
+
+type Foo
+    = Bar String
+    | Baz Bool
+
+
+foo : Yafl.Field ( Maybe String, ( Maybe Bool, () ) ) ( Maybe String, ( Maybe Bool, () ) ) Yafl.NoId Bool Foo
+foo =
+    choice fields.bool
+        |> option True (Yafl.map Bar fields.string)
+        |> option False (Yafl.map Baz fields.bool)
+        |> endOptions
 
 
 name =
