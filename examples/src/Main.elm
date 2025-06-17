@@ -30,50 +30,53 @@ form =
         |> Yafl.andMap foo
 
 
-choice : 
-    Yafl.Field formModel formMsg id widgetMsg chosen 
-    -> Yafl.Field formModel formMsg id widgetMsg ( chosen, Maybe b )
+type Choice output
+    = Choice { chosen : Int, index : Int, maybeOutput : Maybe output }
+
+
+choice :
+    Yafl.Field formModel formMsg id widgetMsg Int
+    -> Yafl.Field formModel formMsg id widgetMsg (Choice output)
 choice field =
-    Yafl.map (\chosen -> ( chosen, Nothing )) field
+    Yafl.map (\chosen -> Choice { chosen = chosen, index = 0, maybeOutput = Nothing }) field
 
 
 option :
-    chosen
-    -> Yafl.Field formModel formMsg id widgetMsg output
-    -> Yafl.Field formModel formMsg c d ( chosen, Maybe output )
-    -> Yafl.Field formModel formMsg c d ( chosen, Maybe output )
-option choosable field choiceField =
+    Yafl.Field formModel formMsg id widgetMsg output
+    -> Yafl.Field formModel formMsg id2 widgetMsg2 (Choice output)
+    -> Yafl.Field formModel formMsg id2 widgetMsg2 (Choice output)
+option field choiceField =
     choiceField
         |> Yafl.andThen
-            (\( chosen, maybe ) ->
-                case maybe of
-                    Nothing ->
-                        if choosable == chosen then
-                            field |> Yafl.map (\output -> ( chosen, Just output ))
+            (\(Choice c) ->
+                let
+                    thisIndex =
+                        c.index + 1
+                in
+                if c.chosen == thisIndex && c.maybeOutput == Nothing then
+                    field
+                        |> Yafl.map (\output -> Choice { c | maybeOutput = Just output, index = thisIndex })
 
-                        else
-                            Yafl.succeed ( chosen, maybe )
+                else
+                    Yafl.succeed (Choice { c | index = thisIndex })
+            )
 
+
+endChoice :
+    Yafl.Field formModel formMsg id widgetMsg (Choice output)
+    -> Yafl.Field formModel formMsg id widgetMsg output
+endChoice choiceField =
+    choiceField
+        |> Yafl.andThen
+            (\(Choice c) ->
+                case c.maybeOutput of
                     Just output ->
-                        Yafl.succeed ( chosen, Just output )
+                        Yafl.succeed output
+
+                    Nothing ->
+                        Yafl.fail "No valid option selected"
             )
 
-
-endOptions :
-    Yafl.Field formModel formMsg id widgetMsg ( chosen, Maybe output )
-    -> Yafl.Field formModel formMsg id widgetMsg output
-endOptions choiceField =
-    choiceField
-        |> Yafl.andThen
-            (\( _, maybe ) ->
-                        case maybe of
-                            Just output ->
-                                Yafl.succeed output
-
-                            Nothing ->
-                                Yafl.fail ("No valid option selected")
-
-            )
 
 type Foo
     = Bar String
@@ -82,12 +85,21 @@ type Foo
 
 foo : Yafl.Field ( Maybe String, ( Maybe Bool, () ) ) ( Maybe String, ( Maybe Bool, () ) ) Yafl.NoId Bool Foo
 foo =
-    choice fields.bool 
-        |> Yafl.label "Bar or Baz?"
-        |> option True (Yafl.map Bar name |> Yafl.label "Bar")
-        |> option False (Yafl.map Baz fields.bool |> Yafl.label "Baz")
-        |> endOptions
+    choice
+        (fields.bool
+            |> Yafl.map
+                (\b ->
+                    if b then
+                        1
 
+                    else
+                        2
+                )
+        )
+        |> Yafl.label "Bar or Baz?"
+        |> option (Yafl.map Bar name |> Yafl.label "Bar")
+        |> option (Yafl.map Baz fields.bool |> Yafl.label "Baz")
+        |> endChoice
 
 
 name =
