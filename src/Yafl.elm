@@ -2076,7 +2076,7 @@ defineFields :
     ctor
     ->
         { ctor : ctor
-        , fields : b -> b
+        , widgets : b -> b
         , modelGetters : { focus : focus -> focus, appendToGetters : getters -> getters }
         , modelSetters : { focus : c -> c, appendToSetters : setters -> setters }
         , modelBlanks : d -> d
@@ -2087,7 +2087,7 @@ defineFields :
         }
 defineFields ctor =
     { ctor = ctor
-    , fields = NT.define
+    , widgets = NT.define
     , modelGetters = NT.defineGetters
     , modelSetters = NT.defineSetters
     , modelBlanks = NT.define
@@ -2114,89 +2114,79 @@ defineFields ctor =
 {-| Add a Widget to the definition of the Fields you want to use in your forms.
 -}
 addWidget :
-    widget
+    Widget widgetModel widgetMsg output
     ->
         { apply :
             ({ blankModel : formModel
-             , blankMsg : b
+             , blankMsg : formMsg
              , ctor :
-                Field formModel formMsg NoId widgetMsg value -> c
+                Field formModel formMsg NoId widgetMsg output -> fields
              }
-             -> ( formMsg -> Maybe widgetMsg, tailA )
-             -> ( Maybe widgetMsg -> b -> formMsg, tailB )
-             -> ( formModel -> Maybe a2, tailC )
-             -> ( Maybe a3 -> formModel -> formModel, tailD )
-             ->
-                ( { init : ( a3, Cmd widgetMsg )
-                  , label : String
-                  , submit : a2 -> Result (List String) value
-                  , subscriptions : a2 -> Sub widgetMsg
-                  , update : widgetMsg -> a2 -> ( a3, Cmd widgetMsg )
-                  , view :
-                        ViewConfig -> a2 -> List (H.Html widgetMsg)
-                  }
-                , tailE
-                )
+             -> ( formMsg -> Maybe widgetMsg, previousMsgGetters )
+             -> ( Maybe widgetMsg -> formMsg -> formMsg, previousMsgSetters )
+             -> ( formModel -> Maybe widgetModel, previousModelGetters )
+             -> ( Maybe widgetModel -> formModel -> formModel, previousModelSetters )
+             -> ( Widget widgetModel widgetMsg output, previousWidgets )
              -> accForNext
             )
             -> toFolder5
         , ctor : f
-        , fields : ( widget, tail6 ) -> toAppender2
-        , modelBlanks : ( Maybe a1, tail5 ) -> toAppender1
+        , widgets : ( Widget widgetModel widgetMsg output, previousWidgets ) -> toWidgets
+        , modelBlanks : ( Maybe widgetModel, previousBlankModels ) -> toBlankModel
         , modelGetters :
-            { appendToGetters : ( tuple3 -> head3, nextGetters1 ) -> toGetters1
+            { appendToGetters : ( tuple3 -> head3, nextModelGetters ) -> toModelGetters
             , focus : tuple3 -> ( head3, tail4 )
             }
         , modelSetters :
             { appendToSetters :
-                ( head2 -> tuple2 -> tuple2, nextSetters1 ) -> toSetters1
+                ( head2 -> tuple2 -> tuple2, nextModelSetters ) -> toModelSetters
             , focus :
                 (( head2, tail3 ) -> ( head2, tail3 )) -> tuple2 -> tuple2
             }
-        , msgBlanks : ( Maybe a, tail2 ) -> toAppender
+        , msgBlanks : ( Maybe widgetMsg, previousBlankMsgs ) -> toBlankMsg
         , msgGetters :
-            { appendToGetters : ( tuple1 -> head1, nextGetters ) -> toGetters
+            { appendToGetters : ( tuple1 -> head1, nextMsgGetters ) -> toMsgGetters
             , focus : tuple1 -> ( head1, tail1 )
             }
         , msgSetters :
             { appendToSetters :
-                ( head -> tuple -> tuple, nextSetters ) -> toSetters
+                ( head -> tuple -> tuple, nextMsgSetters ) -> toMsgSetters
             , focus : (( head, tail ) -> ( head, tail )) -> tuple -> tuple
             }
         }
     ->
         { apply :
-            ({ blankModel : formModel, blankMsg : b, ctor : c }
-             -> tailA
-             -> tailB
-             -> tailC
-             -> tailD
-             -> tailE
+            ({ blankModel : formModel, blankMsg : formMsg, ctor : fields }
+             -> previousMsgGetters
+             -> previousMsgSetters
+             -> previousModelGetters
+             -> previousModelSetters
+             -> previousWidgets
              -> accForNext
             )
             -> toFolder5
         , ctor : f
-        , fields : tail6 -> toAppender2
-        , modelBlanks : tail5 -> toAppender1
+        , widgets : previousWidgets -> toWidgets
+        , modelBlanks : previousBlankModels -> toBlankModel
         , modelGetters :
-            { appendToGetters : nextGetters1 -> toGetters1
+            { appendToGetters : nextModelGetters -> toModelGetters
             , focus : tuple3 -> tail4
             }
         , modelSetters :
-            { appendToSetters : nextSetters1 -> toSetters1
+            { appendToSetters : nextModelSetters -> toModelSetters
             , focus : (tail3 -> tail3) -> tuple2 -> tuple2
             }
-        , msgBlanks : tail2 -> toAppender
+        , msgBlanks : previousBlankMsgs -> toBlankMsg
         , msgGetters :
-            { appendToGetters : nextGetters -> toGetters, focus : tuple1 -> tail1 }
+            { appendToGetters : nextMsgGetters -> toMsgGetters, focus : tuple1 -> tail1 }
         , msgSetters :
-            { appendToSetters : nextSetters -> toSetters
+            { appendToSetters : nextMsgSetters -> toMsgSetters
             , focus : (tail -> tail) -> tuple -> tuple
             }
         }
 addWidget widget builder =
     { ctor = builder.ctor
-    , fields = NT.appender widget builder.fields
+    , widgets = NT.appender widget builder.widgets
     , modelGetters = NT.getter builder.modelGetters
     , modelSetters = NT.setter builder.modelSetters
     , modelBlanks = NT.appender Nothing builder.modelBlanks
@@ -2225,23 +2215,23 @@ addWidget widget builder =
 endFields :
     { apply :
         (acc -> empty -> empty -> empty -> empty -> empty -> acc)
-        -> { blankModel : appender1, blankMsg : appender, ctor : a }
-        -> getters
-        -> setters
-        -> getters1
-        -> setters1
-        -> appender2
-        -> { c | ctor : b }
-    , ctor : a
-    , fields : () -> appender2
-    , modelBlanks : () -> appender1
-    , modelGetters : { appendToGetters : () -> getters1, focus : focus3 }
-    , modelSetters : { appendToSetters : () -> setters1, focus : focus2 }
-    , msgBlanks : () -> appender
-    , msgGetters : { appendToGetters : () -> getters, focus : focus1 }
-    , msgSetters : { appendToSetters : () -> setters, focus : focus }
+        -> { blankModel : modelBlanks, blankMsg : msgBlanks, ctor : toFields }
+        -> msgGetters
+        -> msgSetters
+        -> modelGetters
+        -> modelSetters
+        -> widgets
+        -> { blankModel : modelBlanks, blankMsg : msgBlanks, ctor : fields }
+    , ctor : toFields
+    , widgets : () -> widgets
+    , modelBlanks : () -> modelBlanks
+    , modelGetters : { appendToGetters : () -> modelGetters, focus : focus3 }
+    , modelSetters : { appendToSetters : () -> modelSetters, focus : focus2 }
+    , msgBlanks : () -> msgBlanks
+    , msgGetters : { appendToGetters : () -> msgGetters, focus : focus1 }
+    , msgSetters : { appendToSetters : () -> msgSetters, focus : focus }
     }
-    -> b
+    -> fields
 endFields builder =
     let
         apply =
@@ -2259,8 +2249,8 @@ endFields builder =
         modelSetters =
             NT.endSetters builder.modelSetters
 
-        fields =
-            NT.endAppender builder.fields
+        widgets =
+            NT.endAppender builder.widgets
 
         blankMsg =
             NT.endAppender builder.msgBlanks
@@ -2277,7 +2267,7 @@ endFields builder =
         msgSetters
         modelGetters
         modelSetters
-        fields
+        widgets
         |> .ctor
 
 
@@ -2296,24 +2286,17 @@ endFields builder =
 
 applier :
     (formMsg -> Maybe widgetMsg)
-    -> (Maybe widgetMsg -> b -> formMsg)
-    -> (formModel -> Maybe a)
-    -> (Maybe a1 -> formModel -> formModel)
-    ->
-        { init : ( a1, Cmd widgetMsg )
-        , label : String
-        , submit : a -> Result (List String) value
-        , subscriptions : a -> Sub widgetMsg
-        , update : widgetMsg -> a -> ( a1, Cmd widgetMsg )
-        , view : ViewConfig -> a -> List (H.Html widgetMsg)
-        }
+    -> (Maybe widgetMsg -> formMsg -> formMsg)
+    -> (formModel -> Maybe widgetModel)
+    -> (Maybe widgetModel -> formModel -> formModel)
+    -> Widget widgetModel widgetMsg output
     ->
         { blankModel : formModel
-        , blankMsg : b
-        , ctor : Field formModel formMsg NoId widgetMsg value -> d
+        , blankMsg : formMsg
+        , ctor : Field formModel formMsg NoId widgetMsg output -> fields
         }
-    -> { blankModel : formModel, blankMsg : b, ctor : d }
-applier msgGetter msgSetter modelGetter modelSetter fieldType acc =
+    -> { blankModel : formModel, blankMsg : formMsg, ctor : fields }
+applier msgGetter msgSetter modelGetter modelSetter widget acc =
     let
         send_ msg_ =
             msgSetter (Just msg_) acc.blankMsg
@@ -2326,7 +2309,7 @@ applier msgGetter msgSetter modelGetter modelSetter fieldType acc =
                 { init =
                     let
                         ( model, cmd ) =
-                            fieldType.init
+                            widget.init
                     in
                     ( modelSetter (Just model) acc.blankModel
                     , Cmd.map send_ cmd
@@ -2334,7 +2317,7 @@ applier msgGetter msgSetter modelGetter modelSetter fieldType acc =
                 , update =
                     \msg model ->
                         case
-                            Maybe.map2 fieldType.update (msgGetter msg) (modelGetter model)
+                            Maybe.map2 widget.update (msgGetter msg) (modelGetter model)
                         of
                             Just ( newModel, cmd ) ->
                                 ( modelSetter (Just newModel) acc.blankModel
@@ -2345,7 +2328,7 @@ applier msgGetter msgSetter modelGetter modelSetter fieldType acc =
                                 ( model, Cmd.none )
                 , view =
                     \config model ->
-                        Maybe.map (fieldType.view config) (modelGetter model)
+                        Maybe.map (widget.view config) (modelGetter model)
                             |> Maybe.withDefault []
                             |> List.map (H.map send_)
                 , submit =
@@ -2353,7 +2336,7 @@ applier msgGetter msgSetter modelGetter modelSetter fieldType acc =
                         modelGetter model
                             |> Maybe.map
                                 (\mdl ->
-                                    fieldType.submit mdl
+                                    widget.submit mdl
                                         |> Result.mapError
                                             (\errs ->
                                                 List.map
@@ -2376,10 +2359,10 @@ applier msgGetter msgSetter modelGetter modelSetter fieldType acc =
                                 )
                 , subscriptions =
                     \model ->
-                        Maybe.map fieldType.subscriptions (modelGetter model)
+                        Maybe.map widget.subscriptions (modelGetter model)
                             |> Maybe.withDefault Sub.none
                             |> Sub.map send_
-                , label = fieldType.label
+                , label = widget.label
                 , send = send_
                 , intercept = intercept_
                 , blankModel = acc.blankModel
