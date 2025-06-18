@@ -52,11 +52,9 @@ tests =
                         let
                             unused :
                                 { string :
-                                    ()
-                                    -> Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
+                                    Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
                                 , bool :
-                                    ()
-                                    -> Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId Basics.Bool Basics.Bool
+                                    Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId Basics.Bool Basics.Bool
                                 }
                             unused =
                                 Examples.fields
@@ -256,13 +254,13 @@ tests =
                             let
                                 unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
                                 unused =
-                                    Examples.fields.string ()
+                                    Examples.fields.string
                                         |> Yafl.label
                                             "What would you like to say?"
                                         |> Yafl.andThen
                                             (\words ->
                                                 if words == "Hello" then
-                                                    Examples.fields.string ()
+                                                    Examples.fields.string
                                                         |> Yafl.label
                                                             "Who are you saying 'Hello' to?"
                                                         |> Yafl.map
@@ -284,7 +282,7 @@ tests =
                             let
                                 unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String Basics.Float
                                 unused =
-                                    Examples.fields.string ()
+                                    Examples.fields.string
                                         |> Yafl.label
                                             "Enter a floating-point number"
                                         |> Yafl.andThen
@@ -306,7 +304,7 @@ tests =
                             let
                                 unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
                                 unused =
-                                    Examples.fields.string ()
+                                    Examples.fields.string
                                         |> Yafl.label
                                             "Enter the first name of a Beatle"
                                         |> Yafl.andThen
@@ -409,7 +407,7 @@ tests =
                             let
                                 unused : ( Yafl.Model Examples.FormModel Basics.Bool, Platform.Cmd.Cmd (Yafl.Msg Examples.FormMsg) )
                                 unused =
-                                    Examples.fields.bool () |> Yafl.init
+                                    Examples.fields.bool |> Yafl.init
                             in
                             Expect.pass
                         )
@@ -743,7 +741,7 @@ type alias FormMsg__Readme_1 =
 
 
 nonEmptyString__Readme_2 =
-    Examples.fields.string ()
+    Examples.fields.string
         |> Yafl.andThen
             (\string ->
                 if String.isEmpty string then
@@ -763,7 +761,7 @@ lastName__Readme_2 =
 
 
 isAdmin__Readme_2 =
-    Examples.fields.bool () |> Yafl.label "Is the user an admin?"
+    Examples.fields.bool |> Yafl.label "Is the user an admin?"
 
 
 user__Readme_3 =
@@ -783,7 +781,7 @@ main__Readme_4 =
 
 
 form__Yafl__Header_0 =
-    Examples.fields.bool ()
+    Examples.fields.bool
 
 
 init__Yafl__Header_0 =
@@ -806,11 +804,11 @@ myCustomTypeField__Yafl__Header_1 =
 
 
 fooField__Yafl__Header_1 =
-    Examples.fields.string () |> Yafl.map Foo__Yafl__Header_1
+    Examples.fields.string |> Yafl.map Foo__Yafl__Header_1
 
 
 barField__Yafl__Header_1 =
-    Examples.fields.bool () |> Yafl.map Bar__Yafl__Header_1
+    Examples.fields.bool |> Yafl.map Bar__Yafl__Header_1
 
 
 model__Yafl__Header_1 =
@@ -819,9 +817,9 @@ model__Yafl__Header_1 =
 
 form__Yafl__andMap_0 =
     Yafl.succeed (\a b c -> { firstName = a, middleName = b, lastName = c })
-        |> Yafl.andMap (Examples.fields.string () |> Yafl.label "First name")
-        |> Yafl.andMap (Examples.fields.string () |> Yafl.label "Middle name")
-        |> Yafl.andMap (Examples.fields.string () |> Yafl.label "Last name")
+        |> Yafl.andMap (Examples.fields.string |> Yafl.label "First name")
+        |> Yafl.andMap (Examples.fields.string |> Yafl.label "Middle name")
+        |> Yafl.andMap (Examples.fields.string |> Yafl.label "Last name")
 
 
 model__Yafl__andMap_0 =
@@ -854,11 +852,11 @@ fooField__Yafl__andUpdateField_0 =
 
 
 firstField__Yafl__andUpdateField_0 =
-    Examples.fields.string () |> Yafl.id "a-unique-string"
+    Examples.fields.string |> Yafl.id "a-unique-string"
 
 
 secondField__Yafl__andUpdateField_0 =
-    Examples.fields.string () |> Yafl.id "another-unique-string"
+    Examples.fields.string |> Yafl.id "another-unique-string"
 
 
 updatedModel__Yafl__andUpdateField_0 =
@@ -884,7 +882,7 @@ model__Yafl__fail_0 =
 
 
 myField__Yafl__id_0 =
-    Examples.fields.string ()
+    Examples.fields.string
 
 
 myFieldWithId__Yafl__id_0 =
@@ -892,11 +890,11 @@ myFieldWithId__Yafl__id_0 =
 
 
 myFieldWithId__Yafl__intercept_0 =
-    Examples.fields.string () |> Yafl.id "any-string-as-long-as-it's-unique"
+    Examples.fields.string |> Yafl.id "any-string-as-long-as-it's-unique"
 
 
 nameField__Yafl__label_0 =
-    Examples.fields.string () |> Yafl.label "What is your name?"
+    Examples.fields.string |> Yafl.label "What is your name?"
 
 
 type MyCustomType__Yafl__map_0
@@ -904,14 +902,11 @@ type MyCustomType__Yafl__map_0
 
 
 fooField__Yafl__map_0 =
-    Yafl.map Foo__Yafl__map_0 (Examples.fields.string ())
+    Yafl.map Foo__Yafl__map_0 Examples.fields.string
 
 
 form__Yafl__map2_0 =
-    Yafl.map2
-        (\a b -> ( a, b ))
-        (Examples.fields.string ())
-        (Examples.fields.string ())
+    Yafl.map2 (\a b -> ( a, b )) Examples.fields.string Examples.fields.string
 
 
 model__Yafl__map2_0 =
@@ -919,7 +914,7 @@ model__Yafl__map2_0 =
 
 
 holyGrail__Yafl__select_0 =
-    Examples.fields.string () |> Yafl.id "any-string-as-long-as-it's-unique"
+    Examples.fields.string |> Yafl.id "any-string-as-long-as-it's-unique"
 
 
 myChoiceField__Yafl__select_0 =
@@ -943,11 +938,11 @@ model__Yafl__selectField_0 =
 
 
 myFieldWithId__Yafl__send_0 =
-    Examples.fields.string () |> Yafl.id "any-string-as-long-as-it's-unique"
+    Examples.fields.string |> Yafl.id "any-string-as-long-as-it's-unique"
 
 
 form__Yafl__submit_0 =
-    Examples.fields.string ()
+    Examples.fields.string
 
 
 model__Yafl__submit_0 =
@@ -955,7 +950,7 @@ model__Yafl__submit_0 =
 
 
 form__Yafl__subscriptions_0 =
-    Examples.fields.string ()
+    Examples.fields.string
 
 
 model__Yafl__subscriptions_0 =
@@ -982,11 +977,11 @@ fooField__Yafl__updateField_0 =
 
 
 firstField__Yafl__updateField_0 =
-    Examples.fields.string () |> Yafl.id "a-unique-string"
+    Examples.fields.string |> Yafl.id "a-unique-string"
 
 
 secondField__Yafl__updateField_0 =
-    Examples.fields.string () |> Yafl.id "another-unique-string"
+    Examples.fields.string |> Yafl.id "another-unique-string"
 
 
 model__Yafl__updateField_0 =
@@ -1018,11 +1013,11 @@ form__Yafl__validate_0 =
 
 
 passwordField__Yafl__validateAt_0 =
-    Examples.fields.string () |> Yafl.id "password"
+    Examples.fields.string |> Yafl.id "password"
 
 
 confirmField__Yafl__validateAt_0 =
-    Examples.fields.string () |> Yafl.id "confirm"
+    Examples.fields.string |> Yafl.id "confirm"
 
 
 form__Yafl__validateAt_0 =
@@ -1042,7 +1037,7 @@ form__Yafl__validateAt_0 =
 
 
 form__Yafl__view_0 =
-    Examples.fields.string ()
+    Examples.fields.string
 
 
 model__Yafl__view_0 =

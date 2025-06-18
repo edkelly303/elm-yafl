@@ -156,7 +156,7 @@ type alias FormMsg =
 
 
 -- DOC TESTS
-fields --: { string : () -> Yafl.Field FormModel FormMsg Yafl.NoId String String, bool : () -> Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool }
+fields --: { string : Yafl.Field FormModel FormMsg Yafl.NoId String String, bool : Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool }
 ```
 
 Now whenever we need a `String` field, we can use `fields.string`, and if we
@@ -171,7 +171,7 @@ import Examples exposing (..)
 import Yafl
 
 nonEmptyString =
-    fields.string ()
+    fields.string
         |> Yafl.andThen 
             (\string -> 
                 if String.isEmpty string then 
@@ -189,7 +189,7 @@ lastName =
         |> Yafl.label "What is the user's last name?"
 
 isAdmin =
-    fields.bool ()
+    fields.bool
         |> Yafl.label "Is the user an admin?"
 
 

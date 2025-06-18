@@ -95,8 +95,8 @@ viewFeedback feedback =
 
 
 fields :
-    { string : () -> Yafl.Field FormModel FormMsg Yafl.NoId String String
-    , bool : () -> Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool
+    { string : Yafl.Field FormModel FormMsg Yafl.NoId String String
+    , bool : Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool
     }
 fields =
     Yafl.defineFields
@@ -116,7 +116,7 @@ type alias FormMsg =
 
 nonEmptyString : Yafl.Field FormModel FormMsg Yafl.NoId String String
 nonEmptyString =
-    fields.string ()
+    fields.string
         |> Yafl.andThen
             (\string ->
                 if String.isEmpty string then
@@ -141,7 +141,7 @@ lastName =
 
 isAdmin : Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool
 isAdmin =
-    fields.bool ()
+    fields.bool
         |> Yafl.label "Is the user an admin?"
 
 

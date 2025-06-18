@@ -20,7 +20,7 @@ tests =
                             |> Yafl.andMap (Yafl.succeed ())
 
                     field =
-                        Examples.fields.string ()
+                        Examples.fields.string
                             |> Yafl.id "xxx"
                             |> Yafl.andThen Yafl.succeed
                 in
@@ -40,7 +40,7 @@ tests =
                             |> Yafl.andMap field
 
                     field =
-                        Examples.fields.string ()
+                        Examples.fields.string
                             |> Yafl.andThen Yafl.succeed
                             |> Yafl.id "xxx"
                 in
@@ -61,7 +61,7 @@ tests =
                             |> Yafl.andMap field
 
                     field =
-                        Examples.fields.string ()
+                        Examples.fields.string
                             |> Yafl.id "xxx"
                             |> Yafl.andThen Yafl.succeed
                 in
@@ -83,7 +83,7 @@ tests =
                             |> Yafl.andMap (Yafl.succeed ())
 
                     field =
-                        Examples.fields.string ()
+                        Examples.fields.string
                             |> Yafl.id "xxx"
                             |> Yafl.andThen Yafl.succeed
                 in
@@ -99,11 +99,11 @@ tests =
             (\() ->
                 let
                     form =
-                        Examples.fields.string ()
+                        Examples.fields.string
                             |> Yafl.andThen (\_ -> field)
 
                     field =
-                        Examples.fields.string ()
+                        Examples.fields.string
                             |> Yafl.id "xxx"
                             |> Yafl.andThen Yafl.succeed
                 in
@@ -130,7 +130,7 @@ tests =
                                 )
 
                     str =
-                        Examples.fields.string ()
+                        Examples.fields.string
                             |> Yafl.id "str"
 
                     yes =

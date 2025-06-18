@@ -1,6 +1,6 @@
 module Yafl exposing
     ( Widget
-    , Field, defineFields, addWidget, endFields
+    , Field, defineFields, addWidget, addWidgetWithConfig, endFields
     , Model, Msg, init, update, view, ViewConfig, Feedback, subscriptions, submit
     , succeed, fail, failAt
     , map, andThen
@@ -27,7 +27,7 @@ composing self-contained [`Widget`](#Widget)s.
 
 ### [Turning Widgets into Fields](#turning-widgets-into-fields)
 
-[`Field`](#Field), [`defineFields`](#defineFields), [`addWidget`](#addWidget), [`endFields`](#endFields)
+[`Field`](#Field), [`defineFields`](#defineFields), [`addWidget`](#addWidget), [`addWidgetWithConfig`](#addWidgetWithConfig), [`endFields`](#endFields)
 
 
 ### [Turning Fields into forms](#turning-fields-into-forms)
@@ -178,7 +178,7 @@ example below:
     type alias FormMsg =
         ( Maybe String, ( Maybe Bool, () ) )
 
-@docs Field, defineFields, addWidget, endFields
+@docs Field, defineFields, addWidget, addWidgetWithConfig, endFields
 
 
 # Turning Fields into forms
@@ -194,7 +194,7 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
     -- We can turn any Field into a form:
 
     form =
-        fields.bool ()
+        fields.bool
 
     -- Initialize it with `Yafl.init` to get a (model, cmd)
     -- tuple:
@@ -273,11 +273,11 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
             |> Yafl.option "Bar" barField
 
     fooField =
-        fields.string ()
+        fields.string
             |> Yafl.map Foo
 
     barField =
-        fields.bool ()
+        fields.bool
             |> Yafl.map Bar
 
     model =
@@ -442,14 +442,17 @@ an Elm [`Program`](http://package.elm-lang.org/packages/elm/core/latest/Platform
 -}
 type alias Widget config model msg output =
     config
-    ->
-        { init : ( model, Cmd msg )
-        , update : msg -> model -> ( model, Cmd msg )
-        , view : ViewConfig -> model -> List (H.Html msg)
-        , submit : model -> Result (List String) output
-        , subscriptions : model -> Sub msg
-        , label : String
-        }
+    -> InnerWidget model msg output
+
+
+type alias InnerWidget model msg output =
+    { init : ( model, Cmd msg )
+    , update : msg -> model -> ( model, Cmd msg )
+    , view : ViewConfig -> model -> List (H.Html msg)
+    , submit : model -> Result (List String) output
+    , subscriptions : model -> Sub msg
+    , label : String
+    }
 
 
 {-| Configuration passed into the view of each [`Field`](#Field) in your form.
@@ -496,7 +499,7 @@ type alias InternalFeedback =
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
 
-    fields.bool ()
+    fields.bool
         |> Yafl.init
 
     --: ( Yafl.Model FormModel Bool, Cmd (Yafl.Msg FormMsg) )
@@ -549,7 +552,7 @@ update (Field field) msg (Model node) =
     import Html exposing (Html)
 
     form =
-        fields.string ()
+        fields.string
 
     model =
         form
@@ -599,7 +602,7 @@ view (Field field) (Model model) =
     import Examples exposing (FormModel, FormMsg, fields)
 
     form =
-        fields.string ()
+        fields.string
 
     model =
         form
@@ -635,7 +638,7 @@ subscriptions (Field field) (Model model) =
     import Examples exposing (FormModel, FormMsg, fields)
 
     form =
-        fields.string ()
+        fields.string
 
     model =
         form
@@ -679,7 +682,7 @@ submit (Field field) (Model model) =
     import Examples exposing (FormModel, FormMsg, fields)
 
     nameField =
-        fields.string ()
+        fields.string
             |> Yafl.label "What is your name?"
 
     nameField
@@ -759,11 +762,11 @@ you only want to display an error on one field.
     import Examples exposing (fields)
 
     passwordField =
-        fields.string ()
+        fields.string
             |> Yafl.id "password"
 
     confirmField =
-        fields.string ()
+        fields.string
             |> Yafl.id "confirm"
 
     form =
@@ -819,7 +822,7 @@ messages to that Field.
     import Examples exposing (FormModel, FormMsg, fields)
 
     myField =
-        fields.string ()
+        fields.string
 
     myField
 
@@ -871,7 +874,7 @@ id sendId_ (Field field) =
     import Examples exposing (FormModel, FormMsg, fields)
 
     holyGrail =
-        fields.string ()
+        fields.string
             |> Yafl.id "any-string-as-long-as-it's-unique"
 
     myChoiceField =
@@ -914,7 +917,7 @@ a [`choice`](#choice) Field.
     import Examples exposing (FormModel, FormMsg, fields)
 
     myFieldWithId =
-        fields.string ()
+        fields.string
             |> Yafl.id "any-string-as-long-as-it's-unique"
 
     Yafl.send myFieldWithId "Hello!"
@@ -946,7 +949,7 @@ send (Field field) msg =
     import Examples exposing (FormModel, FormMsg, fields)
 
     myFieldWithId =
-        fields.string ()
+        fields.string
             |> Yafl.id "any-string-as-long-as-it's-unique"
 
     Yafl.intercept myFieldWithId
@@ -984,11 +987,11 @@ intercept (Field field) =
         Yafl.map2 Foo firstField secondField
 
     firstField =
-        fields.string ()
+        fields.string
             |> Yafl.id "a-unique-string"
 
     secondField =
-        fields.string ()
+        fields.string
             |> Yafl.id "another-unique-string"
 
     model =
@@ -1046,11 +1049,11 @@ updateField (Field form) (Field field) widgetMsg (Model model) =
         Yafl.map2 Foo firstField secondField
 
     firstField =
-        fields.string ()
+        fields.string
             |> Yafl.id "a-unique-string"
 
     secondField =
-        fields.string ()
+        fields.string
             |> Yafl.id "another-unique-string"
 
     updatedModel =
@@ -1389,7 +1392,7 @@ type variants.
         = Foo String
 
     fooField =
-        Yafl.map Foo (fields.string ())
+        Yafl.map Foo (fields.string)
 
     fooField
         |> Yafl.init
@@ -1449,8 +1452,8 @@ If you need to combine the outputs of more than two fields, check out
     form =
         Yafl.map2
             (\a b -> ( a, b ))
-            (fields.string ())
-            (fields.string ())
+            (fields.string)
+            (fields.string)
 
     model =
         Yafl.init form
@@ -1579,9 +1582,9 @@ Use in combination with [`succeed`](#succeed).
 
     form =
         Yafl.succeed (\a b c -> { firstName = a, middleName = b, lastName = c })
-            |> Yafl.andMap (fields.string () |> Yafl.label "First name")
-            |> Yafl.andMap (fields.string () |> Yafl.label "Middle name")
-            |> Yafl.andMap (fields.string () |> Yafl.label "Last name")
+            |> Yafl.andMap (fields.string |> Yafl.label "First name")
+            |> Yafl.andMap (fields.string |> Yafl.label "Middle name")
+            |> Yafl.andMap (fields.string |> Yafl.label "Last name")
 
     model =
         Yafl.init form
@@ -1644,12 +1647,12 @@ combination with this function.
 
     -- Example 1: Asking the user for additional information
 
-    fields.string ()
+    fields.string
         |> Yafl.label "What would you like to say?"
         |> Yafl.andThen
             (\words ->
                 if words == "Hello" then
-                    fields.string ()
+                    fields.string
                         |> Yafl.label "Who are you saying 'Hello' to?"
                         |> Yafl.map (\moreWords -> words ++ " " ++ moreWords)
 
@@ -1661,7 +1664,7 @@ combination with this function.
 
     -- Example 2: Repurposing an existing widget to return a different type
 
-    fields.string ()
+    fields.string
             |> Yafl.label "Enter a floating-point number"
             |> Yafl.andThen
                 (\string ->
@@ -1677,7 +1680,7 @@ combination with this function.
 
     -- Example 3: Validating a field's output
 
-    fields.string ()
+    fields.string
         |> Yafl.label "Enter the first name of a Beatle"
         |> Yafl.andThen
             (\name ->
@@ -2096,6 +2099,90 @@ defineFields ctor =
 {-| Add a Widget to the definition of the Fields you want to use in your forms.
 -}
 addWidget :
+    Widget () widgetModel widgetMsg output
+    ->
+        { apply :
+            ({ blankModel : formModel
+             , blankMsg : formMsg
+             , ctor :
+                Field formModel formMsg NoId widgetMsg output -> fields
+             }
+             -> ( formMsg -> Maybe widgetMsg, previousMsgGetters )
+             -> ( Maybe widgetMsg -> formMsg -> formMsg, previousMsgSetters )
+             -> ( formModel -> Maybe widgetModel, previousModelGetters )
+             -> ( Maybe widgetModel -> formModel -> formModel, previousModelSetters )
+             -> ( InnerWidget widgetModel widgetMsg output, previousWidgets )
+             -> accForNext
+            )
+            -> toFolder5
+        , ctor : f
+        , widgets : ( InnerWidget widgetModel widgetMsg output, previousWidgets ) -> toWidgets
+        , modelBlanks : ( Maybe widgetModel, previousBlankModels ) -> toBlankModel
+        , modelGetters :
+            { appendToGetters : ( tuple3 -> head3, nextModelGetters ) -> toModelGetters
+            , focus : tuple3 -> ( head3, tail4 )
+            }
+        , modelSetters :
+            { appendToSetters :
+                ( head2 -> tuple2 -> tuple2, nextModelSetters ) -> toModelSetters
+            , focus :
+                (( head2, tail3 ) -> ( head2, tail3 )) -> tuple2 -> tuple2
+            }
+        , msgBlanks : ( Maybe widgetMsg, previousBlankMsgs ) -> toBlankMsg
+        , msgGetters :
+            { appendToGetters : ( tuple1 -> head1, nextMsgGetters ) -> toMsgGetters
+            , focus : tuple1 -> ( head1, tail1 )
+            }
+        , msgSetters :
+            { appendToSetters :
+                ( head -> tuple -> tuple, nextMsgSetters ) -> toMsgSetters
+            , focus : (( head, tail ) -> ( head, tail )) -> tuple -> tuple
+            }
+        }
+    ->
+        { apply :
+            ({ blankModel : formModel, blankMsg : formMsg, ctor : fields }
+             -> previousMsgGetters
+             -> previousMsgSetters
+             -> previousModelGetters
+             -> previousModelSetters
+             -> previousWidgets
+             -> accForNext
+            )
+            -> toFolder5
+        , ctor : f
+        , widgets : previousWidgets -> toWidgets
+        , modelBlanks : previousBlankModels -> toBlankModel
+        , modelGetters :
+            { appendToGetters : nextModelGetters -> toModelGetters
+            , focus : tuple3 -> tail4
+            }
+        , modelSetters :
+            { appendToSetters : nextModelSetters -> toModelSetters
+            , focus : (tail3 -> tail3) -> tuple2 -> tuple2
+            }
+        , msgBlanks : previousBlankMsgs -> toBlankMsg
+        , msgGetters :
+            { appendToGetters : nextMsgGetters -> toMsgGetters, focus : tuple1 -> tail1 }
+        , msgSetters :
+            { appendToSetters : nextMsgSetters -> toMsgSetters
+            , focus : (tail -> tail) -> tuple -> tuple
+            }
+        }
+addWidget widget builder =
+    { ctor = builder.ctor
+    , widgets = NT.appender (widget ()) builder.widgets
+    , modelGetters = NT.getter builder.modelGetters
+    , modelSetters = NT.setter builder.modelSetters
+    , modelBlanks = NT.appender Nothing builder.modelBlanks
+    , msgGetters = NT.getter builder.msgGetters
+    , msgSetters = NT.setter builder.msgSetters
+    , msgBlanks = NT.appender Nothing builder.msgBlanks
+    , apply = folder5 applier2 builder.apply
+    }
+
+
+addWidgetWithConfig :
     Widget config widgetModel widgetMsg output
     ->
         { apply :
@@ -2166,7 +2253,7 @@ addWidget :
             , focus : (tail -> tail) -> tuple -> tuple
             }
         }
-addWidget widget builder =
+addWidgetWithConfig widget builder =
     { ctor = builder.ctor
     , widgets = NT.appender widget builder.widgets
     , modelGetters = NT.getter builder.modelGetters
@@ -2291,6 +2378,96 @@ applier msgGetter msgSetter modelGetter modelSetter widgetFromConfig acc =
                 widget =
                     widgetFromConfig config
             in
+            wrapWithTrees
+                { init =
+                    let
+                        ( widgetModel, widgetCmd ) =
+                            widget.init
+                    in
+                    ( modelSetter (Just widgetModel) acc.blankModel
+                    , Cmd.map send_ widgetCmd
+                    )
+                , update =
+                    \msg model ->
+                        case
+                            Maybe.map2 widget.update (msgGetter msg) (modelGetter model)
+                        of
+                            Just ( newModel, cmd ) ->
+                                ( modelSetter (Just newModel) acc.blankModel
+                                , Cmd.map send_ cmd
+                                )
+
+                            Nothing ->
+                                ( model, Cmd.none )
+                , view =
+                    \viewConfig model ->
+                        Maybe.map (widget.view viewConfig) (modelGetter model)
+                            |> Maybe.withDefault []
+                            |> List.map (H.map send_)
+                , submit =
+                    \model ->
+                        modelGetter model
+                            |> Maybe.map
+                                (\mdl ->
+                                    widget.submit mdl
+                                        |> Result.mapError
+                                            (\errs ->
+                                                List.map
+                                                    (\err ->
+                                                        { message = err
+                                                        , fail = True
+                                                        , locator = ByPath []
+                                                        }
+                                                    )
+                                                    errs
+                                            )
+                                )
+                            |> Maybe.withDefault
+                                (Err
+                                    [ { message = "error in `applier` function"
+                                      , fail = True
+                                      , locator = ByPath []
+                                      }
+                                    ]
+                                )
+                , subscriptions =
+                    \model ->
+                        Maybe.map widget.subscriptions (modelGetter model)
+                            |> Maybe.withDefault Sub.none
+                            |> Sub.map send_
+                , label = widget.label
+                , send = send_
+                , intercept = intercept_
+                , blankModel = acc.blankModel
+                }
+    in
+    { ctor = acc.ctor wrappedFieldType
+    , blankMsg = acc.blankMsg
+    , blankModel = acc.blankModel
+    }
+
+
+applier2 :
+    (formMsg -> Maybe widgetMsg)
+    -> (Maybe widgetMsg -> formMsg -> formMsg)
+    -> (formModel -> Maybe widgetModel)
+    -> (Maybe widgetModel -> formModel -> formModel)
+    -> InnerWidget widgetModel widgetMsg output
+    ->
+        { blankModel : formModel
+        , blankMsg : formMsg
+        , ctor : Field formModel formMsg NoId widgetMsg output -> fields
+        }
+    -> { blankModel : formModel, blankMsg : formMsg, ctor : fields }
+applier2 msgGetter msgSetter modelGetter modelSetter widget acc =
+    let
+        send_ msg_ =
+            msgSetter (Just msg_) acc.blankMsg
+
+        intercept_ =
+            msgGetter
+
+        wrappedFieldType =
             wrapWithTrees
                 { init =
                     let
