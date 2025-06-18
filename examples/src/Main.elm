@@ -12,9 +12,10 @@ main =
 
 fields =
     Yafl.defineFields
-        (\s b -> { string = s, bool = b })
+        (\s b r -> { string = s, bool = b, radio = r })
         |> Yafl.addWidget stringWidget
         |> Yafl.addWidget boolWidget
+        |> Yafl.addWidget radioWidget
         |> Yafl.endFields
 
 
@@ -38,7 +39,7 @@ choice :
     Yafl.Field formModel formMsg id widgetMsg Int
     -> Yafl.Field formModel formMsg id widgetMsg (Choice output)
 choice field =
-    Yafl.map (\chosen -> Choice { chosen = chosen, index = 0, maybeOutput = Nothing }) field
+    Yafl.map (\chosen -> Choice { chosen = chosen, index = -1, maybeOutput = Nothing }) field
 
 
 option :
@@ -83,27 +84,17 @@ type Foo
     | Baz Bool
 
 
-foo : Yafl.Field ( Maybe String, ( Maybe Bool, () ) ) ( Maybe String, ( Maybe Bool, () ) ) Yafl.NoId Bool Foo
 foo =
     choice
-        (fields.bool
-            |> Yafl.map
-                (\b ->
-                    if b then
-                        1
-
-                    else
-                        2
-                )
-        )
-        |> Yafl.label "Bar or Baz?"
-        |> option (Yafl.map Bar name |> Yafl.label "Bar")
-        |> option (Yafl.map Baz fields.bool |> Yafl.label "Baz")
+        (fields.radio [ "Bar", "Baz" ])
+        |> Yafl.label "Foo?"
+        |> option (Yafl.map Bar name)
+        |> option (Yafl.map Baz (fields.bool ()))
         |> endChoice
 
 
 name =
-    fields.string
+    fields.string ()
         |> Yafl.label "What is their name?"
         |> Yafl.validate
             (\s ->
@@ -116,19 +107,19 @@ name =
 
 
 isCool =
-    fields.bool
+    fields.bool ()
         |> Yafl.label "Are they cool?"
         |> Yafl.id "isCool"
 
 
 hasCat =
-    fields.bool
+    fields.bool ()
         |> Yafl.label "Do they have a cat?"
         |> Yafl.id "hasCat"
 
 
-boolWidget : Yafl.Widget Bool Bool Bool
-boolWidget =
+boolWidget : Yafl.Widget () Bool Bool Bool
+boolWidget () =
     { init = ( False, Cmd.none )
     , update =
         \msg _ ->
@@ -151,8 +142,8 @@ boolWidget =
     }
 
 
-stringWidget : Yafl.Widget String String String
-stringWidget =
+stringWidget : Yafl.Widget () String String String
+stringWidget () =
     { init = ( "", Cmd.none )
     , update = \msg _ -> ( msg, Cmd.none )
     , view =
@@ -165,6 +156,37 @@ stringWidget =
                 , HE.onInput identity
                 ]
                 []
+            , viewFeedback feedback
+            ]
+    , subscriptions = \_ -> Sub.none
+    , submit = \model -> Ok model
+    , label = "String"
+    }
+
+
+radioWidget : Yafl.Widget (List String) Int Int Int
+radioWidget labels =
+    { init = ( 0, Cmd.none )
+    , update = \msg _ -> ( msg, Cmd.none )
+    , view =
+        \{ label, id, feedback } model ->
+            [ H.label [ HA.for id ] [ H.text label ]
+            , H.div []
+                (List.indexedMap
+                    (\idx l ->
+                        H.label [ HA.class "yafl-radio-option" ]
+                            [ H.input
+                                [ HA.type_ "radio"
+                                , HA.name label
+                                , HE.onClick idx
+                                , HA.checked (model == idx)
+                                ]
+                                []
+                            , H.text l
+                            ]
+                    )
+                    labels
+                )
             , viewFeedback feedback
             ]
     , subscriptions = \_ -> Sub.none

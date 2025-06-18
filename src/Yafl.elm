@@ -440,14 +440,16 @@ type NoId
 to [`Browser.element`](http://package.elm-lang.org/packages/elm/browser/latest/Browser#element) to create
 an Elm [`Program`](http://package.elm-lang.org/packages/elm/core/latest/Platform#Program).
 -}
-type alias Widget model msg output =
-    { init : ( model, Cmd msg )
-    , update : msg -> model -> ( model, Cmd msg )
-    , view : ViewConfig -> model -> List (H.Html msg)
-    , submit : model -> Result (List String) output
-    , subscriptions : model -> Sub msg
-    , label : String
-    }
+type alias Widget config model msg output =
+    config
+    ->
+        { init : ( model, Cmd msg )
+        , update : msg -> model -> ( model, Cmd msg )
+        , view : ViewConfig -> model -> List (H.Html msg)
+        , submit : model -> Result (List String) output
+        , subscriptions : model -> Sub msg
+        , label : String
+        }
 
 
 {-| Configuration passed into the view of each [`Field`](#Field) in your form.
@@ -2093,24 +2095,24 @@ defineFields ctor =
 {-| Add a Widget to the definition of the Fields you want to use in your forms.
 -}
 addWidget :
-    Widget widgetModel widgetMsg output
+    Widget config widgetModel widgetMsg output
     ->
         { apply :
             ({ blankModel : formModel
              , blankMsg : formMsg
              , ctor :
-                Field formModel formMsg NoId widgetMsg output -> fields
+                (config -> Field formModel formMsg NoId widgetMsg output) -> fields
              }
              -> ( formMsg -> Maybe widgetMsg, previousMsgGetters )
              -> ( Maybe widgetMsg -> formMsg -> formMsg, previousMsgSetters )
              -> ( formModel -> Maybe widgetModel, previousModelGetters )
              -> ( Maybe widgetModel -> formModel -> formModel, previousModelSetters )
-             -> ( Widget widgetModel widgetMsg output, previousWidgets )
+             -> ( Widget config widgetModel widgetMsg output, previousWidgets )
              -> accForNext
             )
             -> toFolder5
         , ctor : f
-        , widgets : ( Widget widgetModel widgetMsg output, previousWidgets ) -> toWidgets
+        , widgets : ( Widget config widgetModel widgetMsg output, previousWidgets ) -> toWidgets
         , modelBlanks : ( Maybe widgetModel, previousBlankModels ) -> toBlankModel
         , modelGetters :
             { appendToGetters : ( tuple3 -> head3, nextModelGetters ) -> toModelGetters
@@ -2268,14 +2270,14 @@ applier :
     -> (Maybe widgetMsg -> formMsg -> formMsg)
     -> (formModel -> Maybe widgetModel)
     -> (Maybe widgetModel -> formModel -> formModel)
-    -> Widget widgetModel widgetMsg output
+    -> Widget config widgetModel widgetMsg output
     ->
         { blankModel : formModel
         , blankMsg : formMsg
-        , ctor : Field formModel formMsg NoId widgetMsg output -> fields
+        , ctor : (config -> Field formModel formMsg NoId widgetMsg output) -> fields
         }
     -> { blankModel : formModel, blankMsg : formMsg, ctor : fields }
-applier msgGetter msgSetter modelGetter modelSetter widget acc =
+applier msgGetter msgSetter modelGetter modelSetter widgetFromConfig acc =
     let
         send_ msg_ =
             msgSetter (Just msg_) acc.blankMsg
@@ -2283,7 +2285,11 @@ applier msgGetter msgSetter modelGetter modelSetter widget acc =
         intercept_ =
             msgGetter
 
-        wrappedFieldType =
+        wrappedFieldType config =
+            let
+                widget =
+                    widgetFromConfig config
+            in
             wrapWithTrees
                 { init =
                     let
@@ -2306,8 +2312,8 @@ applier msgGetter msgSetter modelGetter modelSetter widget acc =
                             Nothing ->
                                 ( model, Cmd.none )
                 , view =
-                    \config model ->
-                        Maybe.map (widget.view config) (modelGetter model)
+                    \viewConfig model ->
+                        Maybe.map (widget.view viewConfig) (modelGetter model)
                             |> Maybe.withDefault []
                             |> List.map (H.map send_)
                 , submit =
@@ -2401,7 +2407,7 @@ wrapWithTrees args =
                     _ ->
                         ( model, Cmd.none )
         , view =
-            \config model ->
+            \viewConfig model ->
                 let
                     location =
                         locationFromModel model
@@ -2415,7 +2421,7 @@ wrapWithTrees args =
                                 else
                                     Nothing
                             )
-                            config.feedback
+                            viewConfig.feedback
 
                     ( model_, mapper ) =
                         case model of
@@ -2428,7 +2434,7 @@ wrapWithTrees args =
                 args.view
                     { feedback = relevantFeedback
                     , id = locationToString location
-                    , label = config.label
+                    , label = viewConfig.label
                     }
                     model_
                     |> List.map (H.map mapper)
