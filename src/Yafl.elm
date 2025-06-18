@@ -2400,7 +2400,27 @@ wrapWithTrees args =
                         (\cmd -> Cmd.map (ValueChanged (locationToLocator location)) cmd)
         , update =
             \msg model ->
-                internalUpdate args.update msg model
+                case model of
+                    Value location innerModel ->
+                        case msg of
+                            ValueChanged locator widgetMsg ->
+                                if isLocated locator location then
+                                    let
+                                        ( newModel, cmd ) =
+                                            args.update widgetMsg innerModel
+                                    in
+                                    ( Value location newModel
+                                    , Cmd.map (ValueChanged (locationToLocator location)) cmd
+                                    )
+
+                                else
+                                    ( model, Cmd.none )
+
+                            _ ->
+                                ( model, Cmd.none )
+
+                    _ ->
+                        ( model, Cmd.none )
         , view =
             \config model ->
                 let
@@ -2485,93 +2505,6 @@ wrapWithTrees args =
         , label = args.label
         , maybeId = Nothing
         }
-
-
-internalUpdate :
-    (msg -> model -> ( model, Cmd a ))
-    -> Msg msg
-    -> Node model
-    -> ( Node model, Cmd (Msg a) )
-internalUpdate update_ msg model =
-    case model of
-        Value location innerModel ->
-            case msg of
-                ValueChanged locator widgetMsg ->
-                    if isLocated locator location then
-                        let
-                            ( newModel, cmd ) =
-                                update_ widgetMsg innerModel
-                        in
-                        ( Value location newModel
-                        , Cmd.map (ValueChanged (locationToLocator location)) cmd
-                        )
-
-                    else
-                        ( model, Cmd.none )
-
-                _ ->
-                    ( model, Cmd.none )
-
-        Product typ location model1 model2 ->
-            let
-                ( newModel1, cmd1 ) =
-                    internalUpdate update_ msg model1
-
-                ( newModel2, cmd2 ) =
-                    internalUpdate update_ msg model2
-            in
-            ( Product typ location newModel1 newModel2
-            , Cmd.batch [ cmd1, cmd2 ]
-            )
-
-        Sum location selection options ->
-            let
-                fallback =
-                    let
-                        ( labels, models ) =
-                            List.unzip options
-
-                        ( newModels, cmds ) =
-                            models
-                                |> List.map (internalUpdate update_ msg)
-                                |> List.unzip
-                    in
-                    ( Sum location selection (List.Extra.zip labels newModels)
-                    , Cmd.batch cmds
-                    )
-            in
-            case msg of
-                OptionSelected locator ->
-                    case
-                        List.Extra.findMap
-                            (\( _, optionModel ) ->
-                                let
-                                    optionLocation =
-                                        locationFromModel optionModel
-                                in
-                                if isLocated locator optionLocation then
-                                    optionLocation
-                                        |> locationToPath
-                                        |> List.head
-
-                                else
-                                    Nothing
-                            )
-                            options
-                    of
-                        Just selected ->
-                            ( Sum location { selected = selected } options
-                            , Cmd.none
-                            )
-
-                        Nothing ->
-                            fallback
-
-                _ ->
-                    fallback
-
-        Empty _ _ ->
-            ( model, Cmd.none )
 
 
 runChecks :
