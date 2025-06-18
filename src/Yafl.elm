@@ -1226,14 +1226,7 @@ succeed : output -> Field formModel formMsg id widgetMsg output
 succeed output =
     Field
         { init = \path maybeId -> ( Empty Succeed (newLocation path maybeId), Cmd.none )
-        , update =
-            \msg model ->
-                case msg of
-                    OptionSelected locator ->
-                        locateSumNode locator model
-
-                    _ ->
-                        ( model, Cmd.none )
+        , update = \msg model -> ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
         , submit = \checks model -> runChecks checks model output
@@ -1279,14 +1272,7 @@ fail : String -> Field formModel formMsg id widgetMsg output
 fail e =
     Field
         { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
-        , update =
-            \msg model ->
-                case msg of
-                    OptionSelected locator ->
-                        locateSumNode locator model
-
-                    _ ->
-                        ( model, Cmd.none )
+        , update = \msg model -> ( model, Cmd.none )
         , view =
             \{ feedback } _ ->
                 case feedback of
@@ -1346,14 +1332,7 @@ failAt :
 failAt (Field failField) e =
     Field
         { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
-        , update =
-            \msg model ->
-                case msg of
-                    OptionSelected locator ->
-                        locateSumNode locator model
-
-                    _ ->
-                        ( model, Cmd.none )
+        , update = \msg model -> ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
         , submit =
@@ -2308,11 +2287,11 @@ applier msgGetter msgSetter modelGetter modelSetter widget acc =
             wrapWithTrees
                 { init =
                     let
-                        ( model, cmd ) =
+                        ( widgetModel, widgetCmd ) =
                             widget.init
                     in
-                    ( modelSetter (Just model) acc.blankModel
-                    , Cmd.map send_ cmd
+                    ( modelSetter (Just widgetModel) acc.blankModel
+                    , Cmd.map send_ widgetCmd
                     )
                 , update =
                     \msg model ->
@@ -2546,62 +2525,6 @@ runChecks checks model output =
 
         errs ->
             Err errs
-
-
-locateSumNode : Locator -> Node model -> ( Node model, Cmd msg )
-locateSumNode locator model =
-    case model of
-        Sum location selection options ->
-            case
-                List.Extra.findMap
-                    (\( _, optionModel ) ->
-                        if isLocated locator (locationFromModel optionModel) then
-                            pathFromModel optionModel
-                                |> List.head
-
-                        else
-                            Nothing
-                    )
-                    options
-            of
-                Just selected ->
-                    ( Sum location
-                        { selected = selected }
-                        options
-                    , Cmd.none
-                    )
-
-                Nothing ->
-                    let
-                        ( labels, models ) =
-                            List.unzip options
-
-                        ( newModels, cmds ) =
-                            models
-                                |> List.map (locateSumNode locator)
-                                |> List.unzip
-                    in
-                    ( Sum location selection (List.Extra.zip labels newModels)
-                    , Cmd.batch cmds
-                    )
-
-        Value _ _ ->
-            ( model, Cmd.none )
-
-        Product typ location model1 model2 ->
-            let
-                ( newModel1, cmd1 ) =
-                    locateSumNode locator model1
-
-                ( newModel2, cmd2 ) =
-                    locateSumNode locator model2
-            in
-            ( Product typ location newModel1 newModel2
-            , Cmd.batch [ cmd1, cmd2 ]
-            )
-
-        Empty _ _ ->
-            ( model, Cmd.none )
 
 
 folder5 :
