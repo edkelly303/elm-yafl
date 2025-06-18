@@ -85,12 +85,12 @@ type Foo
 
 
 foo =
-    choice
-        (fields.radio [ "Bar", "Baz" ])
-        |> Yafl.label "Foo?"
+    fields.radio [ "Bar", "Baz" ]
+        |> choice
         |> option (Yafl.map Bar name)
         |> option (Yafl.map Baz (fields.bool ()))
         |> endChoice
+        |> Yafl.label "Foo?"
 
 
 name =
