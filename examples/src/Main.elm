@@ -88,13 +88,13 @@ foo =
     fields.radio [ "Bar", "Baz" ]
         |> choice
         |> option (Yafl.map Bar name)
-        |> option (Yafl.map Baz (fields.bool ))
+        |> option (Yafl.map Baz fields.bool)
         |> endChoice
         |> Yafl.label "Foo?"
 
 
 name =
-    fields.string 
+    fields.string
         |> Yafl.label "What is their name?"
         |> Yafl.validate
             (\s ->
@@ -107,13 +107,13 @@ name =
 
 
 isCool =
-    fields.bool 
+    fields.bool
         |> Yafl.label "Are they cool?"
         |> Yafl.id "isCool"
 
 
 hasCat =
-    fields.bool 
+    fields.bool
         |> Yafl.label "Do they have a cat?"
         |> Yafl.id "hasCat"
 
