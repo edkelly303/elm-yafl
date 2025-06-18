@@ -25,8 +25,8 @@ type alias User =
     }
 
 
-boolWidget : Yafl.Widget Bool Bool Bool
-boolWidget =
+boolWidget : Yafl.Widget () Bool Bool Bool
+boolWidget () =
     { init = ( False, Cmd.none )
     , update =
         \msg _ ->
@@ -54,8 +54,8 @@ boolWidget =
 -}
 
 
-stringWidget : Yafl.Widget String String String
-stringWidget =
+stringWidget : Yafl.Widget () String String String
+stringWidget () =
     { init = ( "", Cmd.none )
     , update = \msg _ -> ( msg, Cmd.none )
     , view =
@@ -95,8 +95,8 @@ viewFeedback feedback =
 
 
 fields :
-    { string : Yafl.Field FormModel FormMsg Yafl.NoId String String
-    , bool : Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool
+    { string : () -> Yafl.Field FormModel FormMsg Yafl.NoId String String
+    , bool : () -> Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool
     }
 fields =
     Yafl.defineFields
@@ -116,7 +116,7 @@ type alias FormMsg =
 
 nonEmptyString : Yafl.Field FormModel FormMsg Yafl.NoId String String
 nonEmptyString =
-    fields.string
+    fields.string ()
         |> Yafl.andThen
             (\string ->
                 if String.isEmpty string then
@@ -141,7 +141,7 @@ lastName =
 
 isAdmin : Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool
 isAdmin =
-    fields.bool
+    fields.bool ()
         |> Yafl.label "Is the user an admin?"
 
 

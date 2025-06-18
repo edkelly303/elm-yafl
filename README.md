@@ -80,7 +80,7 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Yafl
 
-stringWidget =
+stringWidget () =
     { init = ( "", Cmd.none )
     , update = \msg model -> ( msg, Cmd.none )
     , view =
@@ -100,7 +100,7 @@ stringWidget =
     , label = "String"
     }
 
-boolWidget =
+boolWidget () =
     { init = ( False, Cmd.none )
     , update =
         \msg model ->
@@ -124,8 +124,8 @@ boolWidget =
 
 
 -- DOC TESTS
-stringWidget --: Yafl.Widget String String String
-boolWidget --: Yafl.Widget Bool Bool Bool
+stringWidget --: Yafl.Widget () String String String
+boolWidget --: Yafl.Widget () Bool Bool Bool
 ```
 
 ### Step 2: Convert `Widget`s into `Field`s
@@ -140,7 +140,7 @@ import Yafl
 
 fields = 
     Yafl.defineFields
-        (\string bool -> {string = string, bool = bool})
+        (\string bool -> { string = string, bool = bool })
         |> Yafl.addWidget stringWidget
         |> Yafl.addWidget boolWidget
         |> Yafl.endFields
@@ -156,7 +156,7 @@ type alias FormMsg =
 
 
 -- DOC TESTS
-fields --: { string : Yafl.Field FormModel FormMsg Yafl.NoId String String, bool : Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool }
+fields --: { string : () -> Yafl.Field FormModel FormMsg Yafl.NoId String String, bool : () -> Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool }
 ```
 
 Now whenever we need a `String` field, we can use `fields.string`, and if we
@@ -171,7 +171,7 @@ import Examples exposing (..)
 import Yafl
 
 nonEmptyString =
-    fields.string
+    fields.string ()
         |> Yafl.andThen 
             (\string -> 
                 if String.isEmpty string then 
@@ -189,7 +189,7 @@ lastName =
         |> Yafl.label "What is the user's last name?"
 
 isAdmin =
-    fields.bool
+    fields.bool ()
         |> Yafl.label "Is the user an admin?"
 
 
