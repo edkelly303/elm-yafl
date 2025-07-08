@@ -1232,7 +1232,7 @@ succeed : output -> Field formModel formMsg id widgetMsg output
 succeed output =
     Field
         { init = \path maybeId -> ( Empty Succeed (newLocation path maybeId), Cmd.none )
-        , update = \msg model -> ( model, Cmd.none )
+        , update = \_ model -> ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
         , submit = \checks model -> runChecks checks model output
@@ -1278,7 +1278,7 @@ fail : String -> Field formModel formMsg id widgetMsg output
 fail e =
     Field
         { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
-        , update = \msg model -> ( model, Cmd.none )
+        , update = \_ model -> ( model, Cmd.none )
         , view =
             \{ feedback } _ ->
                 case feedback of
@@ -1338,7 +1338,7 @@ failAt :
 failAt (Field failField) e =
     Field
         { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
-        , update = \msg model -> ( model, Cmd.none )
+        , update = \_ model -> ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
         , submit =
@@ -2182,6 +2182,11 @@ addWidget widget builder =
     }
 
 
+{-| Add a configurable Widget to the definition of the Fields you want to use in
+your forms. Each time you use a Field derived from this Widget in your form, you
+will be able to pass in a `config` value.
+
+-}
 addWidgetWithConfig :
     Widget config widgetModel widgetMsg output
     ->
