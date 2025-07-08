@@ -1906,39 +1906,39 @@ option :
     -> Field formModel formMsg id widgetMsg output
     -> Field formModel formMsg id2 Never output
     -> Field formModel formMsg id2 Never output
-option radioLabel (Field field) (Field choice_) =
+option thisOptionLabel (Field thisOptionField) (Field previousOptionFields) =
     Field
         { init =
             \path _ ->
-                case choice_.init path choice_.maybeId of
-                    ( Sum location selection options, choiceCmd ) ->
+                case previousOptionFields.init path previousOptionFields.maybeId of
+                    ( Sum location selection previousOptions, previousOptionsCmd ) ->
                         let
-                            ( fieldModel, fieldCmd ) =
-                                field.init (List.length options :: path) field.maybeId
+                            ( thisOptionModel, thisOptionCmd ) =
+                                thisOptionField.init (List.length previousOptions :: path) thisOptionField.maybeId
                         in
-                        ( Sum location selection (( radioLabel, fieldModel ) :: options)
-                        , Cmd.batch [ choiceCmd, fieldCmd ]
+                        ( Sum location selection (( thisOptionLabel, thisOptionModel ) :: previousOptions)
+                        , Cmd.batch [ previousOptionsCmd, thisOptionCmd ]
                         )
 
                     _ ->
-                        field.init path field.maybeId
+                        thisOptionField.init path thisOptionField.maybeId
         , update =
             \msg model ->
                 case model of
-                    Sum location selection ((( fieldLabel, fieldModel ) :: choiceLabelsAndModels) as options) ->
+                    Sum location selection ((( _, thisOptionModel ) :: previousOptionLabelsAndModels) as options) ->
                         let
                             fallback =
                                 let
-                                    ( newFieldModel, fieldCmd ) =
-                                        field.update msg fieldModel
+                                    ( newThisOptionModel, thisOptionCmd ) =
+                                        thisOptionField.update msg thisOptionModel
 
-                                    ( newChoiceModels, choiceCmd ) =
-                                        choice_.update msg (Sum location selection choiceLabelsAndModels)
+                                    ( newPreviousOptionModels, previousOptionsCmd ) =
+                                        previousOptionFields.update msg (Sum location selection previousOptionLabelsAndModels)
                                 in
-                                case newChoiceModels of
-                                    Sum _ _ options2 ->
-                                        ( Sum location selection (( fieldLabel, newFieldModel ) :: options2)
-                                        , Cmd.batch [ choiceCmd, fieldCmd ]
+                                case newPreviousOptionModels of
+                                    Sum _ _ newPreviousOptionLabelsAndModels ->
+                                        ( Sum location selection (( thisOptionLabel, newThisOptionModel ) :: newPreviousOptionLabelsAndModels)
+                                        , Cmd.batch [ previousOptionsCmd, thisOptionCmd ]
                                         )
 
                                     _ ->
@@ -1988,12 +1988,12 @@ option radioLabel (Field field) (Field choice_) =
                         in
                         H.fieldset [ HA.id (locationToString location) ] (H.legend [] [ H.text config.label ] :: List.indexedMap radio labels)
                             :: (if meta.selected == List.length choiceModels then
-                                    field.view { config | label = field.label, id = locationFromModel fieldModel |> locationToString } fieldModel
+                                    thisOptionField.view { config | label = thisOptionField.label, id = locationFromModel fieldModel |> locationToString } fieldModel
 
                                 else
-                                    choice_.view
+                                    previousOptionFields.view
                                         { config
-                                            | label = choice_.label
+                                            | label = previousOptionFields.label
                                             , id = "WHAT GOES HERE?" -- CHECK THIS?!!!
                                         }
                                         (Sum location meta choiceModels)
@@ -2007,8 +2007,8 @@ option radioLabel (Field field) (Field choice_) =
                 case model of
                     Sum location meta (( _, fieldModel ) :: options) ->
                         Sub.batch
-                            [ choice_.subscriptions (Sum location meta options)
-                            , field.subscriptions fieldModel
+                            [ previousOptionFields.subscriptions (Sum location meta options)
+                            , thisOptionField.subscriptions fieldModel
                             ]
 
                     _ ->
@@ -2018,10 +2018,10 @@ option radioLabel (Field field) (Field choice_) =
                 case model of
                     Sum location meta (( _, fieldModel ) :: options) ->
                         if meta.selected == List.length options then
-                            field.submit field.checks fieldModel
+                            thisOptionField.submit thisOptionField.checks fieldModel
 
                         else
-                            choice_.submit choice_.checks (Sum location meta options)
+                            previousOptionFields.submit previousOptionFields.checks (Sum location meta options)
 
                     _ ->
                         let
@@ -2037,7 +2037,7 @@ option radioLabel (Field field) (Field choice_) =
         , checks = []
         , send = \_ msg -> never msg
         , intercept = \_ _ -> Nothing
-        , label = choice_.label
+        , label = previousOptionFields.label
         , maybeId = Nothing
         }
 
@@ -2185,7 +2185,6 @@ addWidget widget builder =
 {-| Add a configurable Widget to the definition of the Fields you want to use in
 your forms. Each time you use a Field derived from this Widget in your form, you
 will be able to pass in a `config` value.
-
 -}
 addWidgetWithConfig :
     Widget config widgetModel widgetMsg output
