@@ -1969,7 +1969,7 @@ option thisOptionLabel (Field thisOptionField) (Field previousOptionFields) =
         , view =
             \config model ->
                 case model of
-                    Sum location meta (( fieldLabel, fieldModel ) :: choiceModels) ->
+                    Sum location meta (( _, thisOptionModel ) :: previousOptionLabelsAndModels) ->
                         let
                             radio idx lbl =
                                 H.label [ HA.class "yafl-radio-option" ]
@@ -1983,32 +1983,45 @@ option thisOptionLabel (Field thisOptionField) (Field previousOptionFields) =
                                     , H.text lbl
                                     ]
 
+                            previousLabels =
+                                List.map Tuple.first previousOptionLabelsAndModels
+
                             labels =
-                                List.map Tuple.first (List.reverse choiceModels) ++ [ fieldLabel ]
-                        in
-                        H.fieldset [ HA.id (locationToString location) ] (H.legend [] [ H.text config.label ] :: List.indexedMap radio labels)
-                            :: (if meta.selected == List.length choiceModels then
-                                    thisOptionField.view { config | label = thisOptionField.label, id = locationFromModel fieldModel |> locationToString } fieldModel
+                                List.reverse (thisOptionLabel :: previousLabels)
+
+                            viewOptionSelector =
+                                H.fieldset [ HA.id (locationToString location) ]
+                                    (H.legend [] [ H.text config.label ] :: List.indexedMap radio labels)
+
+                            viewSelectedOption =
+                                if meta.selected == List.length previousOptionLabelsAndModels then
+                                    thisOptionField.view
+                                        { config
+                                            | label = thisOptionField.label
+                                            , id = thisOptionModel |> locationFromModel |> locationToString
+                                        }
+                                        thisOptionModel
 
                                 else
                                     previousOptionFields.view
                                         { config
                                             | label = previousOptionFields.label
-                                            , id = "WHAT GOES HERE?" -- CHECK THIS?!!!
+                                            , id = "never used"
                                         }
-                                        (Sum location meta choiceModels)
+                                        (Sum location meta previousOptionLabelsAndModels)
                                         |> List.drop 1
-                               )
+                        in
+                        viewOptionSelector :: viewSelectedOption
 
                     _ ->
                         [ H.text "Fatal error in `option` view function" ]
         , subscriptions =
             \model ->
                 case model of
-                    Sum location meta (( _, fieldModel ) :: options) ->
+                    Sum location meta (( _, thisOptionModel ) :: previousOptionLabelsAndModels) ->
                         Sub.batch
-                            [ previousOptionFields.subscriptions (Sum location meta options)
-                            , thisOptionField.subscriptions fieldModel
+                            [ previousOptionFields.subscriptions (Sum location meta previousOptionLabelsAndModels)
+                            , thisOptionField.subscriptions thisOptionModel
                             ]
 
                     _ ->
@@ -2016,12 +2029,12 @@ option thisOptionLabel (Field thisOptionField) (Field previousOptionFields) =
         , submit =
             \_ model ->
                 case model of
-                    Sum location meta (( _, fieldModel ) :: options) ->
-                        if meta.selected == List.length options then
-                            thisOptionField.submit thisOptionField.checks fieldModel
+                    Sum location meta (( _, thisOptionModel ) :: previousOptionLabelsAndModels) ->
+                        if meta.selected == List.length previousOptionLabelsAndModels then
+                            thisOptionField.submit thisOptionField.checks thisOptionModel
 
                         else
-                            previousOptionFields.submit previousOptionFields.checks (Sum location meta options)
+                            previousOptionFields.submit previousOptionFields.checks (Sum location meta previousOptionLabelsAndModels)
 
                     _ ->
                         let
@@ -3020,7 +3033,7 @@ studio debugToString field =
                     [ H.h1 [] [ H.text "Your form" ]
                     , H.form []
                         (view field model
-                            |> List.map (\item -> H.div [] [ item ])
+                         --|> List.map (\item -> H.div [] [ item ])
                         )
                     , H.h2 [] [ H.text "Output" ]
                     , case submit field model of
