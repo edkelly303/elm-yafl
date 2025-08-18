@@ -742,13 +742,13 @@ type alias FormMsg__Readme_1 =
 
 nonEmptyString__Readme_2 =
     Examples.fields.string
-        |> Yafl.andThen
+        |> Yafl.validate
             (\string ->
                 if String.isEmpty string then
-                    Yafl.fail "This field must not be blank"
+                    Maybe.Just "This field must not be blank"
 
                 else
-                    Yafl.succeed string
+                    Maybe.Nothing
             )
 
 

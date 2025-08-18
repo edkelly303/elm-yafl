@@ -780,7 +780,6 @@ you only want to display an error on one field.
                         Nothing
                     else
                         Just "Passwords do not match"
-
                 )
 
     form

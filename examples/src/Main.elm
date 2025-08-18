@@ -92,11 +92,13 @@ foo2 =
         |> endChoice
         |> Yafl.label "Foo?"
 
-foo = 
-    Yafl.choice 
+
+foo =
+    Yafl.choice
         |> Yafl.option "Bar" (Yafl.map Bar name)
         |> Yafl.option "Baz" (Yafl.map Baz fields.bool)
         |> Yafl.label "Foo?"
+
 
 name =
     fields.string

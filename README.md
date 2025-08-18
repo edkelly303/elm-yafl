@@ -172,12 +172,12 @@ import Yafl
 
 nonEmptyString =
     fields.string
-        |> Yafl.andThen 
+        |> Yafl.validate
             (\string -> 
                 if String.isEmpty string then 
-                    Yafl.fail "This field must not be blank"
+                    Just "This field must not be blank"
                 else    
-                    Yafl.succeed string
+                    Nothing
             )
 
 firstName =
