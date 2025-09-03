@@ -1279,22 +1279,19 @@ fail e =
         { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
         , update = \_ model -> ( model, Cmd.none )
         , view =
-            \{ feedback } _ ->
-                case feedback of
+            \{ feedback } model ->
+                case List.filter (\f -> isLocated f.locator (locationFromModel model)) feedback of
                     [] ->
                         []
 
-                    _ ->
-                        [ H.ul
-                            [ HA.style "list-style-type" "none"
-                            , HA.style "margin" "0px"
-                            , HA.style "padding" "0px"
-                            ]
+                    filtered ->
+                        [ H.ul []
                             (List.map
-                                (\f -> H.li [] [ H.small [] [ H.text ("⚠️ " ++ f.message) ] ])
-                                feedback
+                                (\f -> H.li [] [ H.text f.message ])
+                                filtered
                             )
                         ]
+                            |> Debug.log "We really need to give the user a way to define how they want errors to be rendered"
         , subscriptions = \_ -> Sub.none
         , submit =
             \_ model ->
@@ -1338,7 +1335,20 @@ failAt (Field failField) e =
     Field
         { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
         , update = \_ model -> ( model, Cmd.none )
-        , view = \_ _ -> []
+        , view = 
+            \{ feedback } model ->
+                case List.filter (\f -> isLocated f.locator (locationFromModel model)) feedback of
+                    [] ->
+                        []
+
+                    filtered ->
+                        [ H.ul []
+                            (List.map
+                                (\f -> H.li [] [ H.text f.message ])
+                                filtered
+                            )
+                        ]
+                            |> Debug.log "We really need to give the user a way to define how they want errors to be rendered"
         , subscriptions = \_ -> Sub.none
         , submit =
             \_ model ->
