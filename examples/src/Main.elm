@@ -4,79 +4,66 @@ import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
 import Yafl
+import Yafl.Loader
 
 
 main =
+    let
+        _ =
+            example
+    in
     Yafl.studio Debug.toString form
 
 
 fields =
     Yafl.defineFields
-        (\s b r -> { string = s, bool = b, radio = r })
+        (\s -> { string = s })
         |> Yafl.addWidget stringWidget
-        |> Yafl.addWidget boolWidget
-        |> Yafl.addWidgetWithConfig radioWidget
+        -- |> Yafl.addWidget boolWidget
+        -- |> Yafl.addWidgetWithConfig radioWidget
         |> Yafl.endFields
+
+
+intL : Yafl.Loader.Loader Int ( Maybe String, () )
+intL =
+    Yafl.Loader.makeLoader (\i -> ( Just <| String.fromInt i, () ))
+
+
+stringL : Yafl.Loader.Loader String ( Maybe String, () )
+stringL =
+    Yafl.Loader.makeLoader (\str -> ( Just str, () ))
 
 
 type alias Person =
     { name : String
-    , isCool : Foo
+
+    -- , isCool : Foo
     }
 
 
 form =
     Yafl.succeed Person
         |> Yafl.andMap name
-        |> Yafl.andMap foo
 
 
-type Choice output
-    = Choice { chosen : Int, index : Int, maybeOutput : Maybe output }
+
+-- |> Yafl.andMap foo
 
 
-choice :
-    Yafl.Field formModel formMsg id widgetMsg Int
-    -> Yafl.Field formModel formMsg id widgetMsg (Choice output)
-choice field =
-    Yafl.map (\chosen -> Choice { chosen = chosen, index = -1, maybeOutput = Nothing }) field
+loader =
+    Yafl.Loader.succeed
+        |> Yafl.Loader.andMap .name stringL
 
 
-option :
-    Yafl.Field formModel formMsg id widgetMsg output
-    -> Yafl.Field formModel formMsg id2 widgetMsg2 (Choice output)
-    -> Yafl.Field formModel formMsg id2 widgetMsg2 (Choice output)
-option field choiceField =
-    choiceField
-        |> Yafl.andThen
-            (\(Choice c) ->
-                let
-                    thisIndex =
-                        c.index + 1
-                in
-                if c.chosen == thisIndex && c.maybeOutput == Nothing then
-                    field
-                        |> Yafl.map (\output -> Choice { c | maybeOutput = Just output, index = thisIndex })
-
-                else
-                    Yafl.succeed (Choice { c | index = thisIndex })
-            )
-
-
-endChoice :
-    Yafl.Field formModel formMsg id widgetMsg (Choice output)
-    -> Yafl.Field formModel formMsg id widgetMsg output
-endChoice choiceField =
-    choiceField
-        |> Yafl.andThen
-            (\(Choice c) ->
-                case c.maybeOutput of
-                    Just output ->
-                        Yafl.succeed output
-
-                    Nothing ->
-                        Yafl.fail "No valid option selected"
-            )
+example =
+    let
+        model =
+            Yafl.init form
+                |> Tuple.first
+                |> Debug.log "model1"
+    in
+    Yafl.Loader.load loader { name = Just "ed" } model
+        |> Debug.log "model2"
 
 
 type Foo
@@ -84,20 +71,12 @@ type Foo
     | Baz Bool
 
 
-foo2 =
-    fields.radio [ "Bar", "Baz" ]
-        |> choice
-        |> option (Yafl.map Bar name)
-        |> option (Yafl.map Baz fields.bool)
-        |> endChoice
-        |> Yafl.label "Foo?"
 
-
-foo =
-    Yafl.choice
-        |> Yafl.option "Bar" (Yafl.map Bar name)
-        |> Yafl.option "Baz" (Yafl.map Baz fields.bool)
-        |> Yafl.label "Foo?"
+-- foo =
+--     Yafl.choice
+--         |> Yafl.option "Bar" (Yafl.map Bar name)
+--         |> Yafl.option "Baz" (Yafl.map Baz fields.bool)
+--         |> Yafl.label "Foo?"
 
 
 name =
@@ -111,18 +90,6 @@ name =
                 else
                     Nothing
             )
-
-
-isCool =
-    fields.bool
-        |> Yafl.label "Are they cool?"
-        |> Yafl.id "isCool"
-
-
-hasCat =
-    fields.bool
-        |> Yafl.label "Do they have a cat?"
-        |> Yafl.id "hasCat"
 
 
 boolWidget : Yafl.Widget () Bool Bool Bool
