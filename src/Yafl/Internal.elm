@@ -59,10 +59,11 @@ type alias Path =
 
 {-| Forms are composed of `Field`s - this is the main data type we'll be using in this package.
 -}
-type Field formModel formMsg id widgetMsg output
+type Field formModel formMsg id widgetMsg input output
     = Field
         { init :
             Path -> MaybeId -> ( Node formModel, Cmd (Msg formMsg) )
+        , load : input -> Node formModel -> Node formModel
         , update :
             Msg formMsg
             -> Node formModel
