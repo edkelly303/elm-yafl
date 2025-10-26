@@ -1,5 +1,6 @@
 module Main exposing (main)
 
+import Browser
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
@@ -8,62 +9,46 @@ import Yafl.Loader
 
 
 main =
-    let
-        _ =
-            example
-    in
-    Yafl.studio Debug.toString form
+    Browser.element
+        { init =
+            \flags ->
+                let
+                    x : ()
+                    x =
+                        flags
+                in
+                Yafl.init form
+                    |> Tuple.mapFirst
+                        (Yafl.load form
+                            { name = Just "Ed"
+                            , foo = Just { bar = Nothing, baz = Nothing} 
+                            }
+                        )
+        , update = \msg model -> Yafl.update form msg model
+        , view = \model -> H.form [] (Yafl.view form model)
+        , subscriptions = \model -> Yafl.subscriptions form model
+        }
 
 
 fields =
     Yafl.defineFields
-        (\s -> { string = s })
+        (\s b r -> { string = s, bool = b, radio = r })
         |> Yafl.addWidget stringWidget
-        -- |> Yafl.addWidget boolWidget
-        -- |> Yafl.addWidgetWithConfig radioWidget
+        |> Yafl.addWidget boolWidget
+        |> Yafl.addWidgetWithConfig radioWidget
         |> Yafl.endFields
-
-
-intL : Yafl.Loader.Loader Int ( Maybe String, () )
-intL =
-    Yafl.Loader.makeLoader (\i -> ( Just <| String.fromInt i, () ))
-
-
-stringL : Yafl.Loader.Loader String ( Maybe String, () )
-stringL =
-    Yafl.Loader.makeLoader (\str -> ( Just str, () ))
 
 
 type alias Person =
     { name : String
-
-    -- , isCool : Foo
+    , isCool : Foo
     }
 
 
 form =
     Yafl.succeed Person
-        |> Yafl.andMap name
-
-
-
--- |> Yafl.andMap foo
-
-
-loader =
-    Yafl.Loader.succeed
-        |> Yafl.Loader.andMap .name stringL
-
-
-example =
-    let
-        model =
-            Yafl.init form
-                |> Tuple.first
-                |> Debug.log "model1"
-    in
-    Yafl.Loader.load loader { name = Just "ed" } model
-        |> Debug.log "model2"
+        |> Yafl.andMap .name name
+        |> Yafl.andMap .foo foo
 
 
 type Foo
@@ -71,12 +56,11 @@ type Foo
     | Baz Bool
 
 
-
--- foo =
---     Yafl.choice
---         |> Yafl.option "Bar" (Yafl.map Bar name)
---         |> Yafl.option "Baz" (Yafl.map Baz fields.bool)
---         |> Yafl.label "Foo?"
+foo =
+    Yafl.choice
+        |> Yafl.option "Bar" .bar (Yafl.map Bar name)
+        |> Yafl.option "Baz" .baz (Yafl.map Baz fields.bool)
+        |> Yafl.label "Foo?"
 
 
 name =

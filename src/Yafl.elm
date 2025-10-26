@@ -1,7 +1,7 @@
 module Yafl exposing
     ( Widget
     , Field, defineFields, addWidget, addWidgetWithConfig, endFields
-    , Model, Msg, init, update, view, ViewConfig, Feedback, subscriptions, submit
+    , Model, Msg, init, load, update, view, ViewConfig, Feedback, subscriptions, submit
     , succeed, fail, failAt
     , map, andThen
     , map2, andMap
@@ -32,7 +32,7 @@ composing self-contained [`Widget`](#Widget)s.
 
 ### [Turning Fields into forms](#turning-fields-into-forms)
 
-[`Model`](#Model), [`Msg`](#Msg), [`init`](#init), [`update`](#update), [`view`](#view), [`ViewConfig`](#ViewConfig), [`Feedback`](#Feedback), [`subscriptions`](#subscriptions), [`submit`](#submit)
+[`Model`](#Model), [`Msg`](#Msg), [`init`](#init), [`load`](#load), [`update`](#update), [`view`](#view), [`ViewConfig`](#ViewConfig), [`Feedback`](#Feedback), [`subscriptions`](#subscriptions), [`submit`](#submit)
 
 
 ### [Combining Fields](#combining-fields)
@@ -224,7 +224,7 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 
     --> Ok False
 
-@docs Model, Msg, init, update, view, ViewConfig, Feedback, subscriptions, submit
+@docs Model, Msg, init, load, update, view, ViewConfig, Feedback, subscriptions, submit
 
 
 # Combining Fields
@@ -417,6 +417,69 @@ init : Field formModel formMsg id widgetMsg input output -> ( Model formModel ou
 init (Field field) =
     field.init [ 0 ] field.maybeId
         |> Tuple.mapFirst Model
+
+
+
+{-
+   db       .d88b.   .d8b.  d8888b.
+   88      .8P  Y8. d8' `8b 88  `8D
+   88      88    88 88ooo88 88   88
+   88      88    88 88~~~88 88   88
+   88booo. `8b  d8' 88   88 88  .8D
+   Y88888P  `Y88P'  YP   YP Y8888D'
+
+-}
+
+
+{-| Load data into your form
+-}
+load :
+    Field formModel formMsg id widgetMsg input output
+    -> input
+    -> Model formModel output
+    -> Model formModel output
+load (Field field) input (Model node) =
+    let
+        loaderNode =
+            field.load (Just input)
+    in
+    patch loaderNode node
+        |> Result.map Model
+        |> Result.withDefault (Model node)
+
+
+patch : LoaderNode formModel -> Node formModel -> Result () (Node formModel)
+patch loaderNode node =
+    case ( loaderNode, node ) of
+        ( LValue p, Value loc _ ) ->
+            case p of
+                Just n_ ->
+                    Ok <| Value loc n_
+
+                Nothing ->
+                    Ok <| node
+
+        ( LProduct p1 p2, Product loc typ n1 n2 ) ->
+            Result.map2 (Product loc typ) (patch p1 n1) (patch p2 n2)
+
+        ( LSum ps, Sum sel loc ns ) ->
+            Result.map (Sum sel loc)
+                (List.foldl
+                    (\( p, ( lbl, n ) ) res ->
+                        Result.map2
+                            (\acc n_ -> ( lbl, n_ ) :: acc)
+                            res
+                            (patch p n)
+                    )
+                    (Ok [])
+                    (List.Extra.zip ps ns)
+                )
+
+        ( LEmpty, Empty loc typ ) ->
+            Ok <| Empty loc typ
+
+        _ ->
+            Err ()
 
 
 
@@ -1139,6 +1202,7 @@ succeed : output -> Field formModel formMsg id widgetMsg input output
 succeed output =
     Field
         { init = \path maybeId -> ( Empty Succeed (newLocation path maybeId), Cmd.none )
+        , load = \_ -> LEmpty
         , update = \_ model -> ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
@@ -1185,6 +1249,7 @@ fail : String -> Field formModel formMsg id widgetMsg input output
 fail e =
     Field
         { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
+        , load = \_ -> LEmpty
         , update = \_ model -> ( model, Cmd.none )
         , view =
             \{ feedback } model ->
@@ -1242,6 +1307,7 @@ failAt :
 failAt (Field failField) e =
     Field
         { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
+        , load = \_ -> LEmpty
         , update = \_ model -> ( model, Cmd.none )
         , view =
             \{ feedback } model ->
@@ -1326,6 +1392,7 @@ map :
 map f (Field field) =
     Field
         { init = field.init
+        , load = field.load
         , update = field.update
         , view = field.view
         , subscriptions = field.subscriptions
@@ -1382,11 +1449,13 @@ If you need to combine the outputs of more than two fields, check out
 
 -}
 map2 :
-    (output1 -> output2 -> output3)
+    { input : input3 -> ( Maybe input1, Maybe input2 )
+    , output : output1 -> output2 -> output3
+    }
     -> Field formModel formMsg address1 widgetMsg1 input1 output1
     -> Field formModel formMsg address2 widgetMsg2 input2 output2
     -> Field formModel formMsg NoId Never input3 output3
-map2 f (Field field1) (Field field2) =
+map2 mappers (Field field1) (Field field2) =
     Field
         { init =
             \path maybeId ->
@@ -1403,6 +1472,16 @@ map2 f (Field field1) (Field field2) =
                     , cmd2
                     ]
                 )
+        , load =
+            \input ->
+                case Maybe.map mappers.input input of
+                    Just ( input1, input2 ) ->
+                        LProduct
+                            (input1 |> field1.load)
+                            (input2 |> field2.load)
+
+                    Nothing ->
+                        LEmpty
         , update =
             \msg model ->
                 case model of
@@ -1450,7 +1529,7 @@ map2 f (Field field1) (Field field2) =
                             )
                         of
                             ( Ok output1, Ok output2 ) ->
-                                f output1 output2
+                                mappers.output output1 output2
                                     |> runChecks checks model
 
                             ( Err errs, Ok _ ) ->
@@ -1513,13 +1592,23 @@ Use in combination with [`succeed`](#succeed).
 
 -}
 andMap :
-    Field formModel formMsg address1 widgetMsg1 input1 output1
+    (input2 -> Maybe input1)
+    -> Field formModel formMsg address1 widgetMsg1 input1 output1
     -> Field formModel formMsg address2 widgetMsg2 input2 (output1 -> output2)
     -> Field formModel formMsg NoId Never input2 output2
-andMap (Field field1) (Field field2) =
+andMap getInput (Field field1) (Field field2) =
     let
         (Field mapped) =
-            map2 (\x f -> f x) (Field field1) (Field field2)
+            map2
+                { input =
+                    \input ->
+                        ( getInput input
+                        , Just input
+                        )
+                , output = \x f -> f x
+                }
+                (Field field1)
+                (Field field2)
     in
     Field
         { mapped
@@ -1645,6 +1734,7 @@ andThen f (Field field) =
                 ( Product AndThen location model1 model2
                 , Cmd.batch [ cmd1, cmd2 ]
                 )
+        , load = \_ -> Debug.todo "andThen load"
         , update =
             \msg model ->
                 case model of
@@ -1763,6 +1853,7 @@ choice : Field formModel formMsg NoId Never input output
 choice =
     Field
         { init = \path maybeId -> ( Sum (newLocation path maybeId) { selected = 0 } [], Cmd.none )
+        , load = \_ -> LSum []
         , update = \_ model -> ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
@@ -1820,10 +1911,11 @@ will be rendered underneath the fieldset containing the radio buttons.
 -}
 option :
     String
-    -> Field formModel formMsg id widgetMsg input output
+    -> (input -> Maybe thisOptionInput)
+    -> Field formModel formMsg id widgetMsg thisOptionInput output
     -> Field formModel formMsg id2 Never input output
     -> Field formModel formMsg id2 Never input output
-option thisOptionLabel (Field thisOptionField) (Field previousOptionFields) =
+option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFields) =
     Field
         { init =
             \path _ ->
@@ -1839,6 +1931,20 @@ option thisOptionLabel (Field thisOptionField) (Field previousOptionFields) =
 
                     _ ->
                         thisOptionField.init path thisOptionField.maybeId
+        , load =
+            \input ->
+                case previousOptionFields.load input of
+                    LSum nodes ->
+                        LSum
+                            ((input
+                                |> Maybe.andThen getInput
+                                |> thisOptionField.load
+                             )
+                                :: nodes
+                            )
+
+                    _ ->
+                        LEmpty
         , update =
             \msg model ->
                 case model of
@@ -2035,7 +2141,7 @@ addWidget :
             ({ blankModel : formModel
              , blankMsg : formMsg
              , ctor :
-                Field formModel formMsg NoId widgetMsg input output -> fields
+                Field formModel formMsg NoId widgetMsg widgetModel output -> fields
              }
              -> ( formMsg -> Maybe widgetMsg, previousMsgGetters )
              -> ( Maybe widgetMsg -> formMsg -> formMsg, previousMsgSetters )
@@ -2123,7 +2229,7 @@ addWidgetWithConfig :
             ({ blankModel : formModel
              , blankMsg : formMsg
              , ctor :
-                (config -> Field formModel formMsg NoId widgetMsg input output) -> fields
+                (config -> Field formModel formMsg NoId widgetMsg widgetModel output) -> fields
              }
              -> ( formMsg -> Maybe widgetMsg, previousMsgGetters )
              -> ( Maybe widgetMsg -> formMsg -> formMsg, previousMsgSetters )
@@ -2296,7 +2402,7 @@ applierWithConfig :
     ->
         { blankModel : formModel
         , blankMsg : formMsg
-        , ctor : (config -> Field formModel formMsg NoId widgetMsg input output) -> fields
+        , ctor : (config -> Field formModel formMsg NoId widgetMsg widgetModel output) -> fields
         }
     -> { blankModel : formModel, blankMsg : formMsg, ctor : fields }
 applierWithConfig msgGetter msgSetter modelGetter modelSetter widgetFromConfig acc =
@@ -2321,7 +2427,7 @@ applierWithConfig msgGetter msgSetter modelGetter modelSetter widgetFromConfig a
                     ( modelSetter (Just widgetModel) acc.blankModel
                     , Cmd.map send_ widgetCmd
                     )
-                , load = \input model -> modelSetter input model
+                , load = \input -> modelSetter (Just input) acc.blankModel
                 , update =
                     \msg model ->
                         case
@@ -2391,7 +2497,7 @@ applierWithoutConfig :
     ->
         { blankModel : formModel
         , blankMsg : formMsg
-        , ctor : Field formModel formMsg NoId widgetMsg input output -> fields
+        , ctor : Field formModel formMsg NoId widgetMsg widgetModel output -> fields
         }
     -> { blankModel : formModel, blankMsg : formMsg, ctor : fields }
 applierWithoutConfig msgGetter msgSetter modelGetter modelSetter widget acc =
@@ -2412,7 +2518,7 @@ applierWithoutConfig msgGetter msgSetter modelGetter modelSetter widget acc =
                     ( modelSetter (Just widgetModel) acc.blankModel
                     , Cmd.map send_ widgetCmd
                     )
-                , load = \input model -> modelSetter input model
+                , load = \input -> modelSetter (Just input) acc.blankModel
                 , update =
                     \msg model ->
                         case
@@ -2475,7 +2581,7 @@ applierWithoutConfig msgGetter msgSetter modelGetter modelSetter widget acc =
 
 convertToField :
     { init : ( formModel, Cmd formMsg )
-    , load : input -> formModel -> formModel
+    , load : input -> formModel
     , update : formMsg -> formModel -> ( formModel, Cmd formMsg )
     , blankModel : formModel
     , view : ViewConfig -> formModel -> List (H.Html formMsg)
@@ -2499,13 +2605,8 @@ convertToField args =
                         (\model -> Value location model)
                         (\cmd -> Cmd.map (ValueChanged (locationToLocator location)) cmd)
         , load =
-            \input model ->
-                case model of
-                    Value location innerModel ->
-                        args.load input innerModel |> Value location
-
-                    _ ->
-                        model
+            \input ->
+                LValue (Maybe.map args.load input)
         , update =
             \msg model ->
                 case model of

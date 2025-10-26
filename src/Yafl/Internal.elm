@@ -63,7 +63,7 @@ type Field formModel formMsg id widgetMsg input output
     = Field
         { init :
             Path -> MaybeId -> ( Node formModel, Cmd (Msg formMsg) )
-        , load : input -> Node formModel -> Node formModel
+        , load : Maybe input -> LoaderNode formModel
         , update :
             Msg formMsg
             -> Node formModel
