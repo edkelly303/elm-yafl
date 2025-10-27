@@ -1467,8 +1467,6 @@ andMap getInput (Field field1) (Field field2) =
    YP   YP VP   V8P Y8888D'    YP    YP   YP Y88888P VP   V8P `8888Y' ~Y8888P' Y8888P' YP  YP  YP Y888888P    YP
 
 
-
-
 -}
 
 
