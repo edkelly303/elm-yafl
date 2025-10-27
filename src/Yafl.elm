@@ -8,8 +8,7 @@ module Yafl exposing
     , choice, option
     , label
     , validate, validateAt
-    , HasId, NoId, id, intercept, send, select
-    , updateField, andUpdateField, selectField, andSelectField
+    , HasId, NoId, id, intercept, send
     , studio, toDOT
     )
 
@@ -52,12 +51,7 @@ composing self-contained [`Widget`](#Widget)s.
 
 ### [Communicating between Fields](#communicating-between-fields)
 
-[`HasId`](#HasId), [`NoId`](#NoId), [`id`](#id), [`intercept`](#intercept), [`send`](#send), [`select`](#select)
-
-
-### [Updating Fields synchronously](#updating-fields-synchronously)
-
-[`updateField`](#updateField), [`andUpdateField`](#andUpdateField), [`selectField`](#selectField), [`andSelectField`](#andSelectField)
+[`HasId`](#HasId), [`NoId`](#NoId), [`id`](#id), [`intercept`](#intercept), [`send`](#send)
 
 
 ### [Debugging](#debugging)
@@ -310,14 +304,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 [_Back to top_](#table-of-contents)
 
-@docs HasId, NoId, id, intercept, send, select
-
-
-# Updating Fields synchronously
-
-[_Back to top_](#table-of-contents)
-
-@docs updateField, andUpdateField, selectField, andSelectField
+@docs HasId, NoId, id, intercept, send
 
 
 # Debugging
@@ -532,6 +519,25 @@ init (Field field) =
 
 
 {-| Load data into your form
+
+    import Yafl
+    import Examples exposing (FormModel, FormMsg, fields)
+
+    form = 
+        fields.bool
+
+    init = 
+        Yafl.init form
+
+    model = 
+        Tuple.first init
+
+    loadedModel = 
+        Yafl.load form True model
+
+    -- DOC TESTS
+    init --: ( Yafl.Model FormModel Bool, Cmd (Yafl.Msg FormMsg) )
+
 -}
 load :
     Field formModel formMsg id widgetMsg input output
@@ -572,9 +578,8 @@ patch loaderNode node =
                             (patch p n)
                     )
                     (Ok [])
-                    (List.Extra.zip (ps) (ns))
+                    (List.Extra.zip ps ns)
                 )
-                
 
         ( LEmpty, Empty loc typ ) ->
             Ok <| Empty loc typ
@@ -845,7 +850,7 @@ you only want to display an error on one field.
         Yafl.succeed
             (\password confirm -> { password = password, confirm = confirm })
             |> Yafl.andMap .passwordField passwordField
-            |> Yafl.andMap .confirmedField confirmField
+            |> Yafl.andMap .confirmField confirmField
             |> Yafl.validateAt confirmField
                 (\{password, confirm} ->
                     if password == confirm then
@@ -856,9 +861,11 @@ you only want to display an error on one field.
 
     form
         |> Yafl.init
-        |> Yafl.andUpdateField form passwordField "password123"
-        |> Yafl.andUpdateField form confirmField "password124"
         |> Tuple.first
+        |> Yafl.load form 
+            { passwordField = Just "password123"
+            , confirmField = Just "password124" 
+            }
         |> Yafl.submit form
 
     --> Err [ ( "confirm", "Passwords do not match" ) ]
@@ -936,39 +943,6 @@ id sendId_ (Field field) =
 
 
 -}
-
-
-{-| Create a `Cmd` that will select a specific [`option`](#option) in a
-[`choice`](#choice) Field.
-
-    import Yafl
-    import Examples exposing (FormModel, FormMsg, fields)
-
-    holyGrail =
-        fields.string
-            |> Yafl.id "any-string-as-long-as-it's-unique"
-
-    myChoiceField =
-        Yafl.choice
-            |> Yafl.option "Cup of a carpenter" .holyGrail holyGrail
-            |> Yafl.option "Fancy chalice" .fancyChalice (Yafl.fail "You chose... poorly")
-
-    Yafl.select holyGrail
-
-    --: Cmd (Yafl.Msg FormMsg)
-
--}
-select : Field formModel formMsg HasId widgetMsg input output -> Cmd (Msg msg)
-select (Field field) =
-    case field.maybeId of
-        Just id_ ->
-            Task.perform identity (Task.succeed (OptionSelected (ById id_)))
-
-        Nothing ->
-            Cmd.none
-
-
-
 {-
    .d8888. d88888b d8b   db d8888b.
    88'  YP 88'     888o  88 88  `8D
@@ -1031,252 +1005,6 @@ send (Field field) msg =
 intercept : Field formModel formMsg HasId widgetMsg input output -> Msg formMsg -> Maybe widgetMsg
 intercept (Field field) =
     field.intercept field.maybeId
-
-
-
-{-
-   db    db d8888b. d8888b.  .d8b.  d888888b d88888b d88888b d888888b d88888b db      d8888b.
-   88    88 88  `8D 88  `8D d8' `8b `~~88~~' 88'     88'       `88'   88'     88      88  `8D
-   88    88 88oodD' 88   88 88ooo88    88    88ooooo 88ooo      88    88ooooo 88      88   88
-   88    88 88~~~   88   88 88~~~88    88    88~~~~~ 88~~~      88    88~~~~~ 88      88   88
-   88b  d88 88      88  .8D 88   88    88    88.     88        .88.   88.     88booo. 88  .8D
-   ~Y8888P' 88      Y8888D' YP   YP    YP    Y88888P YP      Y888888P Y88888P Y88888P Y8888D'
-
-
--}
-
-
-{-| Update an individual Field within your form's `Model` by supplying a message for that Field.
-
-    import Yafl
-    import Examples exposing (FormModel, FormMsg, fields)
-
-    type Foo
-        = Foo String String
-
-    fooField =
-        Yafl.map2
-            { input = always (Nothing, Nothing)
-            , output = Foo
-            }
-            firstField
-            secondField
-
-    firstField =
-        fields.string
-            |> Yafl.id "a-unique-string"
-
-    secondField =
-        fields.string
-            |> Yafl.id "another-unique-string"
-
-    model =
-        fooField
-            |> Yafl.init
-            |> Tuple.first
-
-    Yafl.submit fooField model
-
-    --> Ok (Foo "" "")
-
-    updatedModel =
-        model
-            |> Yafl.updateField fooField firstField "Hello!"
-            |> Tuple.first
-
-    Yafl.submit fooField updatedModel
-
-    --> Ok (Foo "Hello!" "")
-
--}
-updateField :
-    Field formModel formMsg id anyMsg formInput formOutput
-    -> Field formModel formMsg HasId widgetMsg widgetInput widgetOutput
-    -> widgetMsg
-    -> Model formModel formOutput
-    -> ( Model formModel formOutput, Cmd (Msg formMsg) )
-updateField (Field form) (Field field) widgetMsg (Model model) =
-    form.update (field.send field.maybeId widgetMsg) model
-        |> Tuple.mapFirst Model
-
-
-
-{-
-    .d8b.  d8b   db d8888b. db    db d8888b. d8888b.  .d8b.  d888888b d88888b d88888b d888888b d88888b db      d8888b.
-   d8' `8b 888o  88 88  `8D 88    88 88  `8D 88  `8D d8' `8b `~~88~~' 88'     88'       `88'   88'     88      88  `8D
-   88ooo88 88V8o 88 88   88 88    88 88oodD' 88   88 88ooo88    88    88ooooo 88ooo      88    88ooooo 88      88   88
-   88~~~88 88 V8o88 88   88 88    88 88~~~   88   88 88~~~88    88    88~~~~~ 88~~~      88    88~~~~~ 88      88   88
-   88   88 88  V888 88  .8D 88b  d88 88      88  .8D 88   88    88    88.     88        .88.   88.     88booo. 88  .8D
-   YP   YP VP   V8P Y8888D' ~Y8888P' 88      Y8888D' YP   YP    YP    Y88888P YP      Y888888P Y88888P Y88888P Y8888D'
-
-
--}
-
-
-{-| Like `updateField`, but works on `( model, cmd )` tuples. Useful if you're chaining multiple updates.
-
-    import Yafl
-    import Examples exposing (FormModel, FormMsg, fields)
-
-    type Foo
-        = Foo String String
-
-    fooField =
-        Yafl.map2
-            { input = always (Nothing, Nothing)
-            , output = Foo
-            }
-            firstField
-            secondField
-
-    firstField =
-        fields.string
-            |> Yafl.id "a-unique-string"
-
-    secondField =
-        fields.string
-            |> Yafl.id "another-unique-string"
-
-    updatedModel =
-        fooField
-            |> Yafl.init
-            |> Yafl.andUpdateField fooField firstField "Hello"
-            |> Yafl.andUpdateField fooField secondField "World"
-            |> Tuple.first
-
-    Yafl.submit fooField updatedModel
-
-    --> Ok (Foo "Hello" "World")
-
--}
-andUpdateField :
-    Field formModel formMsg id anyMsg formInput formOutput
-    -> Field formModel formMsg HasId widgetMsg widgetInput widgetOutput
-    -> widgetMsg
-    -> ( Model formModel formOutput, Cmd (Msg formMsg) )
-    -> ( Model formModel formOutput, Cmd (Msg formMsg) )
-andUpdateField form field widgetMsg ( model, cmd1 ) =
-    updateField form field widgetMsg model
-        |> Tuple.mapSecond (\cmd2 -> Cmd.batch [ cmd1, cmd2 ])
-
-
-
-{-
-   .d8888. d88888b db      d88888b  .o88b. d888888b d88888b d888888b d88888b db      d8888b.
-   88'  YP 88'     88      88'     d8P  Y8 `~~88~~' 88'       `88'   88'     88      88  `8D
-   `8bo.   88ooooo 88      88ooooo 8P         88    88ooo      88    88ooooo 88      88   88
-     `Y8b. 88~~~~~ 88      88~~~~~ 8b         88    88~~~      88    88~~~~~ 88      88   88
-   db   8D 88.     88booo. 88.     Y8b  d8    88    88        .88.   88.     88booo. 88  .8D
-   `8888Y' Y88888P Y88888P Y88888P  `Y88P'    YP    YP      Y888888P Y88888P Y88888P Y8888D'
-
-
--}
-
-
-{-| Select a specific `option` Field within your form's `Model`.
-
-    import Yafl
-    import Examples exposing (FormModel, FormMsg, fields)
-
-    myFieldWithId =
-        Yafl.succeed "Hurrah!"
-            |> Yafl.id "any-string-as-long-as-it's-unique"
-
-    myChoiceField =
-        Yafl.choice
-            |> Yafl.option "Don't pick me!" .no (Yafl.fail "Oh no, you failed!")
-            |> Yafl.option "I'm the one!" .yes myFieldWithId
-
-    model =
-        myChoiceField
-            |> Yafl.init
-            |> Tuple.first
-
-    model
-        |> Yafl.submit myChoiceField
-
-    --> Err [ ( "0.0", "Oh no, you failed!" ) ]
-
-    model
-        |> Yafl.selectField myChoiceField myFieldWithId
-        |> Tuple.first
-        |> Yafl.submit myChoiceField
-
-    --> Ok "Hurrah!"
-
--}
-selectField :
-    Field formModel formMsg id anyMsg formInput formOutput
-    -> Field formModel formMsg HasId widgetMsg widgetInput widgetOutput
-    -> Model formModel formOutput
-    -> ( Model formModel formOutput, Cmd (Msg formMsg) )
-selectField (Field form) (Field field) (Model model) =
-    case field.maybeId of
-        Just id_ ->
-            let
-                msg =
-                    OptionSelected (ById id_)
-            in
-            form.update msg model
-                |> Tuple.mapFirst Model
-
-        Nothing ->
-            ( Model model, Cmd.none )
-
-
-
-{-
-    .d8b.  d8b   db d8888b. .d8888. d88888b db      d88888b  .o88b. d888888b d88888b d888888b d88888b db      d8888b.
-   d8' `8b 888o  88 88  `8D 88'  YP 88'     88      88'     d8P  Y8 `~~88~~' 88'       `88'   88'     88      88  `8D
-   88ooo88 88V8o 88 88   88 `8bo.   88ooooo 88      88ooooo 8P         88    88ooo      88    88ooooo 88      88   88
-   88~~~88 88 V8o88 88   88   `Y8b. 88~~~~~ 88      88~~~~~ 8b         88    88~~~      88    88~~~~~ 88      88   88
-   88   88 88  V888 88  .8D db   8D 88.     88booo. 88.     Y8b  d8    88    88        .88.   88.     88booo. 88  .8D
-   YP   YP VP   V8P Y8888D' `8888Y' Y88888P Y88888P Y88888P  `Y88P'    YP    YP      Y888888P Y88888P Y88888P Y8888D'
-
-
--}
-
-
-{-| Like `selectField`, but works on `( model, cmd )` tuples. Useful if you're chaining multiple updates.
-
-    import Yafl
-    import Examples exposing (FormModel, FormMsg, fields)
-
-    myFieldWithId =
-        Yafl.succeed "Hurrah!"
-            |> Yafl.id "any-string-as-long-as-it's-unique"
-
-    myChoiceField =
-        Yafl.choice
-            |> Yafl.option  "Don't pick me!" (always Nothing) (Yafl.fail "Oh no, you failed!")
-            |> Yafl.option  "I'm the one!" (always Nothing) myFieldWithId
-
-    modelAndCmd =
-        myChoiceField
-            |> Yafl.init
-
-    modelAndCmd
-        |> Tuple.first
-        |> Yafl.submit myChoiceField
-
-    --> Err [ ("0.0", "Oh no, you failed!" ) ]
-
-    modelAndCmd
-        |> Yafl.andSelectField myChoiceField myFieldWithId
-        |> Tuple.first
-        |> Yafl.submit myChoiceField
-
-    --> Ok "Hurrah!"
-
--}
-andSelectField :
-    Field formModel formMsg id anyMsg formInput formOutput
-    -> Field formModel formMsg HasId widgetMsg widgetInput widgetOutput
-    -> ( Model formModel formOutput, Cmd (Msg formMsg) )
-    -> ( Model formModel formOutput, Cmd (Msg formMsg) )
-andSelectField form field ( model, cmd1 ) =
-    selectField form field model
-        |> Tuple.mapSecond (\cmd2 -> Cmd.batch [ cmd1, cmd2 ])
 
 
 

@@ -11,7 +11,7 @@ tests =
     Test.describe
         "andThen"
         [ Test.test
-            "Can use andUpdateField with an andThen-ed field that is within an andMap-ed field and has another andMap-ed field after it"
+            "Can use `load` with an andThen-ed field that is within an andMap-ed field and has another andMap-ed field after it"
             (\() ->
                 let
                     form =
@@ -26,13 +26,13 @@ tests =
                 in
                 form
                     |> Yafl.init
-                    |> Yafl.andUpdateField form field "1"
                     |> Tuple.first
+                    |> Yafl.load form { x = Just "1", y = Nothing }
                     |> Yafl.submit form
                     |> Expect.equal (Ok ( "1", () ))
             )
         , Test.test
-            "Can use andUpdateField with an andThen-ed field that is within an andMap-ed field"
+            "Can use `load` with an andThen-ed field that is within an andMap-ed field"
             (\() ->
                 let
                     form =
@@ -46,13 +46,13 @@ tests =
                 in
                 form
                     |> Yafl.init
-                    |> Yafl.andUpdateField form field "1"
                     |> Tuple.first
+                    |> Yafl.load form { x = Just "1" }
                     |> Yafl.submit form
                     |> Expect.equal (Ok "1")
             )
         , Test.test
-            "Can use andUpdateField with an andThen-ed field that is within an andMap-ed field and has another andMap-ed field before it"
+            "Can use `load` with an andThen-ed field that is within an andMap-ed field and has another andMap-ed field before it"
             (\() ->
                 let
                     form =
@@ -67,13 +67,13 @@ tests =
                 in
                 form
                     |> Yafl.init
-                    |> Yafl.andUpdateField form field "1"
                     |> Tuple.first
+                    |> Yafl.load form { x = Nothing, y = Just "1" }
                     |> Yafl.submit form
                     |> Expect.equal (Ok ( (), "1" ))
             )
         , Test.test
-            "Can use andUpdateField with an andThen-ed field that is within an andMap-ed field and has another andMap-ed field before and after it"
+            "Can use `load` with an andThen-ed field that is within an andMap-ed field and has another andMap-ed field before and after it"
             (\() ->
                 let
                     form =
@@ -89,13 +89,13 @@ tests =
                 in
                 form
                     |> Yafl.init
-                    |> Yafl.andUpdateField form field "1"
                     |> Tuple.first
+                    |> Yafl.load form { x = Just "1", y = Nothing, z = Nothing }
                     |> Yafl.submit form
                     |> Expect.equal (Ok ( (), "1", () ))
             )
         , Test.test
-            "Can use andUpdateField with an andThen-ed field that is within another andThen-ed field"
+            "Can use `load` with an andThen-ed field that is within another andThen-ed field"
             (\() ->
                 let
                     form =
@@ -109,13 +109,13 @@ tests =
                 in
                 form
                     |> Yafl.init
-                    |> Yafl.andUpdateField form field "1"
                     |> Tuple.first
+                    |> Yafl.load form { x = Just "1" }
                     |> Yafl.submit form
                     |> Expect.equal (Ok "1")
             )
         , Test.test
-            "Can use andSelectField with a choice field that is within an andThen-ed field"
+            "Can use `load` with a choice field that is within an andThen-ed field"
             (\() ->
                 let
                     form =
@@ -147,9 +147,11 @@ tests =
                 in
                 form
                     |> Yafl.init
-                    |> Yafl.andUpdateField form str "a"
-                    |> Yafl.andSelectField form no
                     |> Tuple.first
+                    |> Yafl.load form
+                        { options = Nothing
+                        , selected = Just 1
+                        }
                     |> Yafl.submit form
                     |> Expect.equal (Ok False)
             )
