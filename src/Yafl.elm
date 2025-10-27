@@ -562,8 +562,8 @@ patch loaderNode node =
         ( LProduct p1 p2, Product loc typ n1 n2 ) ->
             Result.map2 (Product loc typ) (patch p1 n1) (patch p2 n2)
 
-        ( LSum ps, Sum sel loc ns ) ->
-            Result.map (Sum sel loc)
+        ( LSum pSel ps, Sum loc sel ns ) ->
+            Result.map (Sum loc { selected = pSel.selected |> Maybe.withDefault sel.selected })
                 (List.foldr
                     (\( p, ( lbl, n ) ) res ->
                         Result.map2
@@ -572,8 +572,9 @@ patch loaderNode node =
                             (patch p n)
                     )
                     (Ok [])
-                    (List.Extra.zip (d "patches" ps) (d "nodes" ns))
-                ) |> d "output"
+                    (List.Extra.zip (ps) (ns))
+                )
+                
 
         ( LEmpty, Empty loc typ ) ->
             Ok <| Empty loc typ
@@ -1961,11 +1962,19 @@ andThen f (Field field) =
 
 {-| Begin defining a `choice` between multiple [`option`](#option)s.
 -}
-choice : Field formModel formMsg NoId Never input output
+
+
+
+-- choice : Field formModel formMsg NoId Never input output
+
+
+choice : Field model formMsg id Never { selected : Maybe Int, options : Maybe options } value
 choice =
     Field
         { init = \path maybeId -> ( Sum (newLocation path maybeId) { selected = 0 } [], Cmd.none )
-        , load = \_ -> LSum []
+        , load =
+            \input ->
+                LSum { selected = input |> Maybe.andThen .selected } []
         , update = \_ model -> ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
@@ -2023,10 +2032,10 @@ will be rendered underneath the fieldset containing the radio buttons.
 -}
 option :
     String
-    -> (input -> Maybe thisOptionInput)
-    -> Field formModel formMsg id widgetMsg thisOptionInput output
-    -> Field formModel formMsg id2 Never input output
-    -> Field formModel formMsg id2 Never input output
+    -> (options -> Maybe input)
+    -> Field formModel formMsg id widgetMsg input value
+    -> Field formModel formMsg id2 widgetMsg2 { selected : Maybe Int, options : Maybe options } value
+    -> Field formModel formMsg id2 Never { selected : Maybe Int, options : Maybe options } value
 option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFields) =
     Field
         { init =
@@ -2046,9 +2055,10 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
         , load =
             \input ->
                 case previousOptionFields.load input of
-                    LSum nodes ->
-                        LSum
+                    LSum selected nodes ->
+                        LSum selected
                             ((input
+                                |> Maybe.andThen .options
                                 |> Maybe.andThen getInput
                                 |> thisOptionField.load
                              )
