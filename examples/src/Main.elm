@@ -5,7 +5,6 @@ import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
 import Yafl
-import Yafl.Loader
 
 
 main =
@@ -21,7 +20,15 @@ main =
                     |> Tuple.mapFirst
                         (Yafl.load form
                             { name = Just "Ed"
-                            , foo = Just { bar = Just "Kelly", baz = Just True} 
+                            , foo =
+                                Just
+                                    { selected = Just 1
+                                    , options =
+                                        Just
+                                            { bar = Nothing
+                                            , baz = Just False
+                                            }
+                                    }
                             }
                         )
         , update = \msg model -> Yafl.update form msg model
@@ -46,9 +53,10 @@ type alias Person =
 
 
 form =
-    Yafl.succeed Person
+    Yafl.succeed Tuple.pair
         |> Yafl.andMap .name name
         |> Yafl.andMap .foo foo
+        |> Yafl.map (\( a, b ) -> Person a b)
 
 
 type Foo

@@ -16,8 +16,8 @@ tests =
                 let
                     form =
                         Yafl.succeed (\x y -> ( x, y ))
-                            |> Yafl.andMap field
-                            |> Yafl.andMap (Yafl.succeed ())
+                            |> Yafl.andMap .x field
+                            |> Yafl.andMap .y (Yafl.succeed ())
 
                     field =
                         Examples.fields.string
@@ -37,7 +37,7 @@ tests =
                 let
                     form =
                         Yafl.succeed (\x -> x)
-                            |> Yafl.andMap field
+                            |> Yafl.andMap .x field
 
                     field =
                         Examples.fields.string
@@ -57,8 +57,8 @@ tests =
                 let
                     form =
                         Yafl.succeed (\x y -> ( x, y ))
-                            |> Yafl.andMap (Yafl.succeed ())
-                            |> Yafl.andMap field
+                            |> Yafl.andMap .x (Yafl.succeed ())
+                            |> Yafl.andMap .y field
 
                     field =
                         Examples.fields.string
@@ -78,9 +78,9 @@ tests =
                 let
                     form =
                         Yafl.succeed (\x y z -> ( x, y, z ))
-                            |> Yafl.andMap (Yafl.succeed ())
-                            |> Yafl.andMap field
-                            |> Yafl.andMap (Yafl.succeed ())
+                            |> Yafl.andMap .x (Yafl.succeed ())
+                            |> Yafl.andMap .y field
+                            |> Yafl.andMap .z (Yafl.succeed ())
 
                     field =
                         Examples.fields.string
@@ -142,8 +142,8 @@ tests =
 
                     field =
                         Yafl.choice
-                            |> Yafl.option "yes" yes
-                            |> Yafl.option "no" no
+                            |> Yafl.option "yes" .yes yes
+                            |> Yafl.option "no" .no no
                 in
                 form
                     |> Yafl.init

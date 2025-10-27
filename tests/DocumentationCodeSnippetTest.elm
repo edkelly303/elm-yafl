@@ -52,9 +52,9 @@ tests =
                         let
                             unused :
                                 { string :
-                                    Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
+                                    Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                                 , bool :
-                                    Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId Basics.Bool Basics.Bool
+                                    Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId Basics.Bool Basics.Bool Basics.Bool
                                 }
                             unused =
                                 Examples.fields
@@ -68,7 +68,7 @@ tests =
                     "0"
                     (\() ->
                         let
-                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
+                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                             unused =
                                 Examples.nonEmptyString
                         in
@@ -78,7 +78,7 @@ tests =
                     "1"
                     (\() ->
                         let
-                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
+                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                             unused =
                                 Examples.firstName
                         in
@@ -88,7 +88,7 @@ tests =
                     "2"
                     (\() ->
                         let
-                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
+                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                             unused =
                                 Examples.lastName
                         in
@@ -98,7 +98,7 @@ tests =
                     "3"
                     (\() ->
                         let
-                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId Basics.Bool Basics.Bool
+                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId Basics.Bool Basics.Bool Basics.Bool
                             unused =
                                 Examples.isAdmin
                         in
@@ -111,7 +111,18 @@ tests =
                     "0"
                     (\() ->
                         let
-                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId Basics.Never Examples.User
+                            unused :
+                                Yafl.Field
+                                    Examples.FormModel
+                                    Examples.FormMsg
+                                    Yafl.NoId
+                                    Basics.Never
+                                    { firstName :
+                                        Maybe.Maybe String.String
+                                    , lastName : Maybe.Maybe String.String
+                                    , isAdmin : Maybe.Maybe Basics.Bool
+                                    }
+                                    Examples.User
                             unused =
                                 Examples.user
                         in
@@ -252,7 +263,7 @@ tests =
                         "0"
                         (\() ->
                             let
-                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                                 unused =
                                     Examples.fields.string
                                         |> Yafl.label
@@ -280,7 +291,7 @@ tests =
                         "1"
                         (\() ->
                             let
-                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String Basics.Float
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String Basics.Float
                                 unused =
                                     Examples.fields.string
                                         |> Yafl.label
@@ -302,7 +313,7 @@ tests =
                         "2"
                         (\() ->
                             let
-                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                                 unused =
                                     Examples.fields.string
                                         |> Yafl.label
@@ -369,7 +380,7 @@ tests =
                         "0"
                         (\() ->
                             let
-                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                                 unused =
                                     myField__Yafl__id_0
                             in
@@ -379,7 +390,7 @@ tests =
                         "1"
                         (\() ->
                             let
-                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.HasId String.String String.String
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.HasId String.String String.String String.String
                                 unused =
                                     myFieldWithId__Yafl__id_0
                             in
@@ -440,7 +451,7 @@ tests =
                         "0"
                         (\() ->
                             let
-                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                                 unused =
                                     nameField__Yafl__label_0
                             in
@@ -766,9 +777,9 @@ isAdmin__Readme_2 =
 
 user__Readme_3 =
     Yafl.succeed Examples.User
-        |> Yafl.andMap Examples.firstName
-        |> Yafl.andMap Examples.lastName
-        |> Yafl.andMap Examples.isAdmin
+        |> Yafl.andMap .firstName Examples.firstName
+        |> Yafl.andMap .lastName Examples.lastName
+        |> Yafl.andMap .isAdmin Examples.isAdmin
 
 
 main__Readme_4 =
@@ -799,8 +810,8 @@ type MyCustomType__Yafl__Header_1
 
 myCustomTypeField__Yafl__Header_1 =
     Yafl.choice
-        |> Yafl.option "Foo" fooField__Yafl__Header_1
-        |> Yafl.option "Bar" barField__Yafl__Header_1
+        |> Yafl.option "Foo" .foo fooField__Yafl__Header_1
+        |> Yafl.option "Bar" .bar barField__Yafl__Header_1
 
 
 fooField__Yafl__Header_1 =
@@ -817,9 +828,15 @@ model__Yafl__Header_1 =
 
 form__Yafl__andMap_0 =
     Yafl.succeed (\a b c -> { firstName = a, middleName = b, lastName = c })
-        |> Yafl.andMap (Examples.fields.string |> Yafl.label "First name")
-        |> Yafl.andMap (Examples.fields.string |> Yafl.label "Middle name")
-        |> Yafl.andMap (Examples.fields.string |> Yafl.label "Last name")
+        |> Yafl.andMap
+            .firstName
+            (Examples.fields.string |> Yafl.label "First name")
+        |> Yafl.andMap
+            .middleName
+            (Examples.fields.string |> Yafl.label "Middle name")
+        |> Yafl.andMap
+            .lastName
+            (Examples.fields.string |> Yafl.label "Last name")
 
 
 model__Yafl__andMap_0 =
@@ -832,8 +849,14 @@ myFieldWithId__Yafl__andSelectField_0 =
 
 myChoiceField__Yafl__andSelectField_0 =
     Yafl.choice
-        |> Yafl.option "Don't pick me!" (Yafl.fail "Oh no, you failed!")
-        |> Yafl.option "I'm the one!" myFieldWithId__Yafl__andSelectField_0
+        |> Yafl.option
+            "Don't pick me!"
+            (Basics.always Maybe.Nothing)
+            (Yafl.fail "Oh no, you failed!")
+        |> Yafl.option
+            "I'm the one!"
+            (Basics.always Maybe.Nothing)
+            myFieldWithId__Yafl__andSelectField_0
 
 
 modelAndCmd__Yafl__andSelectField_0 =
@@ -846,7 +869,9 @@ type Foo__Yafl__andUpdateField_0
 
 fooField__Yafl__andUpdateField_0 =
     Yafl.map2
-        Foo__Yafl__andUpdateField_0
+        { input = Basics.always ( Maybe.Nothing, Maybe.Nothing )
+        , output = Foo__Yafl__andUpdateField_0
+        }
         firstField__Yafl__andUpdateField_0
         secondField__Yafl__andUpdateField_0
 
@@ -906,7 +931,12 @@ fooField__Yafl__map_0 =
 
 
 form__Yafl__map2_0 =
-    Yafl.map2 (\a b -> ( a, b )) Examples.fields.string Examples.fields.string
+    Yafl.map2
+        { input = \input -> ( Maybe.Nothing, Maybe.Nothing )
+        , output = \a b -> ( a, b )
+        }
+        Examples.fields.string
+        Examples.fields.string
 
 
 model__Yafl__map2_0 =
@@ -919,8 +949,11 @@ holyGrail__Yafl__select_0 =
 
 myChoiceField__Yafl__select_0 =
     Yafl.choice
-        |> Yafl.option "Cup of a carpenter" holyGrail__Yafl__select_0
-        |> Yafl.option "Fancy chalice" (Yafl.fail "You chose... poorly")
+        |> Yafl.option "Cup of a carpenter" .holyGrail holyGrail__Yafl__select_0
+        |> Yafl.option
+            "Fancy chalice"
+            .fancyChalice
+            (Yafl.fail "You chose... poorly")
 
 
 myFieldWithId__Yafl__selectField_0 =
@@ -929,8 +962,8 @@ myFieldWithId__Yafl__selectField_0 =
 
 myChoiceField__Yafl__selectField_0 =
     Yafl.choice
-        |> Yafl.option "Don't pick me!" (Yafl.fail "Oh no, you failed!")
-        |> Yafl.option "I'm the one!" myFieldWithId__Yafl__selectField_0
+        |> Yafl.option "Don't pick me!" .no (Yafl.fail "Oh no, you failed!")
+        |> Yafl.option "I'm the one!" .yes myFieldWithId__Yafl__selectField_0
 
 
 model__Yafl__selectField_0 =
@@ -971,7 +1004,9 @@ type Foo__Yafl__updateField_0
 
 fooField__Yafl__updateField_0 =
     Yafl.map2
-        Foo__Yafl__updateField_0
+        { input = Basics.always ( Maybe.Nothing, Maybe.Nothing )
+        , output = Foo__Yafl__updateField_0
+        }
         firstField__Yafl__updateField_0
         secondField__Yafl__updateField_0
 
@@ -1023,8 +1058,8 @@ confirmField__Yafl__validateAt_0 =
 form__Yafl__validateAt_0 =
     Yafl.succeed
         (\password confirm -> { password = password, confirm = confirm })
-        |> Yafl.andMap passwordField__Yafl__validateAt_0
-        |> Yafl.andMap confirmField__Yafl__validateAt_0
+        |> Yafl.andMap .passwordField passwordField__Yafl__validateAt_0
+        |> Yafl.andMap .confirmedField confirmField__Yafl__validateAt_0
         |> Yafl.validateAt
             confirmField__Yafl__validateAt_0
             (\{ password, confirm } ->

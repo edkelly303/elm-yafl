@@ -269,8 +269,8 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
     myCustomTypeField =
         Yafl.choice
-            |> Yafl.option "Foo" fooField
-            |> Yafl.option "Bar" barField
+            |> Yafl.option "Foo" .foo fooField
+            |> Yafl.option "Bar" .bar barField
 
     fooField =
         fields.string
@@ -337,56 +337,156 @@ import List.Extra
 import NestedTuple as NT
 import Regex
 import Task
-import Yafl.Internal
-    exposing
-        ( EmptyType(..)
-        , Field(..)
-        , InnerWidget
-        , InternalFeedback
-        , Loader(..)
-        , LoaderNode(..)
-        , Location(..)
-        , Locator(..)
-        , MaybeId
-        , Model(..)
-        , Msg(..)
-        , Node(..)
-        , Path
-        , ProductType(..)
-        , ViewConfig
-        )
 
 
+{-| Internal type, we probably don't need to expose this...
+-}
+type Locator
+    = ByPath Path
+    | ById String
+
+
+type Location
+    = Located Path
+    | Identified Path String
+
+
+type alias MaybeId =
+    Maybe String
+
+
+{-| The top-level model type for your form.
+-}
+type Model formModel output
+    = Model (Node formModel)
+
+
+type Node formModel
+    = Value Location formModel
+    | Product ProductType Location (Node formModel) (Node formModel)
+    | Sum Location { selected : Int } (List ( String, Node formModel ))
+    | Empty EmptyType Location
+
+
+type ProductType
+    = Map2
+    | AndThen
+
+
+type EmptyType
+    = Succeed
+    | Fail
+    | NoValue
+
+
+{-| The top-level message type for your form.
+-}
+type Msg formMsg
+    = ValueChanged Locator formMsg
+    | OptionSelected Locator
+    | Noop
+
+
+{-| An internal data type used to track the location of a [`Field`](#Field) within the form.
+-}
+type alias Path =
+    List Int
+
+
+{-| Forms are composed of `Field`s - this is the main data type we'll be using in this package.
+-}
+type Field formModel formMsg id widgetMsg input output
+    = Field
+        { init :
+            Path -> MaybeId -> ( Node formModel, Cmd (Msg formMsg) )
+        , load : Maybe input -> LoaderNode formModel
+        , update :
+            Msg formMsg
+            -> Node formModel
+            -> ( Node formModel, Cmd (Msg formMsg) )
+        , view :
+            InternalViewConfig
+            -> Node formModel
+            -> List (H.Html (Msg formMsg))
+        , submit :
+            List ( MaybeId, output -> Maybe String )
+            -> Node formModel
+            -> Result (List InternalFeedback) output
+        , checks : List ( MaybeId, output -> Maybe String )
+        , subscriptions :
+            Node formModel
+            -> Sub (Msg formMsg)
+        , send : MaybeId -> widgetMsg -> Msg formMsg
+        , intercept : MaybeId -> Msg formMsg -> Maybe widgetMsg
+        , label : String
+        , maybeId : MaybeId
+        }
+
+
+{-| Indicates that a [`Field`](#Field) has been given an `id`, and can therefore be
+used with [`intercept`](#intercept), [`send`](#send), etc. See the docs for [`id`](#id).
+-}
+type HasId
+    = HasId Never
+
+
+{-| Indicates that a [`Field`](#Field) has not been given an `id`. See the docs for
+[`id`](#id).
+-}
+type NoId
+    = NoId Never
+
+
+{-| The `Widget` type is very similar to the record type that you would supply
+to [`Browser.element`](http://package.elm-lang.org/packages/elm/browser/latest/Browser#element) to create
+an Elm [`Program`](http://package.elm-lang.org/packages/elm/core/latest/Platform#Program).
+-}
 type alias Widget config model msg output =
-    Yafl.Internal.Widget config model msg output
+    config
+    -> InnerWidget model msg output
 
 
-type alias Field formModel formMsg id widgetMsg input output =
-    Yafl.Internal.Field formModel formMsg id widgetMsg input output
+type alias InnerWidget model msg output =
+    { init : ( model, Cmd msg )
+    , update : msg -> model -> ( model, Cmd msg )
+    , view : ViewConfig -> model -> List (H.Html msg)
+    , submit : model -> Result (List String) output
+    , subscriptions : model -> Sub msg
+    , label : String
+    }
 
 
-type alias Model formModel output =
-    Yafl.Internal.Model formModel output
-
-
-type alias Msg formMsg =
-    Yafl.Internal.Msg formMsg
-
-
-type alias HasId =
-    Yafl.Internal.HasId
-
-
-type alias NoId =
-    Yafl.Internal.NoId
-
-
+{-| Configuration passed into the view of each [`Field`](#Field) in your form.
+-}
 type alias ViewConfig =
-    Yafl.Internal.ViewConfig
+    { label : String
+    , id : String
+    , feedback : List Feedback
+    }
 
 
+{-| Feedback produced when the [`submit`](#submit) function on a [`Field`](#Field) returns errors.
+-}
 type alias Feedback =
-    Yafl.Internal.Feedback
+    String
+
+
+type alias InternalViewConfig =
+    { label : String
+    , id : String
+    , feedback : List InternalFeedback
+    }
+
+
+type alias InternalFeedback =
+    { message : String, fail : Bool, locator : Locator }
+
+
+type LoaderNode model
+    = LValue (Maybe model)
+    | LProduct (LoaderNode model) (LoaderNode model)
+    | LSum { selected : Maybe Int } (List (LoaderNode model))
+    | LEmpty
 
 
 
@@ -480,10 +580,6 @@ patch loaderNode node =
 
         _ ->
             Err ()
-
-
-d =
-    Debug.log
 
 
 
@@ -662,7 +758,7 @@ submit (Field field) (Model model) =
 
     nameField
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String String
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
 
 -}
 label : String -> Field formModel formMsg id widgetMsg input output -> Field formModel formMsg id widgetMsg input output
@@ -747,8 +843,8 @@ you only want to display an error on one field.
     form =
         Yafl.succeed
             (\password confirm -> { password = password, confirm = confirm })
-            |> Yafl.andMap passwordField
-            |> Yafl.andMap confirmField
+            |> Yafl.andMap .passwordField passwordField
+            |> Yafl.andMap .confirmedField confirmField
             |> Yafl.validateAt confirmField
                 (\{password, confirm} ->
                     if password == confirm then
@@ -800,7 +896,7 @@ messages to that Field.
 
     myField
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String String
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
 
     myFieldWithId =
         myField
@@ -808,7 +904,7 @@ messages to that Field.
 
     myFieldWithId
 
-    --: Yafl.Field FormModel FormMsg Yafl.HasId String String
+    --: Yafl.Field FormModel FormMsg Yafl.HasId String String String
 
     Yafl.send myFieldWithId "Hello!"
 
@@ -853,8 +949,8 @@ id sendId_ (Field field) =
 
     myChoiceField =
         Yafl.choice
-            |> Yafl.option "Cup of a carpenter" holyGrail
-            |> Yafl.option "Fancy chalice" (Yafl.fail "You chose... poorly")
+            |> Yafl.option "Cup of a carpenter" .holyGrail holyGrail
+            |> Yafl.option "Fancy chalice" .fancyChalice (Yafl.fail "You chose... poorly")
 
     Yafl.select holyGrail
 
@@ -958,7 +1054,12 @@ intercept (Field field) =
         = Foo String String
 
     fooField =
-        Yafl.map2 Foo firstField secondField
+        Yafl.map2
+            { input = always (Nothing, Nothing)
+            , output = Foo
+            }
+            firstField
+            secondField
 
     firstField =
         fields.string
@@ -1020,7 +1121,12 @@ updateField (Field form) (Field field) widgetMsg (Model model) =
         = Foo String String
 
     fooField =
-        Yafl.map2 Foo firstField secondField
+        Yafl.map2
+            { input = always (Nothing, Nothing)
+            , output = Foo
+            }
+            firstField
+            secondField
 
     firstField =
         fields.string
@@ -1077,8 +1183,8 @@ andUpdateField form field widgetMsg ( model, cmd1 ) =
 
     myChoiceField =
         Yafl.choice
-            |> Yafl.option "Don't pick me!" (Yafl.fail "Oh no, you failed!")
-            |> Yafl.option "I'm the one!" myFieldWithId
+            |> Yafl.option "Don't pick me!" .no (Yafl.fail "Oh no, you failed!")
+            |> Yafl.option "I'm the one!" .yes myFieldWithId
 
     model =
         myChoiceField
@@ -1141,8 +1247,8 @@ selectField (Field form) (Field field) (Model model) =
 
     myChoiceField =
         Yafl.choice
-            |> Yafl.option "Don't pick me!" (Yafl.fail "Oh no, you failed!")
-            |> Yafl.option "I'm the one!" myFieldWithId
+            |> Yafl.option  "Don't pick me!" (always Nothing) (Yafl.fail "Oh no, you failed!")
+            |> Yafl.option  "I'm the one!" (always Nothing) myFieldWithId
 
     modelAndCmd =
         myChoiceField
@@ -1439,7 +1545,9 @@ If you need to combine the outputs of more than two fields, check out
 
     form =
         Yafl.map2
-            (\a b -> ( a, b ))
+            { input = \input -> ( Nothing, Nothing )
+            , output = (\a b -> ( a, b ))
+            }
             (fields.string)
             (fields.string)
 
@@ -1582,9 +1690,9 @@ Use in combination with [`succeed`](#succeed).
 
     form =
         Yafl.succeed (\a b c -> { firstName = a, middleName = b, lastName = c })
-            |> Yafl.andMap (fields.string |> Yafl.label "First name")
-            |> Yafl.andMap (fields.string |> Yafl.label "Middle name")
-            |> Yafl.andMap (fields.string |> Yafl.label "Last name")
+            |> Yafl.andMap .firstName (fields.string |> Yafl.label "First name")
+            |> Yafl.andMap .middleName (fields.string |> Yafl.label "Middle name")
+            |> Yafl.andMap .lastName (fields.string |> Yafl.label "Last name")
 
     model =
         Yafl.init form
@@ -1670,7 +1778,7 @@ combination with this function.
                     Yafl.succeed words
             )
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String String
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
 
     -- Example 2: Repurposing an existing widget to return a different type
 
@@ -1686,7 +1794,7 @@ combination with this function.
                             Yafl.fail "That's not a valid float"
                 )
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String Float
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String String Float
 
     -- Example 3: Validating a field's output
 
@@ -1701,7 +1809,7 @@ combination with this function.
                     Yafl.fail "Invalid Beatle"
             )
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String String
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
 
 -}
 andThen :
@@ -2064,10 +2172,6 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
                             previousOptionFields.submit previousOptionFields.checks (Sum location meta previousOptionLabelsAndModels)
 
                     _ ->
-                        let
-                            _ =
-                                Debug.log "model" model
-                        in
                         Err
                             [ { message = "Fatal error in `option` submit function"
                               , fail = True

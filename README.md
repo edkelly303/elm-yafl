@@ -156,7 +156,7 @@ type alias FormMsg =
 
 
 -- DOC TESTS
-fields --: { string : Yafl.Field FormModel FormMsg Yafl.NoId String String, bool : Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool }
+fields --: { string : Yafl.Field FormModel FormMsg Yafl.NoId String String String, bool : Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool Bool }
 ```
 
 Now whenever we need a `String` field, we can use `fields.string`, and if we
@@ -194,10 +194,10 @@ isAdmin =
 
 
 -- DOC TESTS
-nonEmptyString --: Yafl.Field FormModel FormMsg Yafl.NoId String String
-firstName --: Yafl.Field FormModel FormMsg Yafl.NoId String String
-lastName --: Yafl.Field FormModel FormMsg Yafl.NoId String String
-isAdmin --: Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool
+nonEmptyString --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
+firstName --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
+lastName --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
+isAdmin --: Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool Bool
 ```
 
 ### Step 4: Compose the `Field`s to create a form
@@ -214,13 +214,13 @@ import Yafl
 
 user = 
     Yafl.succeed User
-        |> Yafl.andMap firstName
-        |> Yafl.andMap lastName
-        |> Yafl.andMap isAdmin
+        |> Yafl.andMap .firstName firstName
+        |> Yafl.andMap .lastName lastName
+        |> Yafl.andMap .isAdmin isAdmin
 
 
 -- DOC TESTS
-user --: Yafl.Field FormModel FormMsg Yafl.NoId Never User
+user --: Yafl.Field FormModel FormMsg Yafl.NoId Never {firstName : Maybe String, lastName : Maybe String, isAdmin : Maybe Bool } User
 ```
 
 ### Step 5: Integrate the form into your Elm application
