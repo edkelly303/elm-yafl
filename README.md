@@ -194,9 +194,9 @@ isAdmin =
 
 
 -- DOC TESTS
-nonEmptyString --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
-firstName --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
-lastName --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
+nonEmptyString --: Yafl.Field FormModel FormMsg Yafl.NoId String ( String, String ) String
+firstName --: Yafl.Field FormModel FormMsg Yafl.NoId String ( String, String ) String
+lastName --: Yafl.Field FormModel FormMsg Yafl.NoId String ( String, String ) String
 isAdmin --: Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool Bool
 ```
 
@@ -220,7 +220,7 @@ user =
 
 
 -- DOC TESTS
-user --: Yafl.Field FormModel FormMsg Yafl.NoId Never {firstName : Maybe String, lastName : Maybe String, isAdmin : Maybe Bool } User
+user --: Yafl.Field FormModel FormMsg Yafl.NoId Never {firstName : Maybe ( String, String ), lastName : Maybe ( String, String ), isAdmin : Maybe Bool } User
 ```
 
 ### Step 5: Integrate the form into your Elm application

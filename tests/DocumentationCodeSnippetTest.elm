@@ -68,7 +68,7 @@ tests =
                     "0"
                     (\() ->
                         let
-                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
+                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String ( String.String, String.String ) String.String
                             unused =
                                 Examples.nonEmptyString
                         in
@@ -78,7 +78,7 @@ tests =
                     "1"
                     (\() ->
                         let
-                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
+                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String ( String.String, String.String ) String.String
                             unused =
                                 Examples.firstName
                         in
@@ -88,7 +88,7 @@ tests =
                     "2"
                     (\() ->
                         let
-                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
+                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String ( String.String, String.String ) String.String
                             unused =
                                 Examples.lastName
                         in
@@ -118,8 +118,9 @@ tests =
                                     Yafl.NoId
                                     Basics.Never
                                     { firstName :
-                                        Maybe.Maybe String.String
-                                    , lastName : Maybe.Maybe String.String
+                                        Maybe.Maybe ( String.String, String.String )
+                                    , lastName :
+                                        Maybe.Maybe ( String.String, String.String )
                                     , isAdmin : Maybe.Maybe Basics.Bool
                                     }
                                     Examples.User
@@ -233,7 +234,7 @@ tests =
                         "0"
                         (\() ->
                             let
-                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String ( String.String, String.String ) String.String
                                 unused =
                                     Examples.fields.string
                                         |> Yafl.label
@@ -261,7 +262,7 @@ tests =
                         "1"
                         (\() ->
                             let
-                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String Basics.Float
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String ( String.String, String.String ) Basics.Float
                                 unused =
                                     Examples.fields.string
                                         |> Yafl.label
@@ -283,7 +284,7 @@ tests =
                         "2"
                         (\() ->
                             let
-                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String ( String.String, String.String ) String.String
                                 unused =
                                     Examples.fields.string
                                         |> Yafl.label

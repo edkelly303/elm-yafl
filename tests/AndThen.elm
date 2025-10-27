@@ -27,7 +27,7 @@ tests =
                 form
                     |> Yafl.init
                     |> Tuple.first
-                    |> Yafl.load form { x = Just "1", y = Nothing }
+                    |> Yafl.load form { x = Just ( "1", () ), y = Nothing }
                     |> Yafl.submit form
                     |> Expect.equal (Ok ( "1", () ))
             )
@@ -47,7 +47,7 @@ tests =
                 form
                     |> Yafl.init
                     |> Tuple.first
-                    |> Yafl.load form { x = Just "1" }
+                    |> Yafl.load form { x = Just ( "1", () ) }
                     |> Yafl.submit form
                     |> Expect.equal (Ok "1")
             )
@@ -68,7 +68,7 @@ tests =
                 form
                     |> Yafl.init
                     |> Tuple.first
-                    |> Yafl.load form { x = Nothing, y = Just "1" }
+                    |> Yafl.load form { x = Nothing, y = Just ( "1", () ) }
                     |> Yafl.submit form
                     |> Expect.equal (Ok ( (), "1" ))
             )
@@ -110,7 +110,7 @@ tests =
                 form
                     |> Yafl.init
                     |> Tuple.first
-                    |> Yafl.load form { x = Just "1" }
+                    |> Yafl.load form ("1", ( "1", () ))
                     |> Yafl.submit form
                     |> Expect.equal (Ok "1")
             )
@@ -148,10 +148,7 @@ tests =
                 form
                     |> Yafl.init
                     |> Tuple.first
-                    |> Yafl.load form
-                        { options = Nothing
-                        , selected = Just 1
-                        }
+                    |> Yafl.load form ( "1", { options = Nothing, selected = Nothing } )
                     |> Yafl.submit form
                     |> Expect.equal (Ok False)
             )

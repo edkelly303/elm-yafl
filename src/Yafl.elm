@@ -1506,7 +1506,7 @@ combination with this function.
                     Yafl.succeed words
             )
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String ( String, String ) String
 
     -- Example 2: Repurposing an existing widget to return a different type
 
@@ -1522,7 +1522,7 @@ combination with this function.
                             Yafl.fail "That's not a valid float"
                 )
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String String Float
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String ( String, String ) Float
 
     -- Example 3: Validating a field's output
 
@@ -1537,13 +1537,13 @@ combination with this function.
                     Yafl.fail "Invalid Beatle"
             )
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String ( String, String ) String
 
 -}
 andThen :
     (output -> Field formModel formMsg id2 widgetMsg2 input2 output2)
     -> Field formModel formMsg id widgetMsg input output
-    -> Field formModel formMsg id widgetMsg input2 output2
+    -> Field formModel formMsg id widgetMsg (input, input2) output2
 andThen f (Field field) =
     Field
         { init =
@@ -1574,7 +1574,8 @@ andThen f (Field field) =
                 ( Product AndThen location model1 model2
                 , Cmd.batch [ cmd1, cmd2 ]
                 )
-        , load = \_ -> Debug.todo "andThen load"
+        , load =
+            Debug.todo "andThen load"
         , update =
             \msg model ->
                 case model of
