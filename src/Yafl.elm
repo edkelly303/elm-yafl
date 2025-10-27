@@ -3,7 +3,7 @@ module Yafl exposing
     , Field, defineFields, addWidget, addWidgetWithConfig, endFields
     , Model, Msg, init, load, update, view, ViewConfig, Feedback, subscriptions, submit
     , succeed, fail, failAt
-    , map
+    , map, contraMap
     , map2, andMap
     , choice, option
     , label
@@ -243,7 +243,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 ## Converting output types
 
-@docs map
+@docs map, contraMap
 
 
 ## Building product types
@@ -552,8 +552,8 @@ load (Field field) input (Model node) =
             field.load (Just input)
     in
     patch loaderNode node
-        |> Result.map Model
-        |> Result.withDefault (Model node)
+        |> Result.withDefault node
+        |> Model
 
 
 patch : LoaderNode formModel -> Node formModel -> Result () (Node formModel)
@@ -583,8 +583,8 @@ patch loaderNode node =
                     (List.Extra.zip ps ns)
                 )
 
-        ( LEmpty, Empty loc typ ) ->
-            Ok <| Empty loc typ
+        ( LEmpty, _ ) ->
+            Ok node
 
         _ ->
             Err ()
@@ -1176,6 +1176,41 @@ failAt (Field failField) e =
         , intercept = \_ _ -> Nothing
         , label = ""
         , maybeId = Nothing
+        }
+
+
+
+{-
+    .o88b.  .d88b.  d8b   db d888888b d8888b.  .d8b.  .88b  d88.  .d8b.  d8888b.
+   d8P  Y8 .8P  Y8. 888o  88 `~~88~~' 88  `8D d8' `8b 88'YbdP`88 d8' `8b 88  `8D
+   8P      88    88 88V8o 88    88    88oobY' 88ooo88 88  88  88 88ooo88 88oodD'
+   8b      88    88 88 V8o88    88    88`8b   88~~~88 88  88  88 88~~~88 88~~~
+   Y8b  d8 `8b  d8' 88  V888    88    88 `88. 88   88 88  88  88 88   88 88
+    `Y88P'  `Y88P'  VP   V8P    YP    88   YD YP   YP YP  YP  YP YP   YP 88
+
+
+-}
+
+
+{-| Contramap
+-}
+contraMap :
+    (input2 -> input)
+    -> Field formModel formMsg id widgetMsg input output
+    -> Field formModel formMsg b widgetMsg input2 output
+contraMap f (Field field) =
+    Field
+        { init = field.init
+        , load = \input -> input |> Maybe.map f |> field.load
+        , update = field.update
+        , view = field.view
+        , subscriptions = field.subscriptions
+        , maybeId = field.maybeId
+        , send = field.send
+        , checks = field.checks
+        , intercept = field.intercept
+        , label = field.label
+        , submit = field.submit
         }
 
 
