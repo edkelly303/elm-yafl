@@ -114,26 +114,26 @@ type alias FormMsg =
     ( Maybe String, ( Maybe Bool, () ) )
 
 
-nonEmptyString : Yafl.Field FormModel FormMsg Yafl.NoId String ( String, String ) String
+nonEmptyString : Yafl.Field FormModel FormMsg Yafl.NoId String String String
 nonEmptyString =
     fields.string
-        |> Yafl.andThen
+        |> Yafl.andThenSubmit
             (\string ->
                 if String.isEmpty string then
-                    Yafl.fail "This field must not be blank"
+                    Err "This field must not be blank"
 
                 else
-                    Yafl.succeed string
+                    Ok string
             )
 
 
-firstName : Yafl.Field FormModel FormMsg Yafl.NoId String ( String, String ) String
+firstName : Yafl.Field FormModel FormMsg Yafl.NoId String String String
 firstName =
     nonEmptyString
         |> Yafl.label "What is the user's first name?"
 
 
-lastName : Yafl.Field FormModel FormMsg Yafl.NoId String ( String, String ) String
+lastName : Yafl.Field FormModel FormMsg Yafl.NoId String String String
 lastName =
     nonEmptyString
         |> Yafl.label "What is the user's last name?"
@@ -151,9 +151,9 @@ user :
         FormMsg
         Yafl.NoId
         Never
-        { firstName : Maybe ( String, String )
+        { firstName : Maybe String
         , isAdmin : Maybe Bool
-        , lastName : Maybe ( String, String )
+        , lastName : Maybe String
         }
         User
 user =

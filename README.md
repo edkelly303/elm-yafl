@@ -25,7 +25,7 @@ such as
 [`map2`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#map2),
 [`andMap`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#andMap)
 and
-[`andThen`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#andThen).
+[`andThenSubmit`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#andThenSubmit).
 These combinators make it easy to create forms for complex data structures by
 composing simpler `Field`s, without too much wiring or boilerplate.
 
@@ -194,9 +194,9 @@ isAdmin =
 
 
 -- DOC TESTS
-nonEmptyString --: Yafl.Field FormModel FormMsg Yafl.NoId String ( String, String ) String
-firstName --: Yafl.Field FormModel FormMsg Yafl.NoId String ( String, String ) String
-lastName --: Yafl.Field FormModel FormMsg Yafl.NoId String ( String, String ) String
+nonEmptyString --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
+firstName --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
+lastName --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
 isAdmin --: Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool Bool
 ```
 
@@ -220,7 +220,7 @@ user =
 
 
 -- DOC TESTS
-user --: Yafl.Field FormModel FormMsg Yafl.NoId Never {firstName : Maybe ( String, String ), lastName : Maybe ( String, String ), isAdmin : Maybe Bool } User
+user --: Yafl.Field FormModel FormMsg Yafl.NoId Never {firstName : Maybe String, lastName : Maybe String, isAdmin : Maybe Bool } User
 ```
 
 ### Step 5: Integrate the form into your Elm application

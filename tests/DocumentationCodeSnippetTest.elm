@@ -68,7 +68,7 @@ tests =
                     "0"
                     (\() ->
                         let
-                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String ( String.String, String.String ) String.String
+                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                             unused =
                                 Examples.nonEmptyString
                         in
@@ -78,7 +78,7 @@ tests =
                     "1"
                     (\() ->
                         let
-                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String ( String.String, String.String ) String.String
+                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                             unused =
                                 Examples.firstName
                         in
@@ -88,7 +88,7 @@ tests =
                     "2"
                     (\() ->
                         let
-                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String ( String.String, String.String ) String.String
+                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                             unused =
                                 Examples.lastName
                         in
@@ -118,9 +118,8 @@ tests =
                                     Yafl.NoId
                                     Basics.Never
                                     { firstName :
-                                        Maybe.Maybe ( String.String, String.String )
-                                    , lastName :
-                                        Maybe.Maybe ( String.String, String.String )
+                                        Maybe.Maybe String.String
+                                    , lastName : Maybe.Maybe String.String
                                     , isAdmin : Maybe.Maybe Basics.Bool
                                     }
                                     Examples.User
@@ -227,33 +226,27 @@ tests =
                     ]
                 ]
             , Test.describe
-                "andThen"
+                "andThenSubmit"
                 [ Test.describe
                     "code snippet 0"
                     [ Test.test
                         "0"
                         (\() ->
                             let
-                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String ( String.String, String.String ) String.String
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String Basics.Float
                                 unused =
                                     Examples.fields.string
                                         |> Yafl.label
-                                            "What would you like to say?"
-                                        |> Yafl.andThen
-                                            (\words ->
-                                                if words == "Hello" then
-                                                    Examples.fields.string
-                                                        |> Yafl.label
-                                                            "Who are you saying 'Hello' to?"
-                                                        |> Yafl.map
-                                                            (\moreWords ->
-                                                                words
-                                                                    ++ " "
-                                                                    ++ moreWords
-                                                            )
+                                            "Enter a floating-point number"
+                                        |> Yafl.andThenSubmit
+                                            (\string ->
+                                                case String.toFloat string of
+                                                    Maybe.Just float ->
+                                                        Result.Ok float
 
-                                                else
-                                                    Yafl.succeed words
+                                                    Maybe.Nothing ->
+                                                        Result.Err
+                                                            "That's not a valid float"
                                             )
                             in
                             Expect.pass
@@ -262,34 +255,12 @@ tests =
                         "1"
                         (\() ->
                             let
-                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String ( String.String, String.String ) Basics.Float
-                                unused =
-                                    Examples.fields.string
-                                        |> Yafl.label
-                                            "Enter a floating-point number"
-                                        |> Yafl.andThen
-                                            (\string ->
-                                                case String.toFloat string of
-                                                    Maybe.Just float ->
-                                                        Yafl.succeed float
-
-                                                    Maybe.Nothing ->
-                                                        Yafl.fail
-                                                            "That's not a valid float"
-                                            )
-                            in
-                            Expect.pass
-                        )
-                    , Test.test
-                        "2"
-                        (\() ->
-                            let
-                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String ( String.String, String.String ) String.String
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                                 unused =
                                     Examples.fields.string
                                         |> Yafl.label
                                             "Enter the first name of a Beatle"
-                                        |> Yafl.andThen
+                                        |> Yafl.andThenSubmit
                                             (\name ->
                                                 if
                                                     List.member
@@ -300,10 +271,10 @@ tests =
                                                         , "Ringo"
                                                         ]
                                                 then
-                                                    Yafl.succeed name
+                                                    Result.Ok name
 
                                                 else
-                                                    Yafl.fail "Invalid Beatle"
+                                                    Result.Err "Invalid Beatle"
                                             )
                             in
                             Expect.pass

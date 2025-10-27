@@ -3,11 +3,11 @@ module Yafl exposing
     , Field, defineFields, addWidget, addWidgetWithConfig, endFields
     , Model, Msg, init, load, update, view, ViewConfig, Feedback, subscriptions, submit
     , succeed, fail, failAt
-    , map, andThen
+    , map
     , map2, andMap
     , choice, option
     , label
-    , validate, validateAt
+    , validate, validateAt, andThenSubmit
     , HasId, NoId, id, intercept, send
     , studio, toDOT
     )
@@ -36,7 +36,7 @@ composing self-contained [`Widget`](#Widget)s.
 
 ### [Combining Fields](#combining-fields)
 
-[`succeed`](#succeed), [`fail`](#fail), [`failAt`](#failAt), [`map`](#map), [`andThen`](#andThen), [`map2`](#map2), [`andMap`](#andMap), [`choice`](#choice), [`option`](#option)
+[`succeed`](#succeed), [`fail`](#fail), [`failAt`](#failAt), [`map`](#map), [`map2`](#map2), [`andMap`](#andMap), [`choice`](#choice), [`option`](#option)
 
 
 ### [Customizing Fields](#customizing-fields)
@@ -46,7 +46,7 @@ composing self-contained [`Widget`](#Widget)s.
 
 ### [Validating fields](#validating-fields)
 
-[`validate`](#validate), [`validateAt`](#validateAt)
+[`validate`](#validate), [`validateAt`](#validateAt), [`andThenSubmit`](#andThenSubmit)
 
 
 ### [Communicating between Fields](#communicating-between-fields)
@@ -231,8 +231,7 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 In addition to the [`Field`](#Field)s that you define based on your
 [`Widget`](#Widget)s, the package also provides [`succeed`](#succeed) and
 [`fail`](#fail), which can be useful in various ways when
-used with other combinators such as [`andMap`](#andMap) and
-[`andThen`](#andThen). You may be familiar with similar functions from packages
+used with other combinators such as [`andMap`](#andMap). You may be familiar with similar functions from packages
 such as [`elm/json`](http://package.elm-lang.org/packages/elm/json/latest/Json-Decode#succeed).
 
 The views of these fields return an empty Html element. When
@@ -244,7 +243,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 ## Converting output types
 
-@docs map, andThen
+@docs map
 
 
 ## Building product types
@@ -297,7 +296,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 [_Back to top_](#table-of-contents)
 
-@docs validate, validateAt
+@docs validate, validateAt, andThenSubmit
 
 
 # Communicating between Fields
@@ -350,20 +349,14 @@ type Model formModel output
 
 type Node formModel
     = Value Location formModel
-    | Product ProductType Location (Node formModel) (Node formModel)
+    | Product Location (Node formModel) (Node formModel)
     | Sum Location { selected : Int } (List ( String, Node formModel ))
     | Empty EmptyType Location
-
-
-type ProductType
-    = Map2
-    | AndThen
 
 
 type EmptyType
     = Succeed
     | Fail
-    | NoValue
 
 
 {-| The top-level message type for your form.
@@ -574,8 +567,8 @@ patch loaderNode node =
                 _ ->
                     Ok <| node
 
-        ( LProduct p1 p2, Product loc typ n1 n2 ) ->
-            Result.map2 (Product loc typ) (patch p1 n1) (patch p2 n2)
+        ( LProduct p1 p2, Product loc n1 n2 ) ->
+            Result.map2 (Product loc) (patch p1 n1) (patch p2 n2)
 
         ( LSum pSel ps, Sum loc sel ns ) ->
             Result.map (Sum loc { selected = pSel.selected |> Maybe.withDefault sel.selected })
@@ -1306,7 +1299,7 @@ map2 mappers (Field field1) (Field field2) =
                     ( model2, cmd2 ) =
                         field2.init (1 :: path) field2.maybeId
                 in
-                ( Product Map2 (newLocation path maybeId) model1 model2
+                ( Product (newLocation path maybeId) model1 model2
                 , Cmd.batch
                     [ cmd1
                     , cmd2
@@ -1325,7 +1318,7 @@ map2 mappers (Field field1) (Field field2) =
         , update =
             \msg model ->
                 case model of
-                    Product Map2 location model1 model2 ->
+                    Product location model1 model2 ->
                         let
                             ( newModel1, cmd1 ) =
                                 field1.update msg model1
@@ -1333,7 +1326,7 @@ map2 mappers (Field field1) (Field field2) =
                             ( newModel2, cmd2 ) =
                                 field2.update msg model2
                         in
-                        ( Product Map2 location newModel1 newModel2
+                        ( Product location newModel1 newModel2
                         , Cmd.batch [ cmd1, cmd2 ]
                         )
 
@@ -1342,7 +1335,7 @@ map2 mappers (Field field1) (Field field2) =
         , view =
             \config model ->
                 case model of
-                    Product _ _ model1 model2 ->
+                    Product _ model1 model2 ->
                         field1.view { config | label = field1.label, id = locationFromModel model1 |> locationToString } model1
                             ++ field2.view { config | label = field2.label, id = locationFromModel model1 |> locationToString } model2
 
@@ -1351,7 +1344,7 @@ map2 mappers (Field field1) (Field field2) =
         , subscriptions =
             \model ->
                 case model of
-                    Product _ _ model1 model2 ->
+                    Product _ model1 model2 ->
                         Sub.batch
                             [ field1.subscriptions model1
                             , field2.subscriptions model2
@@ -1362,7 +1355,7 @@ map2 mappers (Field field1) (Field field2) =
         , submit =
             \checks model ->
                 case model of
-                    Product _ _ model1 model2 ->
+                    Product _ model1 model2 ->
                         case
                             ( field1.submit field1.checks model1
                             , field2.submit field2.checks model2
@@ -1455,7 +1448,7 @@ andMap getInput (Field field1) (Field field2) =
             | view =
                 \config model ->
                     case model of
-                        Product _ _ model1 model2 ->
+                        Product _ model1 model2 ->
                             field2.view { config | label = field2.label, id = locationFromModel model2 |> locationToString } model2
                                 ++ field1.view { config | label = field1.label, id = locationFromModel model1 |> locationToString } model1
 
@@ -1466,212 +1459,95 @@ andMap getInput (Field field1) (Field field2) =
 
 
 {-
-    .d8b.  d8b   db d8888b. d888888b db   db d88888b d8b   db
-   d8' `8b 888o  88 88  `8D `~~88~~' 88   88 88'     888o  88
-   88ooo88 88V8o 88 88   88    88    88ooo88 88ooooo 88V8o 88
-   88~~~88 88 V8o88 88   88    88    88~~~88 88~~~~~ 88 V8o88
-   88   88 88  V888 88  .8D    88    88   88 88.     88  V888
-   YP   YP VP   V8P Y8888D'    YP    YP   YP Y88888P VP   V8P
+    .d8b.  d8b   db d8888b. d888888b db   db d88888b d8b   db .d8888. db    db d8888b. .88b  d88. d888888b d888888b
+   d8' `8b 888o  88 88  `8D `~~88~~' 88   88 88'     888o  88 88'  YP 88    88 88  `8D 88'YbdP`88   `88'   `~~88~~'
+   88ooo88 88V8o 88 88   88    88    88ooo88 88ooooo 88V8o 88 `8bo.   88    88 88oooY' 88  88  88    88       88
+   88~~~88 88 V8o88 88   88    88    88~~~88 88~~~~~ 88 V8o88   `Y8b. 88    88 88~~~b. 88  88  88    88       88
+   88   88 88  V888 88  .8D    88    88   88 88.     88  V888 db   8D 88b  d88 88   8D 88  88  88   .88.      88
+   YP   YP VP   V8P Y8888D'    YP    YP   YP Y88888P VP   V8P `8888Y' ~Y8888P' Y8888P' YP  YP  YP Y888888P    YP
+
+
 
 
 -}
 
 
-{-| Check the result of submitting a [`Field`](#Field), and optionally display
-another `Field`. This can be useful if you want to ask the user for more
-information, or to convert an existing [`Widget`](#Widget) to return a different
-output type.
+{-| Check the result of submitting a [`Field`](#Field). This can be useful if
+you want to convert an existing [`Widget`](#Widget) to return a different output
+type.
 
 (You _can_ also use it for validating a field's output, but it will probably be
 better to use [`validate`](#validate) or [`validateAt`](#validateAt) instead.)
 
-The [`succeed`](#succeed) and [`fail`](#fail) functions are often useful in
-combination with this function.
-
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
 
-    -- Example 1: Asking the user for additional information
-
-    fields.string
-        |> Yafl.label "What would you like to say?"
-        |> Yafl.andThen
-            (\words ->
-                if words == "Hello" then
-                    fields.string
-                        |> Yafl.label "Who are you saying 'Hello' to?"
-                        |> Yafl.map (\moreWords -> words ++ " " ++ moreWords)
-
-                else
-                    Yafl.succeed words
-            )
-
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String ( String, String ) String
-
-    -- Example 2: Repurposing an existing widget to return a different type
+    -- Example 1: Repurposing an existing widget to return a different type
 
     fields.string
             |> Yafl.label "Enter a floating-point number"
-            |> Yafl.andThen
+            |> Yafl.andThenSubmit
                 (\string ->
                     case String.toFloat string of
                         Just float ->
-                            Yafl.succeed float
+                            Ok float
 
                         Nothing ->
-                            Yafl.fail "That's not a valid float"
+                            Err "That's not a valid float"
                 )
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String ( String, String ) Float
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String String Float
 
-    -- Example 3: Validating a field's output
+    -- Example 2: Validating a field's output
 
     fields.string
         |> Yafl.label "Enter the first name of a Beatle"
-        |> Yafl.andThen
+        |> Yafl.andThenSubmit
             (\name ->
                 if List.member name [ "John", "Paul", "George", "Ringo" ] then
-                    Yafl.succeed name
+                    Ok name
 
                 else
-                    Yafl.fail "Invalid Beatle"
+                    Err "Invalid Beatle"
             )
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String ( String, String ) String
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
 
 -}
-andThen :
-    (output -> Field formModel formMsg id2 widgetMsg2 input2 output2)
-    -> Field formModel formMsg id widgetMsg input output
-    -> Field formModel formMsg id widgetMsg (input, input2) output2
-andThen f (Field field) =
+andThenSubmit :
+    (value -> Result String value2)
+    -> Field formModel formMsg id widgetMsg input value
+    -> Field formModel formMsg id widgetMsg input value2
+andThenSubmit f (Field field) =
     Field
-        { init =
-            \path maybeId ->
-                let
-                    ( model1, cmd1 ) =
-                        field.init (0 :: path) maybeId
-
-                    ( model2, cmd2 ) =
-                        let
-                            path2 =
-                                1 :: path
-                        in
-                        case field.submit field.checks model1 of
-                            Ok output ->
-                                let
-                                    (Field field2) =
-                                        f output
-                                in
-                                field2.init path2 field2.maybeId
-
-                            Err _ ->
-                                ( Empty NoValue (newLocation path2 Nothing), Cmd.none )
-
-                    location =
-                        newLocation path Nothing
-                in
-                ( Product AndThen location model1 model2
-                , Cmd.batch [ cmd1, cmd2 ]
-                )
-        , load =
-            Debug.todo "andThen load"
-        , update =
-            \msg model ->
-                case model of
-                    Product AndThen location model1 model2 ->
-                        let
-                            ( newModel1, cmd1 ) =
-                                field.update msg model1
-
-                            ( newModel2, cmd2 ) =
-                                case field.submit field.checks newModel1 of
-                                    Ok output ->
-                                        let
-                                            (Field field2) =
-                                                f output
-                                        in
-                                        case model2 of
-                                            Empty _ location2 ->
-                                                field2.init (locationToPath location2) field2.maybeId
-
-                                            _ ->
-                                                field2.update msg model2
-
-                                    Err _ ->
-                                        ( model2, Cmd.none )
-                        in
-                        ( Product AndThen location newModel1 newModel2
-                        , Cmd.batch [ cmd1, cmd2 ]
-                        )
-
-                    _ ->
-                        ( model, Cmd.none )
-        , view =
-            \config model ->
-                case model of
-                    Product _ _ model1 model2 ->
-                        field.view { config | id = locationFromModel model1 |> locationToString } model1
-                            ++ (case field.submit field.checks model1 of
-                                    Ok output ->
-                                        let
-                                            (Field field2) =
-                                                f output
-                                        in
-                                        field2.view { config | label = field2.label, id = locationFromModel model2 |> locationToString } model2
-
-                                    Err _ ->
-                                        []
-                               )
-
-                    _ ->
-                        []
-        , subscriptions =
-            \model ->
-                case model of
-                    Product _ _ model1 model2 ->
-                        Sub.batch
-                            [ field.subscriptions model1
-                            , case field.submit field.checks model1 of
-                                Ok output ->
-                                    let
-                                        (Field field2) =
-                                            f output
-                                    in
-                                    field2.subscriptions model2
-
-                                Err _ ->
-                                    Sub.none
-                            ]
-
-                    _ ->
-                        Sub.none
-        , submit =
-            \_ model ->
-                case model of
-                    Product _ _ model1 model2 ->
-                        field.submit field.checks model1
-                            |> Result.andThen
-                                (\output ->
-                                    let
-                                        (Field field2) =
-                                            f output
-                                    in
-                                    field2.submit field2.checks model2
-                                )
-
-                    _ ->
-                        Err
-                            [ { message = "Fatal error, expecting a `Product` node"
-                              , locator = locatorFromModel model
-                              , fail = True
-                              }
-                            ]
-        , checks = []
+        { init = field.init
+        , load = field.load
+        , update = field.update
+        , view = field.view
+        , subscriptions = field.subscriptions
+        , maybeId = field.maybeId
         , send = field.send
+        , checks = []
         , intercept = field.intercept
         , label = field.label
-        , maybeId = field.maybeId
+        , submit =
+            \checks model ->
+                field.submit field.checks model
+                    |> Result.andThen
+                        (\value ->
+                            case f value of
+                                Ok value2 ->
+                                    Ok value2
+
+                                Err str ->
+                                    Err
+                                        [ { message = str
+                                          , fail = True
+                                          , locator = locatorFromModel model
+                                          }
+                                        ]
+                        )
+                    |> Result.andThen (runChecks checks model)
         }
 
 
@@ -2682,7 +2558,7 @@ locationFromModel model =
         Value loc _ ->
             loc
 
-        Product _ loc _ _ ->
+        Product loc _ _ ->
             loc
 
         Sum loc _ _ ->
@@ -2780,14 +2656,6 @@ toDOT debugToString (Model model) =
         match val =
             Regex.find regex (escape (debugToString val)) |> List.map .match |> List.head |> Maybe.withDefault ""
 
-        productTypeToString productType =
-            case productType of
-                Map2 ->
-                    { label = "Map2", shape = "larrow" }
-
-                AndThen ->
-                    { label = "AndThen", shape = "rarrow" }
-
         emptyTypeToString emptyType =
             case emptyType of
                 Succeed ->
@@ -2795,9 +2663,6 @@ toDOT debugToString (Model model) =
 
                 Fail ->
                     { label = "Fail", shape = "octagon" }
-
-                NoValue ->
-                    { label = "No Value", shape = "plain" }
 
         nodeLabel loc innerLabel =
             "\"" ++ locationToString loc ++ ": " ++ innerLabel ++ "\""
@@ -2811,10 +2676,10 @@ toDOT debugToString (Model model) =
                       )
                     ]
 
-                Product typ loc m1 m2 ->
+                Product loc m1 m2 ->
                     ( locationToPath loc
-                    , nodeLabel loc (productTypeToString typ).label
-                    , (productTypeToString typ).shape
+                    , nodeLabel loc "Product"
+                    , "square"
                     )
                         :: toPathsAndLabels m1
                         ++ toPathsAndLabels m2
