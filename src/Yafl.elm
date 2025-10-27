@@ -518,25 +518,34 @@ init (Field field) =
 -}
 
 
-{-| Load data into your form
+{-| Load data into your form.
 
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
 
-    form = 
-        fields.bool
+    form =
+        Yafl.succeed (\a b -> ( a, b ))
+            |> Yafl.andMap .a fields.bool
+            |> Yafl.andMap .b fields.string
 
-    init = 
+    init =
         Yafl.init form
 
-    model = 
+    model =
         Tuple.first init
 
-    loadedModel = 
-        Yafl.load form True model
+    beforeLoading =
+        model
+            |> Yafl.submit form
 
-    -- DOC TESTS
-    init --: ( Yafl.Model FormModel Bool, Cmd (Yafl.Msg FormMsg) )
+    beforeLoading --> Ok (False, "")
+
+    afterLoading =
+        model
+            |> Yafl.load form { a = Just True, b = Just "hello" }
+            |> Yafl.submit form
+
+    afterLoading --> Ok ( True, "hello" )
 
 -}
 load :
@@ -862,9 +871,9 @@ you only want to display an error on one field.
     form
         |> Yafl.init
         |> Tuple.first
-        |> Yafl.load form 
+        |> Yafl.load form
             { passwordField = Just "password123"
-            , confirmField = Just "password124" 
+            , confirmField = Just "password124"
             }
         |> Yafl.submit form
 
@@ -933,16 +942,6 @@ id sendId_ (Field field) =
 
 
 
-{-
-   .d8888. d88888b db      d88888b  .o88b. d888888b
-   88'  YP 88'     88      88'     d8P  Y8 `~~88~~'
-   `8bo.   88ooooo 88      88ooooo 8P         88
-     `Y8b. 88~~~~~ 88      88~~~~~ 8b         88
-   db   8D 88.     88booo. 88.     Y8b  d8    88
-   `8888Y' Y88888P Y88888P Y88888P  `Y88P'    YP
-
-
--}
 {-
    .d8888. d88888b d8b   db d8888b.
    88'  YP 88'     888o  88 88  `8D
