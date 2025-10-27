@@ -456,7 +456,7 @@ patch loaderNode node =
                 Just n_ ->
                     Ok <| Value loc n_
 
-                Nothing ->
+                _ ->
                     Ok <| node
 
         ( LProduct p1 p2, Product loc typ n1 n2 ) ->
@@ -464,7 +464,7 @@ patch loaderNode node =
 
         ( LSum ps, Sum sel loc ns ) ->
             Result.map (Sum sel loc)
-                (List.foldl
+                (List.foldr
                     (\( p, ( lbl, n ) ) res ->
                         Result.map2
                             (\acc n_ -> ( lbl, n_ ) :: acc)
@@ -472,14 +472,18 @@ patch loaderNode node =
                             (patch p n)
                     )
                     (Ok [])
-                    (List.Extra.zip ps ns)
-                )
+                    (List.Extra.zip (d "patches" ps) (d "nodes" ns))
+                ) |> d "output"
 
         ( LEmpty, Empty loc typ ) ->
             Ok <| Empty loc typ
 
         _ ->
             Err ()
+
+
+d =
+    Debug.log
 
 
 

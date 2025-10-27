@@ -21,7 +21,7 @@ main =
                     |> Tuple.mapFirst
                         (Yafl.load form
                             { name = Just "Ed"
-                            , foo = Just { bar = Nothing, baz = Nothing} 
+                            , foo = Just { bar = Just "Kelly", baz = Just True} 
                             }
                         )
         , update = \msg model -> Yafl.update form msg model
