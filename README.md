@@ -25,7 +25,7 @@ such as
 [`map2`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#map2),
 [`andMap`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#andMap)
 and
-[`andThenSubmit`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#andThenSubmit).
+[`andThenOutput`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#andThenOutput).
 These combinators make it easy to create forms for complex data structures by
 composing simpler `Field`s, without too much wiring or boilerplate.
 

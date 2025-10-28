@@ -7,7 +7,7 @@ module Yafl exposing
     , map2, andMap
     , choice, option
     , label
-    , validate, validateAt, andThenSubmit
+    , validate, validateAt, andThenOutput
     , HasId, NoId, id, intercept, send
     , studio, toDOT
     )
@@ -46,7 +46,7 @@ composing self-contained [`Widget`](#Widget)s.
 
 ### [Validating fields](#validating-fields)
 
-[`validate`](#validate), [`validateAt`](#validateAt), [`andThenSubmit`](#andThenSubmit)
+[`validate`](#validate), [`validateAt`](#validateAt), [`andThenOutput`](#andThenOutput)
 
 
 ### [Communicating between Fields](#communicating-between-fields)
@@ -296,7 +296,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 [_Back to top_](#table-of-contents)
 
-@docs validate, validateAt, andThenSubmit
+@docs validate, validateAt, andThenOutput
 
 
 # Communicating between Fields
@@ -1102,7 +1102,7 @@ fail e =
                 Err
                     [ { message = e
                       , fail = True
-                      , locator = locationFromModel model |> locationToLocator
+                      , locator = locatorFromModel model
                       }
                     ]
         , checks = []
@@ -1494,12 +1494,12 @@ andMap getInput (Field field1) (Field field2) =
 
 
 {-
-    .d8b.  d8b   db d8888b. d888888b db   db d88888b d8b   db .d8888. db    db d8888b. .88b  d88. d888888b d888888b
-   d8' `8b 888o  88 88  `8D `~~88~~' 88   88 88'     888o  88 88'  YP 88    88 88  `8D 88'YbdP`88   `88'   `~~88~~'
-   88ooo88 88V8o 88 88   88    88    88ooo88 88ooooo 88V8o 88 `8bo.   88    88 88oooY' 88  88  88    88       88
-   88~~~88 88 V8o88 88   88    88    88~~~88 88~~~~~ 88 V8o88   `Y8b. 88    88 88~~~b. 88  88  88    88       88
-   88   88 88  V888 88  .8D    88    88   88 88.     88  V888 db   8D 88b  d88 88   8D 88  88  88   .88.      88
-   YP   YP VP   V8P Y8888D'    YP    YP   YP Y88888P VP   V8P `8888Y' ~Y8888P' Y8888P' YP  YP  YP Y888888P    YP
+    .d8b.  d8b   db d8888b. d888888b db   db d88888b d8b   db  .d88b.  db    db d888888b d8888b. db    db d888888b
+   d8' `8b 888o  88 88  `8D `~~88~~' 88   88 88'     888o  88 .8P  Y8. 88    88 `~~88~~' 88  `8D 88    88 `~~88~~'
+   88ooo88 88V8o 88 88   88    88    88ooo88 88ooooo 88V8o 88 88    88 88    88    88    88oodD' 88    88    88
+   88~~~88 88 V8o88 88   88    88    88~~~88 88~~~~~ 88 V8o88 88    88 88    88    88    88~~~   88    88    88
+   88   88 88  V888 88  .8D    88    88   88 88.     88  V888 `8b  d8' 88b  d88    88    88      88b  d88    88
+   YP   YP VP   V8P Y8888D'    YP    YP   YP Y88888P VP   V8P  `Y88P'  ~Y8888P'    YP    88      ~Y8888P'    YP
 
 
 -}
@@ -1519,7 +1519,7 @@ better to use [`validate`](#validate) or [`validateAt`](#validateAt) instead.)
 
     fields.string
             |> Yafl.label "Enter a floating-point number"
-            |> Yafl.andThenSubmit
+            |> Yafl.andThenOutput
                 (\string ->
                     case String.toFloat string of
                         Just float ->
@@ -1535,7 +1535,7 @@ better to use [`validate`](#validate) or [`validateAt`](#validateAt) instead.)
 
     fields.string
         |> Yafl.label "Enter the first name of a Beatle"
-        |> Yafl.andThenSubmit
+        |> Yafl.andThenOutput
             (\name ->
                 if List.member name [ "John", "Paul", "George", "Ringo" ] then
                     Ok name
@@ -1547,11 +1547,11 @@ better to use [`validate`](#validate) or [`validateAt`](#validateAt) instead.)
     --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
 
 -}
-andThenSubmit :
-    (value -> Result String value2)
-    -> Field formModel formMsg id widgetMsg input value
-    -> Field formModel formMsg id widgetMsg input value2
-andThenSubmit f (Field field) =
+andThenOutput :
+    (output -> Result String output2)
+    -> Field formModel formMsg id widgetMsg input output
+    -> Field formModel formMsg id widgetMsg input output2
+andThenOutput f (Field field) =
     Field
         { init = field.init
         , load = field.load
@@ -1567,10 +1567,10 @@ andThenSubmit f (Field field) =
             \checks model ->
                 field.submit field.checks model
                     |> Result.andThen
-                        (\value ->
-                            case f value of
-                                Ok value2 ->
-                                    Ok value2
+                        (\output ->
+                            case f output of
+                                Ok output2 ->
+                                    Ok output2
 
                                 Err str ->
                                     Err

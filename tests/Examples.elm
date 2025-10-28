@@ -117,7 +117,7 @@ type alias FormMsg =
 nonEmptyString : Yafl.Field FormModel FormMsg Yafl.NoId String String String
 nonEmptyString =
     fields.string
-        |> Yafl.andThenSubmit
+        |> Yafl.andThenOutput
             (\string ->
                 if String.isEmpty string then
                     Err "This field must not be blank"

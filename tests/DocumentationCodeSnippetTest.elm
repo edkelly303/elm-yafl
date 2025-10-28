@@ -226,7 +226,7 @@ tests =
                     ]
                 ]
             , Test.describe
-                "andThenSubmit"
+                "andThenOutput"
                 [ Test.describe
                     "code snippet 0"
                     [ Test.test
@@ -238,7 +238,7 @@ tests =
                                     Examples.fields.string
                                         |> Yafl.label
                                             "Enter a floating-point number"
-                                        |> Yafl.andThenSubmit
+                                        |> Yafl.andThenOutput
                                             (\string ->
                                                 case String.toFloat string of
                                                     Maybe.Just float ->
@@ -260,7 +260,7 @@ tests =
                                     Examples.fields.string
                                         |> Yafl.label
                                             "Enter the first name of a Beatle"
-                                        |> Yafl.andThenSubmit
+                                        |> Yafl.andThenOutput
                                             (\name ->
                                                 if
                                                     List.member
