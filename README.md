@@ -25,7 +25,7 @@ such as
 [`map2`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#map2),
 [`andMap`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#andMap)
 and
-[`andThenOutput`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#andThenOutput).
+[`andThen`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#andThen).
 These combinators make it easy to create forms for complex data structures by
 composing simpler `Field`s, without too much wiring or boilerplate.
 
@@ -156,7 +156,7 @@ type alias FormMsg =
 
 
 -- DOC TESTS
-fields --: { string : Yafl.Field FormModel FormMsg Yafl.NoId String String String, bool : Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool Bool }
+fields --: { string : Yafl.Field FormModel FormMsg Yafl.NoId String (String -> String) String, bool : Yafl.Field FormModel FormMsg Yafl.NoId Bool (Bool -> Bool) Bool }
 ```
 
 Now whenever we need a `String` field, we can use `fields.string`, and if we
@@ -194,10 +194,10 @@ isAdmin =
 
 
 -- DOC TESTS
-nonEmptyString --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
-firstName --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
-lastName --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
-isAdmin --: Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool Bool
+nonEmptyString --: Yafl.Field FormModel FormMsg Yafl.NoId String (String -> String)  String
+firstName --: Yafl.Field FormModel FormMsg Yafl.NoId String (String -> String)  String
+lastName --: Yafl.Field FormModel FormMsg Yafl.NoId String (String -> String)  String
+isAdmin --: Yafl.Field FormModel FormMsg Yafl.NoId Bool (Bool -> Bool) Bool
 ```
 
 ### Step 4: Compose the `Field`s to create a form
@@ -220,7 +220,7 @@ user =
 
 
 -- DOC TESTS
-user --: Yafl.Field FormModel FormMsg Yafl.NoId Never {firstName : Maybe String, lastName : Maybe String, isAdmin : Maybe Bool } User
+user --: Yafl.Field FormModel FormMsg Yafl.NoId Never {firstName : Maybe (String -> String), lastName : Maybe (String -> String), isAdmin : Maybe (Bool -> Bool) } User
 ```
 
 ### Step 5: Integrate the form into your Elm application

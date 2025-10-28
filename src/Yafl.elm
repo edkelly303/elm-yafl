@@ -7,7 +7,7 @@ module Yafl exposing
     , map2, andMap
     , choice, option
     , label
-    , validate, validateAt, andThenOutput
+    , validate, validateAt, andThen
     , HasId, NoId, id, intercept, send
     , studio, toDOT
     )
@@ -46,7 +46,7 @@ composing self-contained [`Widget`](#Widget)s.
 
 ### [Validating fields](#validating-fields)
 
-[`validate`](#validate), [`validateAt`](#validateAt), [`andThenOutput`](#andThenOutput)
+[`validate`](#validate), [`validateAt`](#validateAt), [`andThen`](#andThen)
 
 
 ### [Communicating between Fields](#communicating-between-fields)
@@ -296,7 +296,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 [_Back to top_](#table-of-contents)
 
-@docs validate, validateAt, andThenOutput
+@docs validate, validateAt, andThen
 
 
 # Communicating between Fields
@@ -528,7 +528,10 @@ init (Field field) =
 
     afterLoading =
         model
-            |> Yafl.load form { a = Just True, b = Just "hello" }
+            |> Yafl.load form
+                { a = Just (always True)
+                , b = Just (always "hello")
+                }
             |> Yafl.submit form
 
     afterLoading --> Ok ( True, "hello" )
@@ -719,7 +722,7 @@ submit (Field field) (Model model) =
 
     nameField
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String (String -> String) String
 
 -}
 label : String -> Field formModel formMsg id widgetMsg input output -> Field formModel formMsg id widgetMsg input output
@@ -818,8 +821,8 @@ you only want to display an error on one field.
         |> Yafl.init
         |> Tuple.first
         |> Yafl.load form
-            { passwordField = Just "password123"
-            , confirmField = Just "password124"
+            { passwordField = Just (always "password123")
+            , confirmField = Just (always "password124")
             }
         |> Yafl.submit form
 
@@ -859,7 +862,7 @@ messages to that Field.
 
     myField
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String (String -> String) String
 
     myFieldWithId =
         myField
@@ -867,7 +870,7 @@ messages to that Field.
 
     myFieldWithId
 
-    --: Yafl.Field FormModel FormMsg Yafl.HasId String String String
+    --: Yafl.Field FormModel FormMsg Yafl.HasId String (String -> String) String
 
     Yafl.send myFieldWithId "Hello!"
 
@@ -982,7 +985,7 @@ intercept (Field field) =
     --> Ok "Hurrah!"
 
 -}
-succeed : output -> Field formModel formMsg id widgetMsg input output
+succeed : output -> Field formModel formMsg Never Never input output
 succeed output =
     Field
         { init = \path maybeId -> ( Empty Succeed (newLocation path maybeId), Cmd.none )
@@ -1029,7 +1032,7 @@ succeed output =
     --> Err [ ("0", "Oh dear!") ]
 
 -}
-fail : String -> Field formModel formMsg id widgetMsg input output
+fail : String -> Field formModel formMsg Never Never input output
 fail e =
     Field
         { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
@@ -1087,7 +1090,7 @@ error message on one specific field.
 failAt :
     Field formModel formMsg HasId widgetMsg1 input1 output1
     -> String
-    -> Field formModel formMsg address2 widgetMsg2 input2 output2
+    -> Field formModel formMsg Never Never input2 output2
 failAt (Field failField) e =
     Field
         { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
@@ -1447,12 +1450,12 @@ andMap getInput (Field field1) (Field field2) =
 
 
 {-
-    .d8b.  d8b   db d8888b. d888888b db   db d88888b d8b   db  .d88b.  db    db d888888b d8888b. db    db d888888b
-   d8' `8b 888o  88 88  `8D `~~88~~' 88   88 88'     888o  88 .8P  Y8. 88    88 `~~88~~' 88  `8D 88    88 `~~88~~'
-   88ooo88 88V8o 88 88   88    88    88ooo88 88ooooo 88V8o 88 88    88 88    88    88    88oodD' 88    88    88
-   88~~~88 88 V8o88 88   88    88    88~~~88 88~~~~~ 88 V8o88 88    88 88    88    88    88~~~   88    88    88
-   88   88 88  V888 88  .8D    88    88   88 88.     88  V888 `8b  d8' 88b  d88    88    88      88b  d88    88
-   YP   YP VP   V8P Y8888D'    YP    YP   YP Y88888P VP   V8P  `Y88P'  ~Y8888P'    YP    88      ~Y8888P'    YP
+    .d8b.  d8b   db d8888b. d888888b db   db d88888b d8b   db
+   d8' `8b 888o  88 88  `8D `~~88~~' 88   88 88'     888o  88
+   88ooo88 88V8o 88 88   88    88    88ooo88 88ooooo 88V8o 88
+   88~~~88 88 V8o88 88   88    88    88~~~88 88~~~~~ 88 V8o88
+   88   88 88  V888 88  .8D    88    88   88 88.     88  V888
+   YP   YP VP   V8P Y8888D'    YP    YP   YP Y88888P VP   V8P
 
 
 -}
@@ -1465,6 +1468,10 @@ type.
 (You _can_ also use it for validating a field's output, but it will probably be
 better to use [`validate`](#validate) or [`validateAt`](#validateAt) instead.)
 
+Be warned: this is not a fully law-abiding monadic `andThen` - you shouldn't use
+it to return arbitrary Fields, you should only use it with `succeed`, `fail` and
+`failAt`
+
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
 
@@ -1472,39 +1479,39 @@ better to use [`validate`](#validate) or [`validateAt`](#validateAt) instead.)
 
     fields.string
             |> Yafl.label "Enter a floating-point number"
-            |> Yafl.andThenOutput
+            |> Yafl.andThen
                 (\string ->
                     case String.toFloat string of
                         Just float ->
-                            Ok float
+                            Yafl.succeed float
 
                         Nothing ->
-                            Err "That's not a valid float"
+                            Yafl.fail "That's not a valid float"
                 )
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String String Float
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String (String -> String) Float
 
     -- Example 2: Validating a field's output
 
     fields.string
         |> Yafl.label "Enter the first name of a Beatle"
-        |> Yafl.andThenOutput
+        |> Yafl.andThen
             (\name ->
                 if List.member name [ "John", "Paul", "George", "Ringo" ] then
-                    Ok name
+                    Yafl.succeed name
 
                 else
-                    Err "Invalid Beatle"
+                    Yafl.fail "Invalid Beatle"
             )
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String (String -> String) String
 
 -}
-andThenOutput :
-    (output -> Result String output2)
+andThen :
+    (output -> Field formModel formMsg Never Never input output2)
     -> Field formModel formMsg id widgetMsg input output
     -> Field formModel formMsg id widgetMsg input output2
-andThenOutput f (Field field) =
+andThen f (Field field) =
     Field
         { init = field.init
         , load = field.load
@@ -1521,19 +1528,12 @@ andThenOutput f (Field field) =
                 field.submit field.checks model
                     |> Result.andThen
                         (\output ->
-                            case f output of
-                                Ok output2 ->
-                                    Ok output2
-
-                                Err str ->
-                                    Err
-                                        [ { message = str
-                                          , fail = True
-                                          , locator = locatorFromModel model
-                                          }
-                                        ]
+                            let
+                                (Field andThenField) =
+                                    f output
+                            in
+                            andThenField.submit (andThenField.checks ++ checks) model
                         )
-                    |> Result.andThen (runChecks checks model)
         }
 
 
