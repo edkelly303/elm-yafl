@@ -95,8 +95,8 @@ viewFeedback feedback =
 
 
 fields :
-    { string : Yafl.Field FormModel FormMsg Yafl.NoId String (String -> String) String
-    , bool : Yafl.Field FormModel FormMsg Yafl.NoId Bool (Bool -> Bool) Bool
+    { string : Yafl.Field FormModel FormMsg Yafl.NoId String String String
+    , bool : Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool Bool
     }
 fields =
     Yafl.defineFields
@@ -114,7 +114,7 @@ type alias FormMsg =
     ( Maybe String, ( Maybe Bool, () ) )
 
 
-nonEmptyString : Yafl.Field FormModel FormMsg Yafl.NoId String (String -> String) String
+nonEmptyString : Yafl.Field FormModel FormMsg Yafl.NoId String String String
 nonEmptyString =
     fields.string
         |> Yafl.andThen
@@ -127,19 +127,19 @@ nonEmptyString =
             )
 
 
-firstName : Yafl.Field FormModel FormMsg Yafl.NoId String (String -> String) String
+firstName : Yafl.Field FormModel FormMsg Yafl.NoId String String String
 firstName =
     nonEmptyString
         |> Yafl.label "What is the user's first name?"
 
 
-lastName : Yafl.Field FormModel FormMsg Yafl.NoId String (String -> String) String
+lastName : Yafl.Field FormModel FormMsg Yafl.NoId String String String
 lastName =
     nonEmptyString
         |> Yafl.label "What is the user's last name?"
 
 
-isAdmin : Yafl.Field FormModel FormMsg Yafl.NoId Bool (Bool -> Bool) Bool
+isAdmin : Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool Bool
 isAdmin =
     fields.bool
         |> Yafl.label "Is the user an admin?"
@@ -151,9 +151,9 @@ user :
         FormMsg
         Yafl.NoId
         Never
-        { firstName : Maybe (String -> String)
-        , isAdmin : Maybe (Bool -> Bool)
-        , lastName : Maybe (String -> String)
+        { firstName : Maybe String
+        , isAdmin : Maybe Bool
+        , lastName : Maybe String
         }
         User
 user =

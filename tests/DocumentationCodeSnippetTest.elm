@@ -52,25 +52,9 @@ tests =
                         let
                             unused :
                                 { string :
-                                    Yafl.Field
-                                        Examples.FormModel
-                                        Examples.FormMsg
-                                        Yafl.NoId
-                                        String.String
-                                        (String.String
-                                         -> String.String
-                                        )
-                                        String.String
+                                    Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                                 , bool :
-                                    Yafl.Field
-                                        Examples.FormModel
-                                        Examples.FormMsg
-                                        Yafl.NoId
-                                        Basics.Bool
-                                        (Basics.Bool
-                                         -> Basics.Bool
-                                        )
-                                        Basics.Bool
+                                    Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId Basics.Bool Basics.Bool Basics.Bool
                                 }
                             unused =
                                 Examples.fields
@@ -84,16 +68,7 @@ tests =
                     "0"
                     (\() ->
                         let
-                            unused :
-                                Yafl.Field
-                                    Examples.FormModel
-                                    Examples.FormMsg
-                                    Yafl.NoId
-                                    String.String
-                                    (String.String
-                                     -> String.String
-                                    )
-                                    String.String
+                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                             unused =
                                 Examples.nonEmptyString
                         in
@@ -103,16 +78,7 @@ tests =
                     "1"
                     (\() ->
                         let
-                            unused :
-                                Yafl.Field
-                                    Examples.FormModel
-                                    Examples.FormMsg
-                                    Yafl.NoId
-                                    String.String
-                                    (String.String
-                                     -> String.String
-                                    )
-                                    String.String
+                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                             unused =
                                 Examples.firstName
                         in
@@ -122,16 +88,7 @@ tests =
                     "2"
                     (\() ->
                         let
-                            unused :
-                                Yafl.Field
-                                    Examples.FormModel
-                                    Examples.FormMsg
-                                    Yafl.NoId
-                                    String.String
-                                    (String.String
-                                     -> String.String
-                                    )
-                                    String.String
+                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                             unused =
                                 Examples.lastName
                         in
@@ -141,16 +98,7 @@ tests =
                     "3"
                     (\() ->
                         let
-                            unused :
-                                Yafl.Field
-                                    Examples.FormModel
-                                    Examples.FormMsg
-                                    Yafl.NoId
-                                    Basics.Bool
-                                    (Basics.Bool
-                                     -> Basics.Bool
-                                    )
-                                    Basics.Bool
+                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId Basics.Bool Basics.Bool Basics.Bool
                             unused =
                                 Examples.isAdmin
                         in
@@ -170,11 +118,9 @@ tests =
                                     Yafl.NoId
                                     Basics.Never
                                     { firstName :
-                                        Maybe.Maybe (String.String -> String.String)
-                                    , lastName :
-                                        Maybe.Maybe (String.String -> String.String)
-                                    , isAdmin :
-                                        Maybe.Maybe (Basics.Bool -> Basics.Bool)
+                                        Maybe.Maybe String.String
+                                    , lastName : Maybe.Maybe String.String
+                                    , isAdmin : Maybe.Maybe Basics.Bool
                                     }
                                     Examples.User
                             unused =
@@ -287,16 +233,7 @@ tests =
                         "0"
                         (\() ->
                             let
-                                unused :
-                                    Yafl.Field
-                                        Examples.FormModel
-                                        Examples.FormMsg
-                                        Yafl.NoId
-                                        String.String
-                                        (String.String
-                                         -> String.String
-                                        )
-                                        Basics.Float
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String Basics.Float
                                 unused =
                                     Examples.fields.string
                                         |> Yafl.label
@@ -318,16 +255,7 @@ tests =
                         "1"
                         (\() ->
                             let
-                                unused :
-                                    Yafl.Field
-                                        Examples.FormModel
-                                        Examples.FormMsg
-                                        Yafl.NoId
-                                        String.String
-                                        (String.String
-                                         -> String.String
-                                        )
-                                        String.String
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                                 unused =
                                     Examples.fields.string
                                         |> Yafl.label
@@ -374,16 +302,7 @@ tests =
                         "0"
                         (\() ->
                             let
-                                unused :
-                                    Yafl.Field
-                                        Examples.FormModel
-                                        Examples.FormMsg
-                                        Yafl.NoId
-                                        String.String
-                                        (String.String
-                                         -> String.String
-                                        )
-                                        String.String
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                                 unused =
                                     myField__Yafl__id_0
                             in
@@ -393,16 +312,7 @@ tests =
                         "1"
                         (\() ->
                             let
-                                unused :
-                                    Yafl.Field
-                                        Examples.FormModel
-                                        Examples.FormMsg
-                                        Yafl.HasId
-                                        String.String
-                                        (String.String
-                                         -> String.String
-                                        )
-                                        String.String
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.HasId String.String String.String String.String
                                 unused =
                                     myFieldWithId__Yafl__id_0
                             in
@@ -463,16 +373,7 @@ tests =
                         "0"
                         (\() ->
                             let
-                                unused :
-                                    Yafl.Field
-                                        Examples.FormModel
-                                        Examples.FormMsg
-                                        Yafl.NoId
-                                        String.String
-                                        (String.String
-                                         -> String.String
-                                        )
-                                        String.String
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                                 unused =
                                     nameField__Yafl__label_0
                             in
@@ -624,11 +525,10 @@ tests =
                                 |> Tuple.first
                                 |> Yafl.load
                                     form__Yafl__validateAt_0
-                                    { passwordField =
-                                        Maybe.Just (Basics.always "password123")
-                                    , confirmField =
-                                        Maybe.Just (Basics.always "password124")
+                                    { passwordField = Maybe.Just "password123"
+                                    , confirmField = Maybe.Just "password124"
                                     }
+                                |> Tuple.first
                                 |> Yafl.submit form__Yafl__validateAt_0
                                 |> Expect.equal
                                     (Result.Err
@@ -857,9 +757,8 @@ afterLoading__Yafl__load_0 =
     model__Yafl__load_0
         |> Yafl.load
             form__Yafl__load_0
-            { a = Maybe.Just (Basics.always Basics.True)
-            , b = Maybe.Just (Basics.always "hello")
-            }
+            { a = Maybe.Just Basics.True, b = Maybe.Just "hello" }
+        |> Tuple.first
         |> Yafl.submit form__Yafl__load_0
 
 

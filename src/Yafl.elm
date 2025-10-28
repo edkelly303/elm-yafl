@@ -379,7 +379,7 @@ type Field formModel formMsg id widgetMsg input output
     = Field
         { init :
             Path -> MaybeId -> ( Node formModel, Cmd (Msg formMsg) )
-        , load : Maybe input -> Node formModel -> Node formModel
+        , load : Maybe input -> Node formModel -> ( Node formModel, Cmd (Msg formMsg) )
         , update :
             Msg formMsg
             -> Node formModel
@@ -529,9 +529,10 @@ init (Field field) =
     afterLoading =
         model
             |> Yafl.load form
-                { a = Just (always True)
-                , b = Just (always "hello")
+                { a = Just True
+                , b = Just "hello"
                 }
+            |> Tuple.first
             |> Yafl.submit form
 
     afterLoading --> Ok ( True, "hello" )
@@ -541,9 +542,10 @@ load :
     Field formModel formMsg id widgetMsg input output
     -> input
     -> Model formModel output
-    -> Model formModel output
+    -> ( Model formModel output, Cmd (Msg formMsg) )
 load (Field field) input (Model node) =
-    Model (field.load (Just input) node)
+    field.load (Just input) node
+        |> Tuple.mapFirst Model
 
 
 
@@ -722,7 +724,7 @@ submit (Field field) (Model model) =
 
     nameField
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String (String -> String) String
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
 
 -}
 label : String -> Field formModel formMsg id widgetMsg input output -> Field formModel formMsg id widgetMsg input output
@@ -821,9 +823,10 @@ you only want to display an error on one field.
         |> Yafl.init
         |> Tuple.first
         |> Yafl.load form
-            { passwordField = Just (always "password123")
-            , confirmField = Just (always "password124")
+            { passwordField = Just "password123"
+            , confirmField = Just "password124"
             }
+        |> Tuple.first
         |> Yafl.submit form
 
     --> Err [ ( "confirm", "Passwords do not match" ) ]
@@ -862,7 +865,7 @@ messages to that Field.
 
     myField
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String (String -> String) String
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
 
     myFieldWithId =
         myField
@@ -870,7 +873,7 @@ messages to that Field.
 
     myFieldWithId
 
-    --: Yafl.Field FormModel FormMsg Yafl.HasId String (String -> String) String
+    --: Yafl.Field FormModel FormMsg Yafl.HasId String String String
 
     Yafl.send myFieldWithId "Hello!"
 
@@ -989,7 +992,7 @@ succeed : output -> Field formModel formMsg Never Never input output
 succeed output =
     Field
         { init = \path maybeId -> ( Empty Succeed (newLocation path maybeId), Cmd.none )
-        , load = \_ model -> model
+        , load = \_ model -> ( model, Cmd.none )
         , update = \_ model -> ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
@@ -1036,7 +1039,7 @@ fail : String -> Field formModel formMsg Never Never input output
 fail e =
     Field
         { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
-        , load = \_ model -> model
+        , load = \_ model -> ( model, Cmd.none )
         , update = \_ model -> ( model, Cmd.none )
         , view =
             \{ feedback } model ->
@@ -1094,7 +1097,7 @@ failAt :
 failAt (Field failField) e =
     Field
         { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
-        , load = \_ model -> model
+        , load = \_ model -> ( model, Cmd.none )
         , update = \_ model -> ( model, Cmd.none )
         , view =
             \{ feedback } model ->
@@ -1299,13 +1302,20 @@ map2 mappers (Field field1) (Field field2) =
         , load =
             \input model ->
                 case ( Maybe.map mappers.input input, model ) of
-                    ( Just ( input1, input2 ), Product loc node1 node2 ) ->
-                        Product loc
-                            (field1.load input1 node1)
-                            (field2.load input2 node2)
+                    ( Just ( input1, input2 ), Product location node1 node2 ) ->
+                        let
+                            ( newModel1, cmd1 ) =
+                                field1.load input1 node1
+
+                            ( newModel2, cmd2 ) =
+                                field2.load input2 node2
+                        in
+                        ( Product location newModel1 newModel2
+                        , Cmd.batch [ cmd1, cmd2 ]
+                        )
 
                     _ ->
-                        model
+                        ( model, Cmd.none )
         , update =
             \msg model ->
                 case model of
@@ -1489,7 +1499,7 @@ it to return arbitrary Fields, you should only use it with `succeed`, `fail` and
                             Yafl.fail "That's not a valid float"
                 )
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String (String -> String) Float
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String String Float
 
     -- Example 2: Validating a field's output
 
@@ -1504,7 +1514,7 @@ it to return arbitrary Fields, you should only use it with `succeed`, `fail` and
                     Yafl.fail "Invalid Beatle"
             )
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String (String -> String) String
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
 
 -}
 andThen :
@@ -1566,10 +1576,12 @@ choice =
             \input model ->
                 case ( Maybe.andThen .selected input, model ) of
                     ( Just selected, Sum loc _ nodes ) ->
-                        Sum loc { selected = selected } nodes
+                        ( Sum loc { selected = selected } nodes
+                        , Cmd.none
+                        )
 
                     _ ->
-                        model
+                        ( model, Cmd.none )
         , update = \_ model -> ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
@@ -1652,21 +1664,23 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
                 case ( input |> Maybe.andThen .options |> Maybe.andThen getInput, model ) of
                     ( thisOptionInput, Sum loc sel (( _, thisOptionNode ) :: previousOptionLabelsAndNodes) ) ->
                         let
-                            newThisOptionNode =
+                            ( newThisOptionNode, thisOptionCmd ) =
                                 thisOptionField.load thisOptionInput thisOptionNode
 
-                            newPreviousOptionsNode =
+                            ( newPreviousOptionsNode, previousOptionsCmd ) =
                                 previousOptionFields.load input (Sum loc sel previousOptionLabelsAndNodes)
                         in
                         case newPreviousOptionsNode of
                             Sum _ newSel newPreviousOptionLabelsAndNodes ->
-                                Sum loc newSel (( thisOptionLabel, newThisOptionNode ) :: newPreviousOptionLabelsAndNodes)
+                                ( Sum loc newSel (( thisOptionLabel, newThisOptionNode ) :: newPreviousOptionLabelsAndNodes)
+                                , Cmd.batch [ thisOptionCmd, previousOptionsCmd ]
+                                )
 
                             _ ->
-                                model
+                                ( model, Cmd.none )
 
                     _ ->
-                        model
+                        ( model, Cmd.none )
         , update =
             \msg model ->
                 case model of
@@ -1852,82 +1866,77 @@ defineFields ctor =
 
 {-| Add a Widget to the definition of the Fields you want to use in your forms.
 -}
-
-
-
--- addWidget :
---     Widget () widgetModel widgetMsg output
---     ->
---         { apply :
---             ({ blankModel : formModel
---              , blankMsg : formMsg
---              , ctor :
---                 Field formModel formMsg NoId widgetMsg (widgetModel -> widgetModel) output -> fields
---              }
---              -> ( formMsg -> Maybe widgetMsg, previousMsgGetters )
---              -> ( Maybe widgetMsg -> formMsg -> formMsg, previousMsgSetters )
---              -> ( formModel -> Maybe widgetModel, previousModelGetters )
---              -> ( Maybe widgetModel -> formModel -> formModel, previousModelSetters )
---              -> ( InnerWidget widgetModel widgetMsg output, previousWidgets )
---              -> accForNext
---             )
---             -> toFolder5
---         , ctor : f
---         , widgets : ( InnerWidget widgetModel widgetMsg output, previousWidgets ) -> toWidgets
---         , modelBlanks : ( Maybe widgetModel, previousBlankModels ) -> toBlankModel
---         , modelGetters :
---             { appendToGetters : ( tuple3 -> head3, nextModelGetters ) -> toModelGetters
---             , focus : tuple3 -> ( head3, tail4 )
---             }
---         , modelSetters :
---             { appendToSetters :
---                 ( head2 -> tuple2 -> tuple2, nextModelSetters ) -> toModelSetters
---             , focus :
---                 (( head2, tail3 ) -> ( head2, tail3 )) -> tuple2 -> tuple2
---             }
---         , msgBlanks : ( Maybe widgetMsg, previousBlankMsgs ) -> toBlankMsg
---         , msgGetters :
---             { appendToGetters : ( tuple1 -> head1, nextMsgGetters ) -> toMsgGetters
---             , focus : tuple1 -> ( head1, tail1 )
---             }
---         , msgSetters :
---             { appendToSetters :
---                 ( head -> tuple -> tuple, nextMsgSetters ) -> toMsgSetters
---             , focus : (( head, tail ) -> ( head, tail )) -> tuple -> tuple
---             }
---         }
---     ->
---         { apply :
---             ({ blankModel : formModel, blankMsg : formMsg, ctor : fields }
---              -> previousMsgGetters
---              -> previousMsgSetters
---              -> previousModelGetters
---              -> previousModelSetters
---              -> previousWidgets
---              -> accForNext
---             )
---             -> toFolder5
---         , ctor : f
---         , widgets : previousWidgets -> toWidgets
---         , modelBlanks : previousBlankModels -> toBlankModel
---         , modelGetters :
---             { appendToGetters : nextModelGetters -> toModelGetters
---             , focus : tuple3 -> tail4
---             }
---         , modelSetters :
---             { appendToSetters : nextModelSetters -> toModelSetters
---             , focus : (tail3 -> tail3) -> tuple2 -> tuple2
---             }
---         , msgBlanks : previousBlankMsgs -> toBlankMsg
---         , msgGetters :
---             { appendToGetters : nextMsgGetters -> toMsgGetters, focus : tuple1 -> tail1 }
---         , msgSetters :
---             { appendToSetters : nextMsgSetters -> toMsgSetters
---             , focus : (tail -> tail) -> tuple -> tuple
---             }
---         }
-
-
+addWidget :
+    Widget () widgetModel widgetMsg output
+    ->
+        { apply :
+            ({ blankModel : formModel
+             , blankMsg : formMsg
+             , ctor :
+                Field formModel formMsg NoId widgetMsg widgetMsg output -> fields
+             }
+             -> ( formMsg -> Maybe widgetMsg, previousMsgGetters )
+             -> ( Maybe widgetMsg -> formMsg -> formMsg, previousMsgSetters )
+             -> ( formModel -> Maybe widgetModel, previousModelGetters )
+             -> ( Maybe widgetModel -> formModel -> formModel, previousModelSetters )
+             -> ( InnerWidget widgetModel widgetMsg output, previousWidgets )
+             -> accForNext
+            )
+            -> toFolder5
+        , ctor : f
+        , widgets : ( InnerWidget widgetModel widgetMsg output, previousWidgets ) -> toWidgets
+        , modelBlanks : ( Maybe widgetModel, previousBlankModels ) -> toBlankModel
+        , modelGetters :
+            { appendToGetters : ( tuple3 -> head3, nextModelGetters ) -> toModelGetters
+            , focus : tuple3 -> ( head3, tail4 )
+            }
+        , modelSetters :
+            { appendToSetters :
+                ( head2 -> tuple2 -> tuple2, nextModelSetters ) -> toModelSetters
+            , focus :
+                (( head2, tail3 ) -> ( head2, tail3 )) -> tuple2 -> tuple2
+            }
+        , msgBlanks : ( Maybe widgetMsg, previousBlankMsgs ) -> toBlankMsg
+        , msgGetters :
+            { appendToGetters : ( tuple1 -> head1, nextMsgGetters ) -> toMsgGetters
+            , focus : tuple1 -> ( head1, tail1 )
+            }
+        , msgSetters :
+            { appendToSetters :
+                ( head -> tuple -> tuple, nextMsgSetters ) -> toMsgSetters
+            , focus : (( head, tail ) -> ( head, tail )) -> tuple -> tuple
+            }
+        }
+    ->
+        { apply :
+            ({ blankModel : formModel, blankMsg : formMsg, ctor : fields }
+             -> previousMsgGetters
+             -> previousMsgSetters
+             -> previousModelGetters
+             -> previousModelSetters
+             -> previousWidgets
+             -> accForNext
+            )
+            -> toFolder5
+        , ctor : f
+        , widgets : previousWidgets -> toWidgets
+        , modelBlanks : previousBlankModels -> toBlankModel
+        , modelGetters :
+            { appendToGetters : nextModelGetters -> toModelGetters
+            , focus : tuple3 -> tail4
+            }
+        , modelSetters :
+            { appendToSetters : nextModelSetters -> toModelSetters
+            , focus : (tail3 -> tail3) -> tuple2 -> tuple2
+            }
+        , msgBlanks : previousBlankMsgs -> toBlankMsg
+        , msgGetters :
+            { appendToGetters : nextMsgGetters -> toMsgGetters, focus : tuple1 -> tail1 }
+        , msgSetters :
+            { appendToSetters : nextMsgSetters -> toMsgSetters
+            , focus : (tail -> tail) -> tuple -> tuple
+            }
+        }
 addWidget widget builder =
     { ctor = builder.ctor
     , widgets = NT.appender (widget ()) builder.widgets
@@ -1945,82 +1954,77 @@ addWidget widget builder =
 your forms. Each time you use a Field derived from this Widget in your form, you
 will be able to pass in a `config` value.
 -}
-
-
-
--- addWidgetWithConfig :
---     Widget config widgetModel widgetMsg output
---     ->
---         { apply :
---             ({ blankModel : formModel
---              , blankMsg : formMsg
---              , ctor :
---                 (config -> Field formModel formMsg NoId widgetMsg (widgetModel -> widgetModel) output) -> fields
---              }
---              -> ( formMsg -> Maybe widgetMsg, previousMsgGetters )
---              -> ( Maybe widgetMsg -> formMsg -> formMsg, previousMsgSetters )
---              -> ( formModel -> Maybe widgetModel, previousModelGetters )
---              -> ( Maybe widgetModel -> formModel -> formModel, previousModelSetters )
---              -> ( Widget config widgetModel widgetMsg output, previousWidgets )
---              -> accForNext
---             )
---             -> toFolder5
---         , ctor : f
---         , widgets : ( Widget config widgetModel widgetMsg output, previousWidgets ) -> toWidgets
---         , modelBlanks : ( Maybe widgetModel, previousBlankModels ) -> toBlankModel
---         , modelGetters :
---             { appendToGetters : ( tuple3 -> head3, nextModelGetters ) -> toModelGetters
---             , focus : tuple3 -> ( head3, tail4 )
---             }
---         , modelSetters :
---             { appendToSetters :
---                 ( head2 -> tuple2 -> tuple2, nextModelSetters ) -> toModelSetters
---             , focus :
---                 (( head2, tail3 ) -> ( head2, tail3 )) -> tuple2 -> tuple2
---             }
---         , msgBlanks : ( Maybe widgetMsg, previousBlankMsgs ) -> toBlankMsg
---         , msgGetters :
---             { appendToGetters : ( tuple1 -> head1, nextMsgGetters ) -> toMsgGetters
---             , focus : tuple1 -> ( head1, tail1 )
---             }
---         , msgSetters :
---             { appendToSetters :
---                 ( head -> tuple -> tuple, nextMsgSetters ) -> toMsgSetters
---             , focus : (( head, tail ) -> ( head, tail )) -> tuple -> tuple
---             }
---         }
---     ->
---         { apply :
---             ({ blankModel : formModel, blankMsg : formMsg, ctor : fields }
---              -> previousMsgGetters
---              -> previousMsgSetters
---              -> previousModelGetters
---              -> previousModelSetters
---              -> previousWidgets
---              -> accForNext
---             )
---             -> toFolder5
---         , ctor : f
---         , widgets : previousWidgets -> toWidgets
---         , modelBlanks : previousBlankModels -> toBlankModel
---         , modelGetters :
---             { appendToGetters : nextModelGetters -> toModelGetters
---             , focus : tuple3 -> tail4
---             }
---         , modelSetters :
---             { appendToSetters : nextModelSetters -> toModelSetters
---             , focus : (tail3 -> tail3) -> tuple2 -> tuple2
---             }
---         , msgBlanks : previousBlankMsgs -> toBlankMsg
---         , msgGetters :
---             { appendToGetters : nextMsgGetters -> toMsgGetters, focus : tuple1 -> tail1 }
---         , msgSetters :
---             { appendToSetters : nextMsgSetters -> toMsgSetters
---             , focus : (tail -> tail) -> tuple -> tuple
---             }
---         }
-
-
+addWidgetWithConfig :
+    Widget config widgetModel widgetMsg output
+    ->
+        { apply :
+            ({ blankModel : formModel
+             , blankMsg : formMsg
+             , ctor :
+                (config -> Field formModel formMsg NoId widgetMsg widgetMsg output) -> fields
+             }
+             -> ( formMsg -> Maybe widgetMsg, previousMsgGetters )
+             -> ( Maybe widgetMsg -> formMsg -> formMsg, previousMsgSetters )
+             -> ( formModel -> Maybe widgetModel, previousModelGetters )
+             -> ( Maybe widgetModel -> formModel -> formModel, previousModelSetters )
+             -> ( Widget config widgetModel widgetMsg output, previousWidgets )
+             -> accForNext
+            )
+            -> toFolder5
+        , ctor : f
+        , widgets : ( Widget config widgetModel widgetMsg output, previousWidgets ) -> toWidgets
+        , modelBlanks : ( Maybe widgetModel, previousBlankModels ) -> toBlankModel
+        , modelGetters :
+            { appendToGetters : ( tuple3 -> head3, nextModelGetters ) -> toModelGetters
+            , focus : tuple3 -> ( head3, tail4 )
+            }
+        , modelSetters :
+            { appendToSetters :
+                ( head2 -> tuple2 -> tuple2, nextModelSetters ) -> toModelSetters
+            , focus :
+                (( head2, tail3 ) -> ( head2, tail3 )) -> tuple2 -> tuple2
+            }
+        , msgBlanks : ( Maybe widgetMsg, previousBlankMsgs ) -> toBlankMsg
+        , msgGetters :
+            { appendToGetters : ( tuple1 -> head1, nextMsgGetters ) -> toMsgGetters
+            , focus : tuple1 -> ( head1, tail1 )
+            }
+        , msgSetters :
+            { appendToSetters :
+                ( head -> tuple -> tuple, nextMsgSetters ) -> toMsgSetters
+            , focus : (( head, tail ) -> ( head, tail )) -> tuple -> tuple
+            }
+        }
+    ->
+        { apply :
+            ({ blankModel : formModel, blankMsg : formMsg, ctor : fields }
+             -> previousMsgGetters
+             -> previousMsgSetters
+             -> previousModelGetters
+             -> previousModelSetters
+             -> previousWidgets
+             -> accForNext
+            )
+            -> toFolder5
+        , ctor : f
+        , widgets : previousWidgets -> toWidgets
+        , modelBlanks : previousBlankModels -> toBlankModel
+        , modelGetters :
+            { appendToGetters : nextModelGetters -> toModelGetters
+            , focus : tuple3 -> tail4
+            }
+        , modelSetters :
+            { appendToSetters : nextModelSetters -> toModelSetters
+            , focus : (tail3 -> tail3) -> tuple2 -> tuple2
+            }
+        , msgBlanks : previousBlankMsgs -> toBlankMsg
+        , msgGetters :
+            { appendToGetters : nextMsgGetters -> toMsgGetters, focus : tuple1 -> tail1 }
+        , msgSetters :
+            { appendToSetters : nextMsgSetters -> toMsgSetters
+            , focus : (tail -> tail) -> tuple -> tuple
+            }
+        }
 addWidgetWithConfig widget builder =
     { ctor = builder.ctor
     , widgets = NT.appender widget builder.widgets
@@ -2130,7 +2134,7 @@ applierWithConfig :
     ->
         { blankModel : formModel
         , blankMsg : formMsg
-        , ctor : (config -> Field formModel formMsg NoId widgetMsg (widgetModel -> widgetModel) output) -> fields
+        , ctor : (config -> Field formModel formMsg NoId widgetMsg widgetMsg output) -> fields
         }
     -> { blankModel : formModel, blankMsg : formMsg, ctor : fields }
 applierWithConfig msgGetter msgSetter modelGetter modelSetter widgetFromConfig acc =
@@ -2157,11 +2161,16 @@ applierWithConfig msgGetter msgSetter modelGetter modelSetter widgetFromConfig a
                     )
                 , load =
                     \input model ->
-                        let
-                            widgetModel =
-                                modelGetter model
-                        in
-                        modelSetter (Maybe.map input widgetModel) model
+                        case
+                            Maybe.map (widget.update input) (modelGetter model)
+                        of
+                            Just ( newModel, cmd ) ->
+                                ( modelSetter (Just newModel) acc.blankModel
+                                , Cmd.map send_ cmd
+                                )
+
+                            Nothing ->
+                                ( model, Cmd.none )
                 , update =
                     \msg model ->
                         case
@@ -2231,7 +2240,7 @@ applierWithoutConfig :
     ->
         { blankModel : formModel
         , blankMsg : formMsg
-        , ctor : Field formModel formMsg NoId widgetMsg (widgetModel -> widgetModel) output -> fields
+        , ctor : Field formModel formMsg NoId widgetMsg widgetMsg output -> fields
         }
     -> { blankModel : formModel, blankMsg : formMsg, ctor : fields }
 applierWithoutConfig msgGetter msgSetter modelGetter modelSetter widget acc =
@@ -2254,11 +2263,16 @@ applierWithoutConfig msgGetter msgSetter modelGetter modelSetter widget acc =
                     )
                 , load =
                     \input model ->
-                        let
-                            widgetModel =
-                                modelGetter model
-                        in
-                        modelSetter (Maybe.map input widgetModel) model
+                        case
+                            Maybe.map (widget.update input) (modelGetter model)
+                        of
+                            Just ( newModel, cmd ) ->
+                                ( modelSetter (Just newModel) acc.blankModel
+                                , Cmd.map send_ cmd
+                                )
+
+                            Nothing ->
+                                ( model, Cmd.none )
                 , update =
                     \msg model ->
                         case
@@ -2321,7 +2335,7 @@ applierWithoutConfig msgGetter msgSetter modelGetter modelSetter widget acc =
 
 convertToField :
     { init : ( formModel, Cmd formMsg )
-    , load : (widgetModel -> widgetModel) -> formModel -> formModel
+    , load : widgetMsg -> formModel -> ( formModel, Cmd formMsg )
     , update : formMsg -> formModel -> ( formModel, Cmd formMsg )
     , blankModel : formModel
     , view : ViewConfig -> formModel -> List (H.Html formMsg)
@@ -2331,7 +2345,7 @@ convertToField :
     , intercept : formMsg -> Maybe widgetMsg
     , label : String
     }
-    -> Field formModel formMsg NoId widgetMsg (widgetModel -> widgetModel) value
+    -> Field formModel formMsg NoId widgetMsg widgetMsg value
 convertToField args =
     Field
         { init =
@@ -2347,11 +2361,17 @@ convertToField args =
         , load =
             \input model ->
                 case ( input, model ) of
-                    ( Just f, Value location innerModel ) ->
-                        Value location (args.load f innerModel)
+                    ( Just widgetMsg, Value location innerModel ) ->
+                        let
+                            ( newModel, cmd ) =
+                                args.load widgetMsg innerModel
+                        in
+                        ( Value location newModel
+                        , Cmd.map (ValueChanged (locationToLocator location)) cmd
+                        )
 
                     _ ->
-                        model
+                        ( model, Cmd.none )
         , update =
             \msg model ->
                 case model of

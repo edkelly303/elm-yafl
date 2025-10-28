@@ -15,22 +15,24 @@ main =
                     x : ()
                     x =
                         flags
-                in
-                Yafl.init form
-                    |> Tuple.mapFirst
-                        (Yafl.load form
-                            { name = Just (\n -> n ++ "Ed") 
+                    (m1, c1) = Yafl.init form
+                    (m2, c2) = Yafl.load form 
+                
+                
+                    
+                            { name = Just ("Ed") 
                             , foo =
                                 Just
                                     { selected = Just 1
                                     , options =
                                         Just
                                             { bar = Nothing
-                                            , baz = Just (always False)
+                                            , baz = Just (False)
                                             }
                                     }
-                            }
-                        )
+                            } m1
+                in
+                (m2, Cmd.batch [c1, c2])
         , update = \msg model -> Yafl.update form msg model
         , view = \model -> H.form [] (Yafl.view form model)
         , subscriptions = \model -> Yafl.subscriptions form model
