@@ -19,14 +19,14 @@ main =
                 Yafl.init form
                     |> Tuple.mapFirst
                         (Yafl.load form
-                            { name = Just "Ed"
+                            { name = Just (\n -> n ++ "Ed") 
                             , foo =
                                 Just
                                     { selected = Just 1
                                     , options =
                                         Just
                                             { bar = Nothing
-                                            , baz = Just False
+                                            , baz = Just (always False)
                                             }
                                     }
                             }
