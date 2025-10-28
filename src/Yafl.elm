@@ -379,7 +379,7 @@ type Field formModel formMsg id widgetMsg input output
     = Field
         { init :
             Path -> MaybeId -> ( Node formModel, Cmd (Msg formMsg) )
-        , load : Maybe input -> LoaderNode formModel
+        , load : Maybe input -> Node formModel -> Node formModel
         , update :
             Msg formMsg
             -> Node formModel
@@ -462,13 +462,6 @@ type alias InternalFeedback =
     { message : String, fail : Bool, locator : Locator }
 
 
-type LoaderNode model
-    = LValue (Maybe model)
-    | LProduct (LoaderNode model) (LoaderNode model)
-    | LSum { selected : Maybe Int } (List (LoaderNode model))
-    | LEmpty
-
-
 
 {-
    d888888b d8b   db d888888b d888888b
@@ -547,47 +540,7 @@ load :
     -> Model formModel output
     -> Model formModel output
 load (Field field) input (Model node) =
-    let
-        loaderNode =
-            field.load (Just input)
-    in
-    patch loaderNode node
-        |> Result.withDefault node
-        |> Model
-
-
-patch : LoaderNode formModel -> Node formModel -> Result () (Node formModel)
-patch loaderNode node =
-    case ( loaderNode, node ) of
-        ( LValue p, Value loc _ ) ->
-            case p of
-                Just n_ ->
-                    Ok <| Value loc n_
-
-                _ ->
-                    Ok <| node
-
-        ( LProduct p1 p2, Product loc n1 n2 ) ->
-            Result.map2 (Product loc) (patch p1 n1) (patch p2 n2)
-
-        ( LSum pSel ps, Sum loc sel ns ) ->
-            Result.map (Sum loc { selected = pSel.selected |> Maybe.withDefault sel.selected })
-                (List.foldr
-                    (\( p, ( lbl, n ) ) res ->
-                        Result.map2
-                            (\acc n_ -> ( lbl, n_ ) :: acc)
-                            res
-                            (patch p n)
-                    )
-                    (Ok [])
-                    (List.Extra.zip ps ns)
-                )
-
-        ( LEmpty, _ ) ->
-            Ok node
-
-        _ ->
-            Err ()
+    Model (field.load (Just input) node)
 
 
 
@@ -1033,7 +986,7 @@ succeed : output -> Field formModel formMsg id widgetMsg input output
 succeed output =
     Field
         { init = \path maybeId -> ( Empty Succeed (newLocation path maybeId), Cmd.none )
-        , load = \_ -> LEmpty
+        , load = \_ model -> model
         , update = \_ model -> ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
@@ -1080,7 +1033,7 @@ fail : String -> Field formModel formMsg id widgetMsg input output
 fail e =
     Field
         { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
-        , load = \_ -> LEmpty
+        , load = \_ model -> model
         , update = \_ model -> ( model, Cmd.none )
         , view =
             \{ feedback } model ->
@@ -1138,7 +1091,7 @@ failAt :
 failAt (Field failField) e =
     Field
         { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
-        , load = \_ -> LEmpty
+        , load = \_ model -> model
         , update = \_ model -> ( model, Cmd.none )
         , view =
             \{ feedback } model ->
@@ -1341,15 +1294,15 @@ map2 mappers (Field field1) (Field field2) =
                     ]
                 )
         , load =
-            \input ->
-                case Maybe.map mappers.input input of
-                    Just ( input1, input2 ) ->
-                        LProduct
-                            (input1 |> field1.load)
-                            (input2 |> field2.load)
+            \input model ->
+                case ( Maybe.map mappers.input input, model ) of
+                    ( Just ( input1, input2 ), Product loc node1 node2 ) ->
+                        Product loc
+                            (field1.load input1 node1)
+                            (field2.load input2 node2)
 
-                    Nothing ->
-                        LEmpty
+                    _ ->
+                        model
         , update =
             \msg model ->
                 case model of
@@ -1610,8 +1563,13 @@ choice =
     Field
         { init = \path maybeId -> ( Sum (newLocation path maybeId) { selected = 0 } [], Cmd.none )
         , load =
-            \input ->
-                LSum { selected = input |> Maybe.andThen .selected } []
+            \input model ->
+                case ( Maybe.andThen .selected input, model ) of
+                    ( Just selected, Sum loc _ nodes ) ->
+                        Sum loc { selected = selected } nodes
+
+                    _ ->
+                        model
         , update = \_ model -> ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
@@ -1690,20 +1648,25 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
                     _ ->
                         thisOptionField.init path thisOptionField.maybeId
         , load =
-            \input ->
-                case previousOptionFields.load input of
-                    LSum selected nodes ->
-                        LSum selected
-                            ((input
-                                |> Maybe.andThen .options
-                                |> Maybe.andThen getInput
-                                |> thisOptionField.load
-                             )
-                                :: nodes
-                            )
+            \input model ->
+                case ( input |> Maybe.andThen .options |> Maybe.andThen getInput, model ) of
+                    ( thisOptionInput, Sum loc sel (( _, thisOptionNode ) :: previousOptionLabelsAndNodes) ) ->
+                        let
+                            newThisOptionNode =
+                                thisOptionField.load thisOptionInput thisOptionNode
+
+                            newPreviousOptionsNode =
+                                previousOptionFields.load input (Sum loc sel previousOptionLabelsAndNodes)
+                        in
+                        case newPreviousOptionsNode of
+                            Sum _ newSel newPreviousOptionLabelsAndNodes ->
+                                Sum loc newSel (( thisOptionLabel, newThisOptionNode ) :: newPreviousOptionLabelsAndNodes)
+
+                            _ ->
+                                model
 
                     _ ->
-                        LEmpty
+                        model
         , update =
             \msg model ->
                 case model of
@@ -2182,7 +2145,7 @@ applierWithConfig msgGetter msgSetter modelGetter modelSetter widgetFromConfig a
                     ( modelSetter (Just widgetModel) acc.blankModel
                     , Cmd.map send_ widgetCmd
                     )
-                , load = \input -> modelSetter (Just input) acc.blankModel
+                , load = \input model -> modelSetter (Just input) model
                 , update =
                     \msg model ->
                         case
@@ -2273,7 +2236,7 @@ applierWithoutConfig msgGetter msgSetter modelGetter modelSetter widget acc =
                     ( modelSetter (Just widgetModel) acc.blankModel
                     , Cmd.map send_ widgetCmd
                     )
-                , load = \input -> modelSetter (Just input) acc.blankModel
+                , load = \input model -> modelSetter (Just input) model
                 , update =
                     \msg model ->
                         case
@@ -2336,7 +2299,7 @@ applierWithoutConfig msgGetter msgSetter modelGetter modelSetter widget acc =
 
 convertToField :
     { init : ( formModel, Cmd formMsg )
-    , load : input -> formModel
+    , load : input -> formModel -> formModel
     , update : formMsg -> formModel -> ( formModel, Cmd formMsg )
     , blankModel : formModel
     , view : ViewConfig -> formModel -> List (H.Html formMsg)
@@ -2360,8 +2323,13 @@ convertToField args =
                         (\model -> Value location model)
                         (\cmd -> Cmd.map (ValueChanged (locationToLocator location)) cmd)
         , load =
-            \input ->
-                LValue (Maybe.map args.load input)
+            \input model ->
+                case ( input, model ) of
+                    ( Just f, Value location innerModel ) ->
+                        Value location (args.load f innerModel)
+
+                    _ ->
+                        model
         , update =
             \msg model ->
                 case model of
