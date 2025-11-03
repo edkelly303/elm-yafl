@@ -344,7 +344,7 @@ type alias MaybeId =
 {-| The top-level model type for your form.
 -}
 type Model formModel output
-    = Model (Node formModel)
+    = Model (List ( String, Int )) (Node formModel)
 
 
 type Node formModel
@@ -486,10 +486,46 @@ type alias InternalFeedback =
     --: ( Yafl.Model FormModel Bool, Cmd (Yafl.Msg FormMsg) )
 
 -}
-init : Field formModel formMsg id widgetMsg input output -> ( Model formModel output, Cmd (Msg formMsg) )
+init :
+    Field formModel formMsg id widgetMsg input output
+    -> ( Model formModel output, Cmd (Msg formMsg) )
 init (Field field) =
-    field.init [ 0 ] field.maybeId
-        |> Tuple.mapFirst Model
+    let
+        ( node, cmd ) =
+            field.init [ 0 ] field.maybeId
+    in
+    ( Model (checkDuplicateIds node) node, cmd )
+
+
+checkDuplicateIds : Node a -> List ( String, Int )
+checkDuplicateIds node =
+    let
+        locationToId l =
+            case l of
+                Identified _ id_ ->
+                    Just id_
+
+                Located _ ->
+                    Nothing
+
+        help output n =
+            case n of
+                Value loc _ ->
+                    locationToId loc :: output
+
+                Product loc n1 n2 ->
+                    locationToId loc :: help [] n1 ++ help [] n2 ++ output
+
+                Sum loc _ ns ->
+                    locationToId loc :: List.concatMap (Tuple.second >> help []) ns ++ output
+
+                Empty _ loc ->
+                    locationToId loc :: output
+    in
+    help [] node
+        |> List.filterMap identity
+        |> List.Extra.frequencies
+        |> List.filter (\( _, count ) -> count > 1)
 
 
 
@@ -543,9 +579,9 @@ load :
     -> input
     -> Model formModel output
     -> ( Model formModel output, Cmd (Msg formMsg) )
-load (Field field) input (Model node) =
+load (Field field) input (Model dups node) =
     field.load (Just input) node
-        |> Tuple.mapFirst Model
+        |> Tuple.mapFirst (Model dups)
 
 
 
@@ -564,9 +600,9 @@ load (Field field) input (Model node) =
 {-| Update your form by supplying a `Msg` and `Model`
 -}
 update : Field formModel formMsg id widgetMsg input output -> Msg formMsg -> Model formModel output -> ( Model formModel output, Cmd (Msg formMsg) )
-update (Field field) msg (Model node) =
+update (Field field) msg (Model dups node) =
     field.update msg node
-        |> Tuple.mapFirst Model
+        |> Tuple.mapFirst (Model dups)
 
 
 
@@ -602,7 +638,7 @@ update (Field field) msg (Model node) =
 
 -}
 view : Field formModel formMsg id widgetMsg input output -> Model formModel output -> List (H.Html (Msg formMsg))
-view (Field field) (Model model) =
+view (Field field) (Model dups model) =
     let
         feedback =
             case field.submit field.checks model of
@@ -611,13 +647,22 @@ view (Field field) (Model model) =
 
                 Err f ->
                     f
+
+        fatal =
+            case dups of
+                [] ->
+                    H.text ""
+
+                _ ->
+                    H.text "fatal!"
     in
-    field.view
-        { label = field.label
-        , feedback = feedback
-        , id = locationFromModel model |> locationToString
-        }
-        model
+    fatal
+        :: field.view
+            { label = field.label
+            , feedback = feedback
+            , id = locationFromModel model |> locationToString
+            }
+            model
 
 
 
@@ -652,7 +697,7 @@ view (Field field) (Model model) =
 
 -}
 subscriptions : Field formModel formMsg id widgetMsg input output -> Model formModel output -> Sub (Msg formMsg)
-subscriptions (Field field) (Model model) =
+subscriptions (Field field) (Model _ model) =
     field.subscriptions model
 
 
@@ -688,7 +733,7 @@ subscriptions (Field field) (Model model) =
 
 -}
 submit : Field formModel formMsg id widgetMsg input output -> Model formModel output -> Result (List ( String, String )) output
-submit (Field field) (Model model) =
+submit (Field field) (Model _ model) =
     field.submit field.checks model
         |> Result.mapError
             (List.map
@@ -2687,7 +2732,7 @@ As the first argument, you should pass in `Debug.toString`.
 
 -}
 toDOT : (model -> String) -> Model model output -> String
-toDOT debugToString (Model model) =
+toDOT debugToString (Model _ model) =
     let
         escape str =
             String.replace "\"" "\\\"" str
