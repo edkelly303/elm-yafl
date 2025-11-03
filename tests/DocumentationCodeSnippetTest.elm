@@ -390,15 +390,48 @@ tests =
                     [ Test.test
                         "0"
                         (\() ->
-                            beforeLoading__Yafl__load_0
-                                |> Expect.equal (Result.Ok ( Basics.False, "" ))
+                            let
+                                unused :
+                                    Yafl.Field
+                                        Examples.FormModel
+                                        Examples.FormMsg
+                                        Yafl.NoId
+                                        Basics.Never
+                                        { a :
+                                            Maybe.Maybe Basics.Bool
+                                        , b : Maybe.Maybe String.String
+                                        }
+                                        ( Basics.Bool, String.String )
+                                unused =
+                                    form__Yafl__load_0
+                            in
+                            Expect.pass
                         )
                     , Test.test
                         "1"
                         (\() ->
-                            afterLoading__Yafl__load_0
+                            Yafl.submit
+                                form__Yafl__load_0
+                                modelBeforeLoading__Yafl__load_0
+                                |> Expect.equal (Result.Ok ( Basics.False, "" ))
+                        )
+                    , Test.test
+                        "2"
+                        (\() ->
+                            Yafl.submit
+                                form__Yafl__load_0
+                                modelAfterLoading__Yafl__load_0
                                 |> Expect.equal
                                     (Result.Ok ( Basics.True, "hello" ))
+                        )
+                    , Test.test
+                        "3"
+                        (\() ->
+                            Yafl.submit
+                                form__Yafl__load_0
+                                modelAfterLoadingAgain__Yafl__load_0
+                                |> Expect.equal
+                                    (Result.Ok ( Basics.True, "goodbye" ))
                         )
                     ]
                 ]
@@ -740,30 +773,29 @@ nameField__Yafl__label_0 =
 
 
 form__Yafl__load_0 =
-    Yafl.succeed (\a b -> ( a, b ))
+    Yafl.succeed (\bool string -> ( bool, string ))
         |> Yafl.andMap .a Examples.fields.bool
         |> Yafl.andMap .b Examples.fields.string
 
 
-init__Yafl__load_0 =
-    Yafl.init form__Yafl__load_0
+modelBeforeLoading__Yafl__load_0 =
+    form__Yafl__load_0 |> Yafl.init |> Tuple.first
 
 
-model__Yafl__load_0 =
-    Tuple.first init__Yafl__load_0
-
-
-beforeLoading__Yafl__load_0 =
-    model__Yafl__load_0 |> Yafl.submit form__Yafl__load_0
-
-
-afterLoading__Yafl__load_0 =
-    model__Yafl__load_0
+modelAfterLoading__Yafl__load_0 =
+    modelBeforeLoading__Yafl__load_0
         |> Yafl.load
             form__Yafl__load_0
             { a = Maybe.Just Basics.True, b = Maybe.Just "hello" }
         |> Tuple.first
-        |> Yafl.submit form__Yafl__load_0
+
+
+modelAfterLoadingAgain__Yafl__load_0 =
+    modelAfterLoading__Yafl__load_0
+        |> Yafl.load
+            form__Yafl__load_0
+            { a = Maybe.Nothing, b = Maybe.Just "goodbye" }
+        |> Tuple.first
 
 
 type MyCustomType__Yafl__map_0

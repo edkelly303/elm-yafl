@@ -548,39 +548,48 @@ checkDuplicateIds node =
 -}
 
 
-{-| Load data into your form.
+{-| Load data into your form. A bit tricky to explain, but see the examples below:
 
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
 
     form =
-        Yafl.succeed (\a b -> ( a, b ))
+        Yafl.succeed (\bool string -> ( bool, string ))
             |> Yafl.andMap .a fields.bool
             |> Yafl.andMap .b fields.string
 
-    init =
-        Yafl.init form
+    form 
+    --: Yafl.Field FormModel FormMsg Yafl.NoId Never { a : Maybe Bool, b : Maybe String } ( Bool, String )
 
-    model =
-        Tuple.first init
+    modelBeforeLoading =
+        form
+            |> Yafl.init 
+            |> Tuple.first
 
-    beforeLoading =
-        model
-            |> Yafl.submit form
+    Yafl.submit form modelBeforeLoading 
+    --> Ok (False, "")
 
-    beforeLoading --> Ok (False, "")
-
-    afterLoading =
-        model
+    modelAfterLoading =
+        modelBeforeLoading
             |> Yafl.load form
                 { a = Just True
                 , b = Just "hello"
                 }
+            |> Tuple.first        
+
+    Yafl.submit form modelAfterLoading 
+    --> Ok ( True, "hello" )
+
+    modelAfterLoadingAgain = 
+        modelAfterLoading
+            |> Yafl.load form
+                { a = Nothing -- don't change the `a` field
+                , b = Just "goodbye"
+                }
             |> Tuple.first
-            |> Yafl.submit form
 
-    afterLoading --> Ok ( True, "hello" )
-
+    Yafl.submit form modelAfterLoadingAgain 
+    --> Ok ( True, "goodbye" )
 -}
 load :
     Field formModel formMsg id widgetMsg input output
