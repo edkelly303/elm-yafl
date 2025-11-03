@@ -1,16 +1,16 @@
 module Yafl exposing
     ( Widget
     , Field, defineFields, addWidget, addWidgetWithConfig, endFields
-    , Model, Msg, init, update, view, ViewConfig, Feedback, subscriptions, submit
+    , Model, Msg, init, load, update, view, ViewConfig, Feedback, subscriptions, submit
     , succeed, fail, failAt
-    , map, andThen
+    , map, contraMap
     , map2, andMap
     , choice, option
     , label
-    , validate, validateAt
-    , HasId, NoId, id, intercept, send, select
-    , updateField, andUpdateField, selectField, andSelectField
+    , validate, validateAt, andThen
+    , HasId, NoId, intercept, send, isFormValid
     , studio, toDOT
+    , identifier
     )
 
 {-| This library helps you build user input forms in Elm by creating and
@@ -32,12 +32,12 @@ composing self-contained [`Widget`](#Widget)s.
 
 ### [Turning Fields into forms](#turning-fields-into-forms)
 
-[`Model`](#Model), [`Msg`](#Msg), [`init`](#init), [`update`](#update), [`view`](#view), [`ViewConfig`](#ViewConfig), [`Feedback`](#Feedback), [`subscriptions`](#subscriptions), [`submit`](#submit)
+[`Model`](#Model), [`Msg`](#Msg), [`init`](#init), [`load`](#load), [`update`](#update), [`view`](#view), [`ViewConfig`](#ViewConfig), [`Feedback`](#Feedback), [`subscriptions`](#subscriptions), [`submit`](#submit)
 
 
 ### [Combining Fields](#combining-fields)
 
-[`succeed`](#succeed), [`fail`](#fail), [`failAt`](#failAt), [`map`](#map), [`andThen`](#andThen), [`map2`](#map2), [`andMap`](#andMap), [`choice`](#choice), [`option`](#option)
+[`succeed`](#succeed), [`fail`](#fail), [`failAt`](#failAt), [`map`](#map), [`map2`](#map2), [`andMap`](#andMap), [`choice`](#choice), [`option`](#option)
 
 
 ### [Customizing Fields](#customizing-fields)
@@ -47,17 +47,12 @@ composing self-contained [`Widget`](#Widget)s.
 
 ### [Validating fields](#validating-fields)
 
-[`validate`](#validate), [`validateAt`](#validateAt)
+[`validate`](#validate), [`validateAt`](#validateAt), [`andThen`](#andThen)
 
 
 ### [Communicating between Fields](#communicating-between-fields)
 
-[`HasId`](#HasId), [`NoId`](#NoId), [`id`](#id), [`intercept`](#intercept), [`send`](#send), [`select`](#select)
-
-
-### [Updating Fields synchronously](#updating-fields-synchronously)
-
-[`updateField`](#updateField), [`andUpdateField`](#andUpdateField), [`selectField`](#selectField), [`andSelectField`](#andSelectField)
+[`HasId`](#HasId), [`NoId`](#NoId), [`identifier`](#identifier), [`intercept`](#intercept), [`send`](#send)
 
 
 ### [Debugging](#debugging)
@@ -224,7 +219,7 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 
     --> Ok False
 
-@docs Model, Msg, init, update, view, ViewConfig, Feedback, subscriptions, submit
+@docs Model, Msg, init, load, update, view, ViewConfig, Feedback, subscriptions, submit
 
 
 # Combining Fields
@@ -237,8 +232,7 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 In addition to the [`Field`](#Field)s that you define based on your
 [`Widget`](#Widget)s, the package also provides [`succeed`](#succeed) and
 [`fail`](#fail), which can be useful in various ways when
-used with other combinators such as [`andMap`](#andMap) and
-[`andThen`](#andThen). You may be familiar with similar functions from packages
+used with other combinators such as [`andMap`](#andMap). You may be familiar with similar functions from packages
 such as [`elm/json`](http://package.elm-lang.org/packages/elm/json/latest/Json-Decode#succeed).
 
 The views of these fields return an empty Html element. When
@@ -250,7 +244,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 ## Converting output types
 
-@docs map, andThen
+@docs map, contraMap
 
 
 ## Building product types
@@ -269,8 +263,8 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
     myCustomTypeField =
         Yafl.choice
-            |> Yafl.option "Foo" fooField
-            |> Yafl.option "Bar" barField
+            |> Yafl.option "Foo" .foo fooField
+            |> Yafl.option "Bar" .bar barField
 
     fooField =
         fields.string
@@ -303,21 +297,14 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 [_Back to top_](#table-of-contents)
 
-@docs validate, validateAt
+@docs validate, validateAt, andThen
 
 
 # Communicating between Fields
 
 [_Back to top_](#table-of-contents)
 
-@docs HasId, NoId, id, intercept, send, select
-
-
-# Updating Fields synchronously
-
-[_Back to top_](#table-of-contents)
-
-@docs updateField, andUpdateField, selectField, andSelectField
+@docs HasId, NoId, identifier, intercept, send, isFormValid
 
 
 # Debugging
@@ -358,25 +345,19 @@ type alias MaybeId =
 {-| The top-level model type for your form.
 -}
 type Model formModel output
-    = Model (Node formModel)
+    = Model (List ( String, Int )) (Node formModel)
 
 
 type Node formModel
     = Value Location formModel
-    | Product ProductType Location (Node formModel) (Node formModel)
+    | Product Location (Node formModel) (Node formModel)
     | Sum Location { selected : Int } (List ( String, Node formModel ))
     | Empty EmptyType Location
-
-
-type ProductType
-    = Map2
-    | AndThen
 
 
 type EmptyType
     = Succeed
     | Fail
-    | NoValue
 
 
 {-| The top-level message type for your form.
@@ -395,10 +376,11 @@ type alias Path =
 
 {-| Forms are composed of `Field`s - this is the main data type we'll be using in this package.
 -}
-type Field formModel formMsg id widgetMsg output
+type Field formModel formMsg id widgetMsg input output
     = Field
         { init :
             Path -> MaybeId -> ( Node formModel, Cmd (Msg formMsg) )
+        , load : Maybe input -> Node formModel -> ( Node formModel, Cmd (Msg formMsg) )
         , update :
             Msg formMsg
             -> Node formModel
@@ -422,15 +404,15 @@ type Field formModel formMsg id widgetMsg output
         }
 
 
-{-| Indicates that a [`Field`](#Field) has been given an `id`, and can therefore be
-used with [`intercept`](#intercept), [`send`](#send), etc. See the docs for [`id`](#id).
+{-| Indicates that a [`Field`](#Field) has been given an `identifier`, and can therefore be
+used with [`intercept`](#intercept), [`send`](#send), etc. See the docs for [`identifier`](#identifier).
 -}
 type HasId
     = HasId Never
 
 
-{-| Indicates that a [`Field`](#Field) has not been given an `id`. See the docs for
-[`id`](#id).
+{-| Indicates that a [`Field`](#Field) has not been given an `identifier`. See the docs for
+[`identifier`](#identifier).
 -}
 type NoId
     = NoId Never
@@ -505,10 +487,118 @@ type alias InternalFeedback =
     --: ( Yafl.Model FormModel Bool, Cmd (Yafl.Msg FormMsg) )
 
 -}
-init : Field formModel formMsg id widgetMsg output -> ( Model formModel output, Cmd (Msg formMsg) )
+init :
+    Field formModel formMsg id widgetMsg input output
+    -> ( Model formModel output, Cmd (Msg formMsg) )
 init (Field field) =
-    field.init [ 0 ] field.maybeId
-        |> Tuple.mapFirst Model
+    let
+        ( node, cmd ) =
+            field.init [ 0 ] field.maybeId
+    in
+    ( Model (checkDuplicateIds node) node, cmd )
+
+
+{-| Check that a form doesn't contain fields with duplicate identifiers.
+-}
+isFormValid : Model formModel output -> Bool
+isFormValid (Model dups _) =
+    List.isEmpty dups
+
+
+checkDuplicateIds : Node a -> List ( String, Int )
+checkDuplicateIds node =
+    let
+        locationToId l =
+            case l of
+                Identified _ id_ ->
+                    Just id_
+
+                Located _ ->
+                    Nothing
+
+        help output n =
+            case n of
+                Value loc _ ->
+                    locationToId loc :: output
+
+                Product loc n1 n2 ->
+                    locationToId loc :: help [] n1 ++ help [] n2 ++ output
+
+                Sum loc _ ns ->
+                    locationToId loc :: List.concatMap (Tuple.second >> help []) ns ++ output
+
+                Empty _ loc ->
+                    locationToId loc :: output
+    in
+    help [] node
+        |> List.filterMap identity
+        |> List.Extra.frequencies
+        |> List.filter (\( _, count ) -> count > 1)
+
+
+
+{-
+   db       .d88b.   .d8b.  d8888b.
+   88      .8P  Y8. d8' `8b 88  `8D
+   88      88    88 88ooo88 88   88
+   88      88    88 88~~~88 88   88
+   88booo. `8b  d8' 88   88 88  .8D
+   Y88888P  `Y88P'  YP   YP Y8888D'
+
+-}
+
+
+{-| Load data into your form. A bit tricky to explain, but see the examples below:
+
+    import Yafl
+    import Examples exposing (FormModel, FormMsg, fields)
+
+    form =
+        Yafl.succeed (\bool string -> ( bool, string ))
+            |> Yafl.andMap .a fields.bool
+            |> Yafl.andMap .b fields.string
+
+    form 
+    --: Yafl.Field FormModel FormMsg Yafl.NoId Never { a : Maybe Bool, b : Maybe String } ( Bool, String )
+
+    modelBeforeLoading =
+        form
+            |> Yafl.init 
+            |> Tuple.first
+
+    Yafl.submit form modelBeforeLoading 
+    --> Ok (False, "")
+
+    modelAfterLoading =
+        modelBeforeLoading
+            |> Yafl.load form
+                { a = Just True
+                , b = Just "hello"
+                }
+            |> Tuple.first        
+
+    Yafl.submit form modelAfterLoading 
+    --> Ok ( True, "hello" )
+
+    modelAfterLoadingAgain = 
+        modelAfterLoading
+            |> Yafl.load form
+                { a = Nothing -- don't change the `a` field
+                , b = Just "goodbye"
+                }
+            |> Tuple.first
+
+    Yafl.submit form modelAfterLoadingAgain 
+    --> Ok ( True, "goodbye" )
+-}
+load :
+    Field formModel formMsg id widgetMsg input output
+    -> input
+    -> Model formModel output
+    -> ( Model formModel output, Cmd (Msg formMsg) )
+load (Field field) input (Model dups node) =
+    field.load (Just input) node
+        |> Tuple.mapFirst (Model dups)
 
 
 
@@ -526,10 +616,10 @@ init (Field field) =
 
 {-| Update your form by supplying a `Msg` and `Model`
 -}
-update : Field formModel formMsg id widgetMsg output -> Msg formMsg -> Model formModel output -> ( Model formModel output, Cmd (Msg formMsg) )
-update (Field field) msg (Model node) =
+update : Field formModel formMsg id widgetMsg input output -> Msg formMsg -> Model formModel output -> ( Model formModel output, Cmd (Msg formMsg) )
+update (Field field) msg (Model dups node) =
     field.update msg node
-        |> Tuple.mapFirst Model
+        |> Tuple.mapFirst (Model dups)
 
 
 
@@ -564,8 +654,8 @@ update (Field field) msg (Model node) =
     --: List (Html (Yafl.Msg FormMsg))
 
 -}
-view : Field formModel formMsg id widgetMsg output -> Model formModel output -> List (H.Html (Msg formMsg))
-view (Field field) (Model model) =
+view : Field formModel formMsg id widgetMsg input output -> Model formModel output -> List (H.Html (Msg formMsg))
+view (Field field) (Model dups model) =
     let
         feedback =
             case field.submit field.checks model of
@@ -574,13 +664,39 @@ view (Field field) (Model model) =
 
                 Err f ->
                     f
+
+        fatal =
+            case dups of
+                [] ->
+                    H.text ""
+
+                _ ->
+                    H.div
+                        []
+                        (List.map
+                            (\( id_, count ) ->
+                                H.p []
+                                    [ H.strong []
+                                        [ H.text
+                                            ("⚠️ FATAL ERROR IN FORM DEFINITION: field identifiers must be unique, but the identifier \""
+                                                ++ id_
+                                                ++ "\" is assigned to "
+                                                ++ String.fromInt count
+                                                ++ " different fields."
+                                            )
+                                        ]
+                                    ]
+                            )
+                            dups
+                        )
     in
-    field.view
-        { label = field.label
-        , feedback = feedback
-        , id = locationFromModel model |> locationToString
-        }
-        model
+    fatal
+        :: field.view
+            { label = field.label
+            , feedback = feedback
+            , id = locationFromModel model |> locationToString
+            }
+            model
 
 
 
@@ -614,8 +730,8 @@ view (Field field) (Model model) =
     --: Sub (Yafl.Msg FormMsg)
 
 -}
-subscriptions : Field formModel formMsg id widgetMsg output -> Model formModel output -> Sub (Msg formMsg)
-subscriptions (Field field) (Model model) =
+subscriptions : Field formModel formMsg id widgetMsg input output -> Model formModel output -> Sub (Msg formMsg)
+subscriptions (Field field) (Model _ model) =
     field.subscriptions model
 
 
@@ -650,8 +766,8 @@ subscriptions (Field field) (Model model) =
     --> Ok ""
 
 -}
-submit : Field formModel formMsg id widgetMsg output -> Model formModel output -> Result (List ( String, String )) output
-submit (Field field) (Model model) =
+submit : Field formModel formMsg id widgetMsg input output -> Model formModel output -> Result (List ( String, String )) output
+submit (Field field) (Model _ model) =
     field.submit field.checks model
         |> Result.mapError
             (List.map
@@ -687,10 +803,10 @@ submit (Field field) (Model model) =
 
     nameField
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String String
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
 
 -}
-label : String -> Field formModel formMsg id widgetMsg output -> Field formModel formMsg id widgetMsg output
+label : String -> Field formModel formMsg id widgetMsg input output -> Field formModel formMsg id widgetMsg input output
 label label_ (Field field) =
     Field { field | label = label_ }
 
@@ -735,8 +851,8 @@ label label_ (Field field) =
 -}
 validate :
     (output -> Maybe String)
-    -> Field formModel formMsg id widgetMsg output
-    -> Field formModel formMsg id widgetMsg output
+    -> Field formModel formMsg id widgetMsg input output
+    -> Field formModel formMsg id widgetMsg input output
 validate check (Field field) =
     Field { field | checks = field.checks ++ [ ( Nothing, check ) ] }
 
@@ -763,17 +879,17 @@ you only want to display an error on one field.
 
     passwordField =
         fields.string
-            |> Yafl.id "password"
+            |> Yafl.identifier "password"
 
     confirmField =
         fields.string
-            |> Yafl.id "confirm"
+            |> Yafl.identifier "confirm"
 
     form =
         Yafl.succeed
             (\password confirm -> { password = password, confirm = confirm })
-            |> Yafl.andMap passwordField
-            |> Yafl.andMap confirmField
+            |> Yafl.andMap .passwordField passwordField
+            |> Yafl.andMap .confirmField confirmField
             |> Yafl.validateAt confirmField
                 (\{password, confirm} ->
                     if password == confirm then
@@ -784,8 +900,11 @@ you only want to display an error on one field.
 
     form
         |> Yafl.init
-        |> Yafl.andUpdateField form passwordField "password123"
-        |> Yafl.andUpdateField form confirmField "password124"
+        |> Tuple.first
+        |> Yafl.load form
+            { passwordField = Just "password123"
+            , confirmField = Just "password124"
+            }
         |> Tuple.first
         |> Yafl.submit form
 
@@ -793,10 +912,10 @@ you only want to display an error on one field.
 
 -}
 validateAt :
-    Field formModel formMsg HasId widgetMsg2 output2
+    Field formModel formMsg HasId widgetMsg2 input2 output2
     -> (output -> Maybe String)
-    -> Field formModel formMsg id widgetMsg output
-    -> Field formModel formMsg id widgetMsg output
+    -> Field formModel formMsg id widgetMsg input output
+    -> Field formModel formMsg id widgetMsg input output
 validateAt (Field target) check (Field field) =
     Field { field | checks = field.checks ++ [ ( target.maybeId, check ) ] }
 
@@ -825,15 +944,15 @@ messages to that Field.
 
     myField
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String String
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
 
     myFieldWithId =
         myField
-            |> Yafl.id "any-string-as-long-as-it's-unique"
+            |> Yafl.identifier "any-string-as-long-as-it's-unique"
 
     myFieldWithId
 
-    --: Yafl.Field FormModel FormMsg Yafl.HasId String String
+    --: Yafl.Field FormModel FormMsg Yafl.HasId String String String
 
     Yafl.send myFieldWithId "Hello!"
 
@@ -845,55 +964,12 @@ Widget, you can use the `id` field of the `ViewConfig` to set the
 `Html.Attributes.id` of the HTML input.
 
 -}
-id :
+identifier :
     String
-    -> Field formModel formMsg NoId widgetMsg output
-    -> Field formModel formMsg HasId widgetMsg output
-id sendId_ (Field field) =
+    -> Field formModel formMsg NoId widgetMsg input output
+    -> Field formModel formMsg HasId widgetMsg input output
+identifier sendId_ (Field field) =
     Field { field | maybeId = Just sendId_ }
-
-
-
-{-
-   .d8888. d88888b db      d88888b  .o88b. d888888b
-   88'  YP 88'     88      88'     d8P  Y8 `~~88~~'
-   `8bo.   88ooooo 88      88ooooo 8P         88
-     `Y8b. 88~~~~~ 88      88~~~~~ 8b         88
-   db   8D 88.     88booo. 88.     Y8b  d8    88
-   `8888Y' Y88888P Y88888P Y88888P  `Y88P'    YP
-
-
--}
-
-
-{-| Create a `Cmd` that will select a specific [`option`](#option) in a
-[`choice`](#choice) Field.
-
-    import Yafl
-    import Examples exposing (FormModel, FormMsg, fields)
-
-    holyGrail =
-        fields.string
-            |> Yafl.id "any-string-as-long-as-it's-unique"
-
-    myChoiceField =
-        Yafl.choice
-            |> Yafl.option "Cup of a carpenter" holyGrail
-            |> Yafl.option "Fancy chalice" (Yafl.fail "You chose... poorly")
-
-    Yafl.select holyGrail
-
-    --: Cmd (Yafl.Msg FormMsg)
-
--}
-select : Field formModel formMsg HasId widgetMsg output -> Cmd (Msg msg)
-select (Field field) =
-    case field.maybeId of
-        Just id_ ->
-            Task.perform identity (Task.succeed (OptionSelected (ById id_)))
-
-        Nothing ->
-            Cmd.none
 
 
 
@@ -917,14 +993,14 @@ a [`choice`](#choice) Field.
 
     myFieldWithId =
         fields.string
-            |> Yafl.id "any-string-as-long-as-it's-unique"
+            |> Yafl.identifier "any-string-as-long-as-it's-unique"
 
     Yafl.send myFieldWithId "Hello!"
 
     --: Cmd (Yafl.Msg FormMsg)
 
 -}
-send : Field formModel formMsg HasId widgetMsg output -> widgetMsg -> Cmd (Msg formMsg)
+send : Field formModel formMsg HasId widgetMsg input output -> widgetMsg -> Cmd (Msg formMsg)
 send (Field field) msg =
     Task.perform identity (Task.succeed (field.send field.maybeId msg))
 
@@ -949,252 +1025,16 @@ send (Field field) msg =
 
     myFieldWithId =
         fields.string
-            |> Yafl.id "any-string-as-long-as-it's-unique"
+            |> Yafl.identifier "any-string-as-long-as-it's-unique"
 
     Yafl.intercept myFieldWithId
 
     --: Yafl.Msg FormMsg -> Maybe String
 
 -}
-intercept : Field formModel formMsg HasId widgetMsg output -> Msg formMsg -> Maybe widgetMsg
+intercept : Field formModel formMsg HasId widgetMsg input output -> Msg formMsg -> Maybe widgetMsg
 intercept (Field field) =
     field.intercept field.maybeId
-
-
-
-{-
-   db    db d8888b. d8888b.  .d8b.  d888888b d88888b d88888b d888888b d88888b db      d8888b.
-   88    88 88  `8D 88  `8D d8' `8b `~~88~~' 88'     88'       `88'   88'     88      88  `8D
-   88    88 88oodD' 88   88 88ooo88    88    88ooooo 88ooo      88    88ooooo 88      88   88
-   88    88 88~~~   88   88 88~~~88    88    88~~~~~ 88~~~      88    88~~~~~ 88      88   88
-   88b  d88 88      88  .8D 88   88    88    88.     88        .88.   88.     88booo. 88  .8D
-   ~Y8888P' 88      Y8888D' YP   YP    YP    Y88888P YP      Y888888P Y88888P Y88888P Y8888D'
-
-
--}
-
-
-{-| Update an individual Field within your form's `Model` by supplying a message for that Field.
-
-    import Yafl
-    import Examples exposing (FormModel, FormMsg, fields)
-
-    type Foo
-        = Foo String String
-
-    fooField =
-        Yafl.map2 Foo firstField secondField
-
-    firstField =
-        fields.string
-            |> Yafl.id "a-unique-string"
-
-    secondField =
-        fields.string
-            |> Yafl.id "another-unique-string"
-
-    model =
-        fooField
-            |> Yafl.init
-            |> Tuple.first
-
-    Yafl.submit fooField model
-
-    --> Ok (Foo "" "")
-
-    updatedModel =
-        model
-            |> Yafl.updateField fooField firstField "Hello!"
-            |> Tuple.first
-
-    Yafl.submit fooField updatedModel
-
-    --> Ok (Foo "Hello!" "")
-
--}
-updateField :
-    Field formModel formMsg id anyMsg formOutput
-    -> Field formModel formMsg HasId widgetMsg widgetOutput
-    -> widgetMsg
-    -> Model formModel formOutput
-    -> ( Model formModel formOutput, Cmd (Msg formMsg) )
-updateField (Field form) (Field field) widgetMsg (Model model) =
-    form.update (field.send field.maybeId widgetMsg) model
-        |> Tuple.mapFirst Model
-
-
-
-{-
-    .d8b.  d8b   db d8888b. db    db d8888b. d8888b.  .d8b.  d888888b d88888b d88888b d888888b d88888b db      d8888b.
-   d8' `8b 888o  88 88  `8D 88    88 88  `8D 88  `8D d8' `8b `~~88~~' 88'     88'       `88'   88'     88      88  `8D
-   88ooo88 88V8o 88 88   88 88    88 88oodD' 88   88 88ooo88    88    88ooooo 88ooo      88    88ooooo 88      88   88
-   88~~~88 88 V8o88 88   88 88    88 88~~~   88   88 88~~~88    88    88~~~~~ 88~~~      88    88~~~~~ 88      88   88
-   88   88 88  V888 88  .8D 88b  d88 88      88  .8D 88   88    88    88.     88        .88.   88.     88booo. 88  .8D
-   YP   YP VP   V8P Y8888D' ~Y8888P' 88      Y8888D' YP   YP    YP    Y88888P YP      Y888888P Y88888P Y88888P Y8888D'
-
-
--}
-
-
-{-| Like `updateField`, but works on `( model, cmd )` tuples. Useful if you're chaining multiple updates.
-
-    import Yafl
-    import Examples exposing (FormModel, FormMsg, fields)
-
-    type Foo
-        = Foo String String
-
-    fooField =
-        Yafl.map2 Foo firstField secondField
-
-    firstField =
-        fields.string
-            |> Yafl.id "a-unique-string"
-
-    secondField =
-        fields.string
-            |> Yafl.id "another-unique-string"
-
-    updatedModel =
-        fooField
-            |> Yafl.init
-            |> Yafl.andUpdateField fooField firstField "Hello"
-            |> Yafl.andUpdateField fooField secondField "World"
-            |> Tuple.first
-
-    Yafl.submit fooField updatedModel
-
-    --> Ok (Foo "Hello" "World")
-
--}
-andUpdateField :
-    Field formModel formMsg id anyMsg formOutput
-    -> Field formModel formMsg HasId widgetMsg widgetOutput
-    -> widgetMsg
-    -> ( Model formModel formOutput, Cmd (Msg formMsg) )
-    -> ( Model formModel formOutput, Cmd (Msg formMsg) )
-andUpdateField form field widgetMsg ( model, cmd1 ) =
-    updateField form field widgetMsg model
-        |> Tuple.mapSecond (\cmd2 -> Cmd.batch [ cmd1, cmd2 ])
-
-
-
-{-
-   .d8888. d88888b db      d88888b  .o88b. d888888b d88888b d888888b d88888b db      d8888b.
-   88'  YP 88'     88      88'     d8P  Y8 `~~88~~' 88'       `88'   88'     88      88  `8D
-   `8bo.   88ooooo 88      88ooooo 8P         88    88ooo      88    88ooooo 88      88   88
-     `Y8b. 88~~~~~ 88      88~~~~~ 8b         88    88~~~      88    88~~~~~ 88      88   88
-   db   8D 88.     88booo. 88.     Y8b  d8    88    88        .88.   88.     88booo. 88  .8D
-   `8888Y' Y88888P Y88888P Y88888P  `Y88P'    YP    YP      Y888888P Y88888P Y88888P Y8888D'
-
-
--}
-
-
-{-| Select a specific `option` Field within your form's `Model`.
-
-    import Yafl
-    import Examples exposing (FormModel, FormMsg, fields)
-
-    myFieldWithId =
-        Yafl.succeed "Hurrah!"
-            |> Yafl.id "any-string-as-long-as-it's-unique"
-
-    myChoiceField =
-        Yafl.choice
-            |> Yafl.option "Don't pick me!" (Yafl.fail "Oh no, you failed!")
-            |> Yafl.option "I'm the one!" myFieldWithId
-
-    model =
-        myChoiceField
-            |> Yafl.init
-            |> Tuple.first
-
-    model
-        |> Yafl.submit myChoiceField
-
-    --> Err [ ( "0.0", "Oh no, you failed!" ) ]
-
-    model
-        |> Yafl.selectField myChoiceField myFieldWithId
-        |> Tuple.first
-        |> Yafl.submit myChoiceField
-
-    --> Ok "Hurrah!"
-
--}
-selectField :
-    Field formModel formMsg id anyMsg formOutput
-    -> Field formModel formMsg HasId widgetMsg widgetOutput
-    -> Model formModel formOutput
-    -> ( Model formModel formOutput, Cmd (Msg formMsg) )
-selectField (Field form) (Field field) (Model model) =
-    case field.maybeId of
-        Just id_ ->
-            let
-                msg =
-                    OptionSelected (ById id_)
-            in
-            form.update msg model
-                |> Tuple.mapFirst Model
-
-        Nothing ->
-            ( Model model, Cmd.none )
-
-
-
-{-
-    .d8b.  d8b   db d8888b. .d8888. d88888b db      d88888b  .o88b. d888888b d88888b d888888b d88888b db      d8888b.
-   d8' `8b 888o  88 88  `8D 88'  YP 88'     88      88'     d8P  Y8 `~~88~~' 88'       `88'   88'     88      88  `8D
-   88ooo88 88V8o 88 88   88 `8bo.   88ooooo 88      88ooooo 8P         88    88ooo      88    88ooooo 88      88   88
-   88~~~88 88 V8o88 88   88   `Y8b. 88~~~~~ 88      88~~~~~ 8b         88    88~~~      88    88~~~~~ 88      88   88
-   88   88 88  V888 88  .8D db   8D 88.     88booo. 88.     Y8b  d8    88    88        .88.   88.     88booo. 88  .8D
-   YP   YP VP   V8P Y8888D' `8888Y' Y88888P Y88888P Y88888P  `Y88P'    YP    YP      Y888888P Y88888P Y88888P Y8888D'
-
-
--}
-
-
-{-| Like `selectField`, but works on `( model, cmd )` tuples. Useful if you're chaining multiple updates.
-
-    import Yafl
-    import Examples exposing (FormModel, FormMsg, fields)
-
-    myFieldWithId =
-        Yafl.succeed "Hurrah!"
-            |> Yafl.id "any-string-as-long-as-it's-unique"
-
-    myChoiceField =
-        Yafl.choice
-            |> Yafl.option "Don't pick me!" (Yafl.fail "Oh no, you failed!")
-            |> Yafl.option "I'm the one!" myFieldWithId
-
-    modelAndCmd =
-        myChoiceField
-            |> Yafl.init
-
-    modelAndCmd
-        |> Tuple.first
-        |> Yafl.submit myChoiceField
-
-    --> Err [ ("0.0", "Oh no, you failed!" ) ]
-
-    modelAndCmd
-        |> Yafl.andSelectField myChoiceField myFieldWithId
-        |> Tuple.first
-        |> Yafl.submit myChoiceField
-
-    --> Ok "Hurrah!"
-
--}
-andSelectField :
-    Field formModel formMsg id anyMsg formOutput
-    -> Field formModel formMsg HasId widgetMsg widgetOutput
-    -> ( Model formModel formOutput, Cmd (Msg formMsg) )
-    -> ( Model formModel formOutput, Cmd (Msg formMsg) )
-andSelectField form field ( model, cmd1 ) =
-    selectField form field model
-        |> Tuple.mapSecond (\cmd2 -> Cmd.batch [ cmd1, cmd2 ])
 
 
 
@@ -1227,10 +1067,11 @@ andSelectField form field ( model, cmd1 ) =
     --> Ok "Hurrah!"
 
 -}
-succeed : output -> Field formModel formMsg id widgetMsg output
+succeed : output -> Field formModel formMsg Never Never input output
 succeed output =
     Field
         { init = \path maybeId -> ( Empty Succeed (newLocation path maybeId), Cmd.none )
+        , load = \_ model -> ( model, Cmd.none )
         , update = \_ model -> ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
@@ -1273,10 +1114,11 @@ succeed output =
     --> Err [ ("0", "Oh dear!") ]
 
 -}
-fail : String -> Field formModel formMsg id widgetMsg output
+fail : String -> Field formModel formMsg Never Never input output
 fail e =
     Field
         { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
+        , load = \_ model -> ( model, Cmd.none )
         , update = \_ model -> ( model, Cmd.none )
         , view =
             \{ feedback } model ->
@@ -1298,7 +1140,7 @@ fail e =
                 Err
                     [ { message = e
                       , fail = True
-                      , locator = locationFromModel model |> locationToLocator
+                      , locator = locatorFromModel model
                       }
                     ]
         , checks = []
@@ -1328,14 +1170,15 @@ results from a combination of several fields, but you only want to display the
 error message on one specific field.
 -}
 failAt :
-    Field formModel formMsg HasId widgetMsg1 output1
+    Field formModel formMsg HasId widgetMsg1 input1 output1
     -> String
-    -> Field formModel formMsg address2 widgetMsg2 output2
+    -> Field formModel formMsg Never Never input2 output2
 failAt (Field failField) e =
     Field
         { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
+        , load = \_ model -> ( model, Cmd.none )
         , update = \_ model -> ( model, Cmd.none )
-        , view = 
+        , view =
             \{ feedback } model ->
                 case List.filter (\f -> isLocated f.locator (locationFromModel model)) feedback of
                     [] ->
@@ -1371,6 +1214,41 @@ failAt (Field failField) e =
         , intercept = \_ _ -> Nothing
         , label = ""
         , maybeId = Nothing
+        }
+
+
+
+{-
+    .o88b.  .d88b.  d8b   db d888888b d8888b.  .d8b.  .88b  d88.  .d8b.  d8888b.
+   d8P  Y8 .8P  Y8. 888o  88 `~~88~~' 88  `8D d8' `8b 88'YbdP`88 d8' `8b 88  `8D
+   8P      88    88 88V8o 88    88    88oobY' 88ooo88 88  88  88 88ooo88 88oodD'
+   8b      88    88 88 V8o88    88    88`8b   88~~~88 88  88  88 88~~~88 88~~~
+   Y8b  d8 `8b  d8' 88  V888    88    88 `88. 88   88 88  88  88 88   88 88
+    `Y88P'  `Y88P'  VP   V8P    YP    88   YD YP   YP YP  YP  YP YP   YP 88
+
+
+-}
+
+
+{-| Contramap
+-}
+contraMap :
+    (input2 -> input)
+    -> Field formModel formMsg id widgetMsg input output
+    -> Field formModel formMsg b widgetMsg input2 output
+contraMap f (Field field) =
+    Field
+        { init = field.init
+        , load = \input -> input |> Maybe.map f |> field.load
+        , update = field.update
+        , view = field.view
+        , subscriptions = field.subscriptions
+        , maybeId = field.maybeId
+        , send = field.send
+        , checks = field.checks
+        , intercept = field.intercept
+        , label = field.label
+        , submit = field.submit
         }
 
 
@@ -1413,11 +1291,12 @@ type variants.
 -}
 map :
     (output -> output2)
-    -> Field formModel formMsg id widgetMsg output
-    -> Field formModel formMsg id widgetMsg output2
+    -> Field formModel formMsg id widgetMsg input output
+    -> Field formModel formMsg id widgetMsg input output2
 map f (Field field) =
     Field
         { init = field.init
+        , load = field.load
         , update = field.update
         , view = field.view
         , subscriptions = field.subscriptions
@@ -1460,7 +1339,9 @@ If you need to combine the outputs of more than two fields, check out
 
     form =
         Yafl.map2
-            (\a b -> ( a, b ))
+            { input = \input -> ( Nothing, Nothing )
+            , output = (\a b -> ( a, b ))
+            }
             (fields.string)
             (fields.string)
 
@@ -1474,11 +1355,13 @@ If you need to combine the outputs of more than two fields, check out
 
 -}
 map2 :
-    (output1 -> output2 -> output3)
-    -> Field formModel formMsg address1 widgetMsg1 output1
-    -> Field formModel formMsg address2 widgetMsg2 output2
-    -> Field formModel formMsg NoId Never output3
-map2 f (Field field1) (Field field2) =
+    { input : input3 -> ( Maybe input1, Maybe input2 )
+    , output : output1 -> output2 -> output3
+    }
+    -> Field formModel formMsg address1 widgetMsg1 input1 output1
+    -> Field formModel formMsg address2 widgetMsg2 input2 output2
+    -> Field formModel formMsg NoId Never input3 output3
+map2 mappers (Field field1) (Field field2) =
     Field
         { init =
             \path maybeId ->
@@ -1489,16 +1372,33 @@ map2 f (Field field1) (Field field2) =
                     ( model2, cmd2 ) =
                         field2.init (1 :: path) field2.maybeId
                 in
-                ( Product Map2 (newLocation path maybeId) model1 model2
+                ( Product (newLocation path maybeId) model1 model2
                 , Cmd.batch
                     [ cmd1
                     , cmd2
                     ]
                 )
+        , load =
+            \input model ->
+                case ( Maybe.map mappers.input input, model ) of
+                    ( Just ( input1, input2 ), Product location node1 node2 ) ->
+                        let
+                            ( newModel1, cmd1 ) =
+                                field1.load input1 node1
+
+                            ( newModel2, cmd2 ) =
+                                field2.load input2 node2
+                        in
+                        ( Product location newModel1 newModel2
+                        , Cmd.batch [ cmd1, cmd2 ]
+                        )
+
+                    _ ->
+                        ( model, Cmd.none )
         , update =
             \msg model ->
                 case model of
-                    Product Map2 location model1 model2 ->
+                    Product location model1 model2 ->
                         let
                             ( newModel1, cmd1 ) =
                                 field1.update msg model1
@@ -1506,7 +1406,7 @@ map2 f (Field field1) (Field field2) =
                             ( newModel2, cmd2 ) =
                                 field2.update msg model2
                         in
-                        ( Product Map2 location newModel1 newModel2
+                        ( Product location newModel1 newModel2
                         , Cmd.batch [ cmd1, cmd2 ]
                         )
 
@@ -1515,7 +1415,7 @@ map2 f (Field field1) (Field field2) =
         , view =
             \config model ->
                 case model of
-                    Product _ _ model1 model2 ->
+                    Product _ model1 model2 ->
                         field1.view { config | label = field1.label, id = locationFromModel model1 |> locationToString } model1
                             ++ field2.view { config | label = field2.label, id = locationFromModel model1 |> locationToString } model2
 
@@ -1524,7 +1424,7 @@ map2 f (Field field1) (Field field2) =
         , subscriptions =
             \model ->
                 case model of
-                    Product _ _ model1 model2 ->
+                    Product _ model1 model2 ->
                         Sub.batch
                             [ field1.subscriptions model1
                             , field2.subscriptions model2
@@ -1535,14 +1435,14 @@ map2 f (Field field1) (Field field2) =
         , submit =
             \checks model ->
                 case model of
-                    Product _ _ model1 model2 ->
+                    Product _ model1 model2 ->
                         case
                             ( field1.submit field1.checks model1
                             , field2.submit field2.checks model2
                             )
                         of
                             ( Ok output1, Ok output2 ) ->
-                                f output1 output2
+                                mappers.output output1 output2
                                     |> runChecks checks model
 
                             ( Err errs, Ok _ ) ->
@@ -1591,9 +1491,9 @@ Use in combination with [`succeed`](#succeed).
 
     form =
         Yafl.succeed (\a b c -> { firstName = a, middleName = b, lastName = c })
-            |> Yafl.andMap (fields.string |> Yafl.label "First name")
-            |> Yafl.andMap (fields.string |> Yafl.label "Middle name")
-            |> Yafl.andMap (fields.string |> Yafl.label "Last name")
+            |> Yafl.andMap .firstName (fields.string |> Yafl.label "First name")
+            |> Yafl.andMap .middleName (fields.string |> Yafl.label "Middle name")
+            |> Yafl.andMap .lastName (fields.string |> Yafl.label "Last name")
 
     model =
         Yafl.init form
@@ -1605,20 +1505,30 @@ Use in combination with [`succeed`](#succeed).
 
 -}
 andMap :
-    Field formModel formMsg address1 widgetMsg1 output1
-    -> Field formModel formMsg address2 widgetMsg2 (output1 -> output2)
-    -> Field formModel formMsg NoId Never output2
-andMap (Field field1) (Field field2) =
+    (input2 -> Maybe input1)
+    -> Field formModel formMsg address1 widgetMsg1 input1 output1
+    -> Field formModel formMsg address2 widgetMsg2 input2 (output1 -> output2)
+    -> Field formModel formMsg NoId Never input2 output2
+andMap getInput (Field field1) (Field field2) =
     let
         (Field mapped) =
-            map2 (\x f -> f x) (Field field1) (Field field2)
+            map2
+                { input =
+                    \input ->
+                        ( getInput input
+                        , Just input
+                        )
+                , output = \x f -> f x
+                }
+                (Field field1)
+                (Field field2)
     in
     Field
         { mapped
             | view =
                 \config model ->
                     case model of
-                        Product _ _ model1 model2 ->
+                        Product _ model1 model2 ->
                             field2.view { config | label = field2.label, id = locationFromModel model2 |> locationToString } model2
                                 ++ field1.view { config | label = field1.label, id = locationFromModel model1 |> locationToString } model1
 
@@ -1640,38 +1550,21 @@ andMap (Field field1) (Field field2) =
 -}
 
 
-{-| Check the result of submitting a [`Field`](#Field), and optionally display
-another `Field`. This can be useful if you want to ask the user for more
-information, or to convert an existing [`Widget`](#Widget) to return a different
-output type.
+{-| Check the result of submitting a [`Field`](#Field). This can be useful if
+you want to convert an existing [`Widget`](#Widget) to return a different output
+type.
 
 (You _can_ also use it for validating a field's output, but it will probably be
 better to use [`validate`](#validate) or [`validateAt`](#validateAt) instead.)
 
-The [`succeed`](#succeed) and [`fail`](#fail) functions are often useful in
-combination with this function.
+Be warned: this is not a fully law-abiding monadic `andThen` - you shouldn't use
+it to return arbitrary Fields, you should only use it with `succeed`, `fail` and
+`failAt`
 
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
 
-    -- Example 1: Asking the user for additional information
-
-    fields.string
-        |> Yafl.label "What would you like to say?"
-        |> Yafl.andThen
-            (\words ->
-                if words == "Hello" then
-                    fields.string
-                        |> Yafl.label "Who are you saying 'Hello' to?"
-                        |> Yafl.map (\moreWords -> words ++ " " ++ moreWords)
-
-                else
-                    Yafl.succeed words
-            )
-
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String String
-
-    -- Example 2: Repurposing an existing widget to return a different type
+    -- Example 1: Repurposing an existing widget to return a different type
 
     fields.string
             |> Yafl.label "Enter a floating-point number"
@@ -1685,9 +1578,9 @@ combination with this function.
                             Yafl.fail "That's not a valid float"
                 )
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String Float
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String String Float
 
-    -- Example 3: Validating a field's output
+    -- Example 2: Validating a field's output
 
     fields.string
         |> Yafl.label "Enter the first name of a Beatle"
@@ -1700,139 +1593,36 @@ combination with this function.
                     Yafl.fail "Invalid Beatle"
             )
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId String String
+    --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
 
 -}
 andThen :
-    (output -> Field formModel formMsg id2 widgetMsg2 output2)
-    -> Field formModel formMsg id widgetMsg output
-    -> Field formModel formMsg id widgetMsg output2
+    (output -> Field formModel formMsg Never Never input output2)
+    -> Field formModel formMsg id widgetMsg input output
+    -> Field formModel formMsg id widgetMsg input output2
 andThen f (Field field) =
     Field
-        { init =
-            \path maybeId ->
-                let
-                    ( model1, cmd1 ) =
-                        field.init (0 :: path) maybeId
-
-                    ( model2, cmd2 ) =
-                        let
-                            path2 =
-                                1 :: path
-                        in
-                        case field.submit field.checks model1 of
-                            Ok output ->
-                                let
-                                    (Field field2) =
-                                        f output
-                                in
-                                field2.init path2 field2.maybeId
-
-                            Err _ ->
-                                ( Empty NoValue (newLocation path2 Nothing), Cmd.none )
-
-                    location =
-                        newLocation path Nothing
-                in
-                ( Product AndThen location model1 model2
-                , Cmd.batch [ cmd1, cmd2 ]
-                )
-        , update =
-            \msg model ->
-                case model of
-                    Product AndThen location model1 model2 ->
-                        let
-                            ( newModel1, cmd1 ) =
-                                field.update msg model1
-
-                            ( newModel2, cmd2 ) =
-                                case field.submit field.checks newModel1 of
-                                    Ok output ->
-                                        let
-                                            (Field field2) =
-                                                f output
-                                        in
-                                        case model2 of
-                                            Empty _ location2 ->
-                                                field2.init (locationToPath location2) field2.maybeId
-
-                                            _ ->
-                                                field2.update msg model2
-
-                                    Err _ ->
-                                        ( model2, Cmd.none )
-                        in
-                        ( Product AndThen location newModel1 newModel2
-                        , Cmd.batch [ cmd1, cmd2 ]
-                        )
-
-                    _ ->
-                        ( model, Cmd.none )
-        , view =
-            \config model ->
-                case model of
-                    Product _ _ model1 model2 ->
-                        field.view { config | id = locationFromModel model1 |> locationToString } model1
-                            ++ (case field.submit field.checks model1 of
-                                    Ok output ->
-                                        let
-                                            (Field field2) =
-                                                f output
-                                        in
-                                        field2.view { config | label = field2.label, id = locationFromModel model2 |> locationToString } model2
-
-                                    Err _ ->
-                                        []
-                               )
-
-                    _ ->
-                        []
-        , subscriptions =
-            \model ->
-                case model of
-                    Product _ _ model1 model2 ->
-                        Sub.batch
-                            [ field.subscriptions model1
-                            , case field.submit field.checks model1 of
-                                Ok output ->
-                                    let
-                                        (Field field2) =
-                                            f output
-                                    in
-                                    field2.subscriptions model2
-
-                                Err _ ->
-                                    Sub.none
-                            ]
-
-                    _ ->
-                        Sub.none
-        , submit =
-            \_ model ->
-                case model of
-                    Product _ _ model1 model2 ->
-                        field.submit field.checks model1
-                            |> Result.andThen
-                                (\output ->
-                                    let
-                                        (Field field2) =
-                                            f output
-                                    in
-                                    field2.submit field2.checks model2
-                                )
-
-                    _ ->
-                        Err
-                            [ { message = "Fatal error, expecting a `Product` node"
-                              , locator = locatorFromModel model
-                              , fail = True
-                              }
-                            ]
-        , checks = []
+        { init = field.init
+        , load = field.load
+        , update = field.update
+        , view = field.view
+        , subscriptions = field.subscriptions
+        , maybeId = field.maybeId
         , send = field.send
+        , checks = []
         , intercept = field.intercept
         , label = field.label
-        , maybeId = field.maybeId
+        , submit =
+            \checks model ->
+                field.submit field.checks model
+                    |> Result.andThen
+                        (\output ->
+                            let
+                                (Field andThenField) =
+                                    f output
+                            in
+                            andThenField.submit (andThenField.checks ++ checks) model
+                        )
         }
 
 
@@ -1851,10 +1641,26 @@ andThen f (Field field) =
 
 {-| Begin defining a `choice` between multiple [`option`](#option)s.
 -}
-choice : Field formModel formMsg NoId Never output
+
+
+
+-- choice : Field formModel formMsg NoId Never input output
+
+
+choice : Field model formMsg id Never { selected : Maybe Int, options : Maybe options } value
 choice =
     Field
         { init = \path maybeId -> ( Sum (newLocation path maybeId) { selected = 0 } [], Cmd.none )
+        , load =
+            \input model ->
+                case ( Maybe.andThen .selected input, model ) of
+                    ( Just selected, Sum loc _ nodes ) ->
+                        ( Sum loc { selected = selected } nodes
+                        , Cmd.none
+                        )
+
+                    _ ->
+                        ( model, Cmd.none )
         , update = \_ model -> ( model, Cmd.none )
         , view = \_ _ -> []
         , subscriptions = \_ -> Sub.none
@@ -1912,10 +1718,11 @@ will be rendered underneath the fieldset containing the radio buttons.
 -}
 option :
     String
-    -> Field formModel formMsg id widgetMsg output
-    -> Field formModel formMsg id2 Never output
-    -> Field formModel formMsg id2 Never output
-option thisOptionLabel (Field thisOptionField) (Field previousOptionFields) =
+    -> (options -> Maybe input)
+    -> Field formModel formMsg id widgetMsg input value
+    -> Field formModel formMsg id2 widgetMsg2 { selected : Maybe Int, options : Maybe options } value
+    -> Field formModel formMsg id2 Never { selected : Maybe Int, options : Maybe options } value
+option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFields) =
     Field
         { init =
             \path _ ->
@@ -1931,6 +1738,28 @@ option thisOptionLabel (Field thisOptionField) (Field previousOptionFields) =
 
                     _ ->
                         thisOptionField.init path thisOptionField.maybeId
+        , load =
+            \input model ->
+                case ( input |> Maybe.andThen .options |> Maybe.andThen getInput, model ) of
+                    ( thisOptionInput, Sum loc sel (( _, thisOptionNode ) :: previousOptionLabelsAndNodes) ) ->
+                        let
+                            ( newThisOptionNode, thisOptionCmd ) =
+                                thisOptionField.load thisOptionInput thisOptionNode
+
+                            ( newPreviousOptionsNode, previousOptionsCmd ) =
+                                previousOptionFields.load input (Sum loc sel previousOptionLabelsAndNodes)
+                        in
+                        case newPreviousOptionsNode of
+                            Sum _ newSel newPreviousOptionLabelsAndNodes ->
+                                ( Sum loc newSel (( thisOptionLabel, newThisOptionNode ) :: newPreviousOptionLabelsAndNodes)
+                                , Cmd.batch [ thisOptionCmd, previousOptionsCmd ]
+                                )
+
+                            _ ->
+                                ( model, Cmd.none )
+
+                    _ ->
+                        ( model, Cmd.none )
         , update =
             \msg model ->
                 case model of
@@ -2046,10 +1875,6 @@ option thisOptionLabel (Field thisOptionField) (Field previousOptionFields) =
                             previousOptionFields.submit previousOptionFields.checks (Sum location meta previousOptionLabelsAndModels)
 
                     _ ->
-                        let
-                            _ =
-                                Debug.log "model" model
-                        in
                         Err
                             [ { message = "Fatal error in `option` submit function"
                               , fail = True
@@ -2127,7 +1952,7 @@ addWidget :
             ({ blankModel : formModel
              , blankMsg : formMsg
              , ctor :
-                Field formModel formMsg NoId widgetMsg output -> fields
+                Field formModel formMsg NoId widgetMsg widgetMsg output -> fields
              }
              -> ( formMsg -> Maybe widgetMsg, previousMsgGetters )
              -> ( Maybe widgetMsg -> formMsg -> formMsg, previousMsgSetters )
@@ -2200,7 +2025,7 @@ addWidget widget builder =
     , msgGetters = NT.getter builder.msgGetters
     , msgSetters = NT.setter builder.msgSetters
     , msgBlanks = NT.appender Nothing builder.msgBlanks
-    , apply = folder5 applier2 builder.apply
+    , apply = folder5 applierWithoutConfig builder.apply
     }
 
 
@@ -2215,7 +2040,7 @@ addWidgetWithConfig :
             ({ blankModel : formModel
              , blankMsg : formMsg
              , ctor :
-                (config -> Field formModel formMsg NoId widgetMsg output) -> fields
+                (config -> Field formModel formMsg NoId widgetMsg widgetMsg output) -> fields
              }
              -> ( formMsg -> Maybe widgetMsg, previousMsgGetters )
              -> ( Maybe widgetMsg -> formMsg -> formMsg, previousMsgSetters )
@@ -2288,7 +2113,7 @@ addWidgetWithConfig widget builder =
     , msgGetters = NT.getter builder.msgGetters
     , msgSetters = NT.setter builder.msgSetters
     , msgBlanks = NT.appender Nothing builder.msgBlanks
-    , apply = folder5 applier builder.apply
+    , apply = folder5 applierWithConfig builder.apply
     }
 
 
@@ -2379,7 +2204,7 @@ endFields builder =
 -}
 
 
-applier :
+applierWithConfig :
     (formMsg -> Maybe widgetMsg)
     -> (Maybe widgetMsg -> formMsg -> formMsg)
     -> (formModel -> Maybe widgetModel)
@@ -2388,10 +2213,10 @@ applier :
     ->
         { blankModel : formModel
         , blankMsg : formMsg
-        , ctor : (config -> Field formModel formMsg NoId widgetMsg output) -> fields
+        , ctor : (config -> Field formModel formMsg NoId widgetMsg widgetMsg output) -> fields
         }
     -> { blankModel : formModel, blankMsg : formMsg, ctor : fields }
-applier msgGetter msgSetter modelGetter modelSetter widgetFromConfig acc =
+applierWithConfig msgGetter msgSetter modelGetter modelSetter widgetFromConfig acc =
     let
         send_ msg_ =
             msgSetter (Just msg_) acc.blankMsg
@@ -2399,12 +2224,12 @@ applier msgGetter msgSetter modelGetter modelSetter widgetFromConfig acc =
         intercept_ =
             msgGetter
 
-        wrappedFieldType config =
+        field_ config =
             let
                 widget =
                     widgetFromConfig config
             in
-            wrapWithTrees
+            convertToField
                 { init =
                     let
                         ( widgetModel, widgetCmd ) =
@@ -2413,6 +2238,18 @@ applier msgGetter msgSetter modelGetter modelSetter widgetFromConfig acc =
                     ( modelSetter (Just widgetModel) acc.blankModel
                     , Cmd.map send_ widgetCmd
                     )
+                , load =
+                    \input model ->
+                        case
+                            Maybe.map (widget.update input) (modelGetter model)
+                        of
+                            Just ( newModel, cmd ) ->
+                                ( modelSetter (Just newModel) acc.blankModel
+                                , Cmd.map send_ cmd
+                                )
+
+                            Nothing ->
+                                ( model, Cmd.none )
                 , update =
                     \msg model ->
                         case
@@ -2467,13 +2304,13 @@ applier msgGetter msgSetter modelGetter modelSetter widgetFromConfig acc =
                 , blankModel = acc.blankModel
                 }
     in
-    { ctor = acc.ctor wrappedFieldType
+    { ctor = acc.ctor field_
     , blankMsg = acc.blankMsg
     , blankModel = acc.blankModel
     }
 
 
-applier2 :
+applierWithoutConfig :
     (formMsg -> Maybe widgetMsg)
     -> (Maybe widgetMsg -> formMsg -> formMsg)
     -> (formModel -> Maybe widgetModel)
@@ -2482,10 +2319,10 @@ applier2 :
     ->
         { blankModel : formModel
         , blankMsg : formMsg
-        , ctor : Field formModel formMsg NoId widgetMsg output -> fields
+        , ctor : Field formModel formMsg NoId widgetMsg widgetMsg output -> fields
         }
     -> { blankModel : formModel, blankMsg : formMsg, ctor : fields }
-applier2 msgGetter msgSetter modelGetter modelSetter widget acc =
+applierWithoutConfig msgGetter msgSetter modelGetter modelSetter widget acc =
     let
         send_ msg_ =
             msgSetter (Just msg_) acc.blankMsg
@@ -2493,8 +2330,8 @@ applier2 msgGetter msgSetter modelGetter modelSetter widget acc =
         intercept_ =
             msgGetter
 
-        wrappedFieldType =
-            wrapWithTrees
+        field_ =
+            convertToField
                 { init =
                     let
                         ( widgetModel, widgetCmd ) =
@@ -2503,6 +2340,18 @@ applier2 msgGetter msgSetter modelGetter modelSetter widget acc =
                     ( modelSetter (Just widgetModel) acc.blankModel
                     , Cmd.map send_ widgetCmd
                     )
+                , load =
+                    \input model ->
+                        case
+                            Maybe.map (widget.update input) (modelGetter model)
+                        of
+                            Just ( newModel, cmd ) ->
+                                ( modelSetter (Just newModel) acc.blankModel
+                                , Cmd.map send_ cmd
+                                )
+
+                            Nothing ->
+                                ( model, Cmd.none )
                 , update =
                     \msg model ->
                         case
@@ -2557,14 +2406,15 @@ applier2 msgGetter msgSetter modelGetter modelSetter widget acc =
                 , blankModel = acc.blankModel
                 }
     in
-    { ctor = acc.ctor wrappedFieldType
+    { ctor = acc.ctor field_
     , blankMsg = acc.blankMsg
     , blankModel = acc.blankModel
     }
 
 
-wrapWithTrees :
+convertToField :
     { init : ( formModel, Cmd formMsg )
+    , load : widgetMsg -> formModel -> ( formModel, Cmd formMsg )
     , update : formMsg -> formModel -> ( formModel, Cmd formMsg )
     , blankModel : formModel
     , view : ViewConfig -> formModel -> List (H.Html formMsg)
@@ -2574,8 +2424,8 @@ wrapWithTrees :
     , intercept : formMsg -> Maybe widgetMsg
     , label : String
     }
-    -> Field formModel formMsg NoId widgetMsg value
-wrapWithTrees args =
+    -> Field formModel formMsg NoId widgetMsg widgetMsg value
+convertToField args =
     Field
         { init =
             \path maybeId ->
@@ -2587,6 +2437,20 @@ wrapWithTrees args =
                     |> Tuple.mapBoth
                         (\model -> Value location model)
                         (\cmd -> Cmd.map (ValueChanged (locationToLocator location)) cmd)
+        , load =
+            \input model ->
+                case ( input, model ) of
+                    ( Just widgetMsg, Value location innerModel ) ->
+                        let
+                            ( newModel, cmd ) =
+                                args.load widgetMsg innerModel
+                        in
+                        ( Value location newModel
+                        , Cmd.map (ValueChanged (locationToLocator location)) cmd
+                        )
+
+                    _ ->
+                        ( model, Cmd.none )
         , update =
             \msg model ->
                 case model of
@@ -2816,7 +2680,7 @@ locationFromModel model =
         Value loc _ ->
             loc
 
-        Product _ loc _ _ ->
+        Product loc _ _ ->
             loc
 
         Sum loc _ _ ->
@@ -2902,7 +2766,7 @@ As the first argument, you should pass in `Debug.toString`.
 
 -}
 toDOT : (model -> String) -> Model model output -> String
-toDOT debugToString (Model model) =
+toDOT debugToString (Model _ model) =
     let
         escape str =
             String.replace "\"" "\\\"" str
@@ -2914,14 +2778,6 @@ toDOT debugToString (Model model) =
         match val =
             Regex.find regex (escape (debugToString val)) |> List.map .match |> List.head |> Maybe.withDefault ""
 
-        productTypeToString productType =
-            case productType of
-                Map2 ->
-                    { label = "Map2", shape = "larrow" }
-
-                AndThen ->
-                    { label = "AndThen", shape = "rarrow" }
-
         emptyTypeToString emptyType =
             case emptyType of
                 Succeed ->
@@ -2929,9 +2785,6 @@ toDOT debugToString (Model model) =
 
                 Fail ->
                     { label = "Fail", shape = "octagon" }
-
-                NoValue ->
-                    { label = "No Value", shape = "plain" }
 
         nodeLabel loc innerLabel =
             "\"" ++ locationToString loc ++ ": " ++ innerLabel ++ "\""
@@ -2945,10 +2798,10 @@ toDOT debugToString (Model model) =
                       )
                     ]
 
-                Product typ loc m1 m2 ->
+                Product loc m1 m2 ->
                     ( locationToPath loc
-                    , nodeLabel loc (productTypeToString typ).label
-                    , (productTypeToString typ).shape
+                    , nodeLabel loc "Product"
+                    , "square"
                     )
                         :: toPathsAndLabels m1
                         ++ toPathsAndLabels m2
@@ -3029,7 +2882,7 @@ argument.
 -}
 studio :
     (output -> String)
-    -> Field formModel formMsg id widgetMsg output
+    -> Field formModel formMsg id widgetMsg input output
     -> Program () (Model formModel output) (Msg formMsg)
 studio debugToString field =
     Browser.document

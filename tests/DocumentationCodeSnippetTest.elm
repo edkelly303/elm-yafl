@@ -52,9 +52,9 @@ tests =
                         let
                             unused :
                                 { string :
-                                    Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
+                                    Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                                 , bool :
-                                    Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId Basics.Bool Basics.Bool
+                                    Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId Basics.Bool Basics.Bool Basics.Bool
                                 }
                             unused =
                                 Examples.fields
@@ -68,7 +68,7 @@ tests =
                     "0"
                     (\() ->
                         let
-                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
+                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                             unused =
                                 Examples.nonEmptyString
                         in
@@ -78,7 +78,7 @@ tests =
                     "1"
                     (\() ->
                         let
-                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
+                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                             unused =
                                 Examples.firstName
                         in
@@ -88,7 +88,7 @@ tests =
                     "2"
                     (\() ->
                         let
-                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
+                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                             unused =
                                 Examples.lastName
                         in
@@ -98,7 +98,7 @@ tests =
                     "3"
                     (\() ->
                         let
-                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId Basics.Bool Basics.Bool
+                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId Basics.Bool Basics.Bool Basics.Bool
                             unused =
                                 Examples.isAdmin
                         in
@@ -111,7 +111,18 @@ tests =
                     "0"
                     (\() ->
                         let
-                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId Basics.Never Examples.User
+                            unused :
+                                Yafl.Field
+                                    Examples.FormModel
+                                    Examples.FormMsg
+                                    Yafl.NoId
+                                    Basics.Never
+                                    { firstName :
+                                        Maybe.Maybe String.String
+                                    , lastName : Maybe.Maybe String.String
+                                    , isAdmin : Maybe.Maybe Basics.Bool
+                                    }
+                                    Examples.User
                             unused =
                                 Examples.user
                         in
@@ -215,36 +226,6 @@ tests =
                     ]
                 ]
             , Test.describe
-                "andSelectField"
-                [ Test.describe
-                    "code snippet 0"
-                    [ Test.test
-                        "0"
-                        (\() ->
-                            modelAndCmd__Yafl__andSelectField_0
-                                |> Tuple.first
-                                |> Yafl.submit
-                                    myChoiceField__Yafl__andSelectField_0
-                                |> Expect.equal
-                                    (Result.Err
-                                        [ ( "0.0", "Oh no, you failed!" ) ]
-                                    )
-                        )
-                    , Test.test
-                        "1"
-                        (\() ->
-                            modelAndCmd__Yafl__andSelectField_0
-                                |> Yafl.andSelectField
-                                    myChoiceField__Yafl__andSelectField_0
-                                    myFieldWithId__Yafl__andSelectField_0
-                                |> Tuple.first
-                                |> Yafl.submit
-                                    myChoiceField__Yafl__andSelectField_0
-                                |> Expect.equal (Result.Ok "Hurrah!")
-                        )
-                    ]
-                ]
-            , Test.describe
                 "andThen"
                 [ Test.describe
                     "code snippet 0"
@@ -252,35 +233,7 @@ tests =
                         "0"
                         (\() ->
                             let
-                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
-                                unused =
-                                    Examples.fields.string
-                                        |> Yafl.label
-                                            "What would you like to say?"
-                                        |> Yafl.andThen
-                                            (\words ->
-                                                if words == "Hello" then
-                                                    Examples.fields.string
-                                                        |> Yafl.label
-                                                            "Who are you saying 'Hello' to?"
-                                                        |> Yafl.map
-                                                            (\moreWords ->
-                                                                words
-                                                                    ++ " "
-                                                                    ++ moreWords
-                                                            )
-
-                                                else
-                                                    Yafl.succeed words
-                                            )
-                            in
-                            Expect.pass
-                        )
-                    , Test.test
-                        "1"
-                        (\() ->
-                            let
-                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String Basics.Float
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String Basics.Float
                                 unused =
                                     Examples.fields.string
                                         |> Yafl.label
@@ -299,10 +252,10 @@ tests =
                             Expect.pass
                         )
                     , Test.test
-                        "2"
+                        "1"
                         (\() ->
                             let
-                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                                 unused =
                                     Examples.fields.string
                                         |> Yafl.label
@@ -329,26 +282,6 @@ tests =
                     ]
                 ]
             , Test.describe
-                "andUpdateField"
-                [ Test.describe
-                    "code snippet 0"
-                    [ Test.test
-                        "0"
-                        (\() ->
-                            Yafl.submit
-                                fooField__Yafl__andUpdateField_0
-                                updatedModel__Yafl__andUpdateField_0
-                                |> Expect.equal
-                                    (Result.Ok
-                                        (Foo__Yafl__andUpdateField_0
-                                            "Hello"
-                                            "World"
-                                        )
-                                    )
-                        )
-                    ]
-                ]
-            , Test.describe
                 "fail"
                 [ Test.describe
                     "code snippet 0"
@@ -362,16 +295,16 @@ tests =
                     ]
                 ]
             , Test.describe
-                "id"
+                "identifier"
                 [ Test.describe
                     "code snippet 0"
                     [ Test.test
                         "0"
                         (\() ->
                             let
-                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                                 unused =
-                                    myField__Yafl__id_0
+                                    myField__Yafl__identifier_0
                             in
                             Expect.pass
                         )
@@ -379,9 +312,9 @@ tests =
                         "1"
                         (\() ->
                             let
-                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.HasId String.String String.String
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.HasId String.String String.String String.String
                                 unused =
-                                    myFieldWithId__Yafl__id_0
+                                    myFieldWithId__Yafl__identifier_0
                             in
                             Expect.pass
                         )
@@ -391,7 +324,9 @@ tests =
                             let
                                 unused : Platform.Cmd.Cmd (Yafl.Msg Examples.FormMsg)
                                 unused =
-                                    Yafl.send myFieldWithId__Yafl__id_0 "Hello!"
+                                    Yafl.send
+                                        myFieldWithId__Yafl__identifier_0
+                                        "Hello!"
                             in
                             Expect.pass
                         )
@@ -440,11 +375,63 @@ tests =
                         "0"
                         (\() ->
                             let
-                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                                 unused =
                                     nameField__Yafl__label_0
                             in
                             Expect.pass
+                        )
+                    ]
+                ]
+            , Test.describe
+                "load"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            let
+                                unused :
+                                    Yafl.Field
+                                        Examples.FormModel
+                                        Examples.FormMsg
+                                        Yafl.NoId
+                                        Basics.Never
+                                        { a :
+                                            Maybe.Maybe Basics.Bool
+                                        , b : Maybe.Maybe String.String
+                                        }
+                                        ( Basics.Bool, String.String )
+                                unused =
+                                    form__Yafl__load_0
+                            in
+                            Expect.pass
+                        )
+                    , Test.test
+                        "1"
+                        (\() ->
+                            Yafl.submit
+                                form__Yafl__load_0
+                                modelBeforeLoading__Yafl__load_0
+                                |> Expect.equal (Result.Ok ( Basics.False, "" ))
+                        )
+                    , Test.test
+                        "2"
+                        (\() ->
+                            Yafl.submit
+                                form__Yafl__load_0
+                                modelAfterLoading__Yafl__load_0
+                                |> Expect.equal
+                                    (Result.Ok ( Basics.True, "hello" ))
+                        )
+                    , Test.test
+                        "3"
+                        (\() ->
+                            Yafl.submit
+                                form__Yafl__load_0
+                                modelAfterLoadingAgain__Yafl__load_0
+                                |> Expect.equal
+                                    (Result.Ok ( Basics.True, "goodbye" ))
                         )
                     ]
                 ]
@@ -473,51 +460,6 @@ tests =
                         (\() ->
                             Yafl.submit form__Yafl__map2_0 model__Yafl__map2_0
                                 |> Expect.equal (Result.Ok ( "", "" ))
-                        )
-                    ]
-                ]
-            , Test.describe
-                "select"
-                [ Test.describe
-                    "code snippet 0"
-                    [ Test.test
-                        "0"
-                        (\() ->
-                            let
-                                unused : Platform.Cmd.Cmd (Yafl.Msg Examples.FormMsg)
-                                unused =
-                                    Yafl.select holyGrail__Yafl__select_0
-                            in
-                            Expect.pass
-                        )
-                    ]
-                ]
-            , Test.describe
-                "selectField"
-                [ Test.describe
-                    "code snippet 0"
-                    [ Test.test
-                        "0"
-                        (\() ->
-                            model__Yafl__selectField_0
-                                |> Yafl.submit
-                                    myChoiceField__Yafl__selectField_0
-                                |> Expect.equal
-                                    (Result.Err
-                                        [ ( "0.0", "Oh no, you failed!" ) ]
-                                    )
-                        )
-                    , Test.test
-                        "1"
-                        (\() ->
-                            model__Yafl__selectField_0
-                                |> Yafl.selectField
-                                    myChoiceField__Yafl__selectField_0
-                                    myFieldWithId__Yafl__selectField_0
-                                |> Tuple.first
-                                |> Yafl.submit
-                                    myChoiceField__Yafl__selectField_0
-                                |> Expect.equal (Result.Ok "Hurrah!")
                         )
                     ]
                 ]
@@ -586,32 +528,6 @@ tests =
                     ]
                 ]
             , Test.describe
-                "updateField"
-                [ Test.describe
-                    "code snippet 0"
-                    [ Test.test
-                        "0"
-                        (\() ->
-                            Yafl.submit
-                                fooField__Yafl__updateField_0
-                                model__Yafl__updateField_0
-                                |> Expect.equal
-                                    (Result.Ok (Foo__Yafl__updateField_0 "" ""))
-                        )
-                    , Test.test
-                        "1"
-                        (\() ->
-                            Yafl.submit
-                                fooField__Yafl__updateField_0
-                                updatedModel__Yafl__updateField_0
-                                |> Expect.equal
-                                    (Result.Ok
-                                        (Foo__Yafl__updateField_0 "Hello!" "")
-                                    )
-                        )
-                    ]
-                ]
-            , Test.describe
                 "validate"
                 [ Test.describe
                     "code snippet 0"
@@ -641,14 +557,12 @@ tests =
                         (\() ->
                             form__Yafl__validateAt_0
                                 |> Yafl.init
-                                |> Yafl.andUpdateField
+                                |> Tuple.first
+                                |> Yafl.load
                                     form__Yafl__validateAt_0
-                                    passwordField__Yafl__validateAt_0
-                                    "password123"
-                                |> Yafl.andUpdateField
-                                    form__Yafl__validateAt_0
-                                    confirmField__Yafl__validateAt_0
-                                    "password124"
+                                    { passwordField = Maybe.Just "password123"
+                                    , confirmField = Maybe.Just "password124"
+                                    }
                                 |> Tuple.first
                                 |> Yafl.submit form__Yafl__validateAt_0
                                 |> Expect.equal
@@ -766,9 +680,9 @@ isAdmin__Readme_2 =
 
 user__Readme_3 =
     Yafl.succeed Examples.User
-        |> Yafl.andMap Examples.firstName
-        |> Yafl.andMap Examples.lastName
-        |> Yafl.andMap Examples.isAdmin
+        |> Yafl.andMap .firstName Examples.firstName
+        |> Yafl.andMap .lastName Examples.lastName
+        |> Yafl.andMap .isAdmin Examples.isAdmin
 
 
 main__Readme_4 =
@@ -799,8 +713,8 @@ type MyCustomType__Yafl__Header_1
 
 myCustomTypeField__Yafl__Header_1 =
     Yafl.choice
-        |> Yafl.option "Foo" fooField__Yafl__Header_1
-        |> Yafl.option "Bar" barField__Yafl__Header_1
+        |> Yafl.option "Foo" .foo fooField__Yafl__Header_1
+        |> Yafl.option "Bar" .bar barField__Yafl__Header_1
 
 
 fooField__Yafl__Header_1 =
@@ -817,60 +731,19 @@ model__Yafl__Header_1 =
 
 form__Yafl__andMap_0 =
     Yafl.succeed (\a b c -> { firstName = a, middleName = b, lastName = c })
-        |> Yafl.andMap (Examples.fields.string |> Yafl.label "First name")
-        |> Yafl.andMap (Examples.fields.string |> Yafl.label "Middle name")
-        |> Yafl.andMap (Examples.fields.string |> Yafl.label "Last name")
+        |> Yafl.andMap
+            .firstName
+            (Examples.fields.string |> Yafl.label "First name")
+        |> Yafl.andMap
+            .middleName
+            (Examples.fields.string |> Yafl.label "Middle name")
+        |> Yafl.andMap
+            .lastName
+            (Examples.fields.string |> Yafl.label "Last name")
 
 
 model__Yafl__andMap_0 =
     Yafl.init form__Yafl__andMap_0 |> Tuple.first
-
-
-myFieldWithId__Yafl__andSelectField_0 =
-    Yafl.succeed "Hurrah!" |> Yafl.id "any-string-as-long-as-it's-unique"
-
-
-myChoiceField__Yafl__andSelectField_0 =
-    Yafl.choice
-        |> Yafl.option "Don't pick me!" (Yafl.fail "Oh no, you failed!")
-        |> Yafl.option "I'm the one!" myFieldWithId__Yafl__andSelectField_0
-
-
-modelAndCmd__Yafl__andSelectField_0 =
-    myChoiceField__Yafl__andSelectField_0 |> Yafl.init
-
-
-type Foo__Yafl__andUpdateField_0
-    = Foo__Yafl__andUpdateField_0 String.String String.String
-
-
-fooField__Yafl__andUpdateField_0 =
-    Yafl.map2
-        Foo__Yafl__andUpdateField_0
-        firstField__Yafl__andUpdateField_0
-        secondField__Yafl__andUpdateField_0
-
-
-firstField__Yafl__andUpdateField_0 =
-    Examples.fields.string |> Yafl.id "a-unique-string"
-
-
-secondField__Yafl__andUpdateField_0 =
-    Examples.fields.string |> Yafl.id "another-unique-string"
-
-
-updatedModel__Yafl__andUpdateField_0 =
-    fooField__Yafl__andUpdateField_0
-        |> Yafl.init
-        |> Yafl.andUpdateField
-            fooField__Yafl__andUpdateField_0
-            firstField__Yafl__andUpdateField_0
-            "Hello"
-        |> Yafl.andUpdateField
-            fooField__Yafl__andUpdateField_0
-            secondField__Yafl__andUpdateField_0
-            "World"
-        |> Tuple.first
 
 
 form__Yafl__fail_0 =
@@ -881,20 +754,48 @@ model__Yafl__fail_0 =
     form__Yafl__fail_0 |> Yafl.init |> Tuple.first
 
 
-myField__Yafl__id_0 =
+myField__Yafl__identifier_0 =
     Examples.fields.string
 
 
-myFieldWithId__Yafl__id_0 =
-    myField__Yafl__id_0 |> Yafl.id "any-string-as-long-as-it's-unique"
+myFieldWithId__Yafl__identifier_0 =
+    myField__Yafl__identifier_0
+        |> Yafl.identifier "any-string-as-long-as-it's-unique"
 
 
 myFieldWithId__Yafl__intercept_0 =
-    Examples.fields.string |> Yafl.id "any-string-as-long-as-it's-unique"
+    Examples.fields.string
+        |> Yafl.identifier "any-string-as-long-as-it's-unique"
 
 
 nameField__Yafl__label_0 =
     Examples.fields.string |> Yafl.label "What is your name?"
+
+
+form__Yafl__load_0 =
+    Yafl.succeed (\bool string -> ( bool, string ))
+        |> Yafl.andMap .a Examples.fields.bool
+        |> Yafl.andMap .b Examples.fields.string
+
+
+modelBeforeLoading__Yafl__load_0 =
+    form__Yafl__load_0 |> Yafl.init |> Tuple.first
+
+
+modelAfterLoading__Yafl__load_0 =
+    modelBeforeLoading__Yafl__load_0
+        |> Yafl.load
+            form__Yafl__load_0
+            { a = Maybe.Just Basics.True, b = Maybe.Just "hello" }
+        |> Tuple.first
+
+
+modelAfterLoadingAgain__Yafl__load_0 =
+    modelAfterLoading__Yafl__load_0
+        |> Yafl.load
+            form__Yafl__load_0
+            { a = Maybe.Nothing, b = Maybe.Just "goodbye" }
+        |> Tuple.first
 
 
 type MyCustomType__Yafl__map_0
@@ -906,39 +807,21 @@ fooField__Yafl__map_0 =
 
 
 form__Yafl__map2_0 =
-    Yafl.map2 (\a b -> ( a, b )) Examples.fields.string Examples.fields.string
+    Yafl.map2
+        { input = \input -> ( Maybe.Nothing, Maybe.Nothing )
+        , output = \a b -> ( a, b )
+        }
+        Examples.fields.string
+        Examples.fields.string
 
 
 model__Yafl__map2_0 =
     Yafl.init form__Yafl__map2_0 |> Tuple.first
 
 
-holyGrail__Yafl__select_0 =
-    Examples.fields.string |> Yafl.id "any-string-as-long-as-it's-unique"
-
-
-myChoiceField__Yafl__select_0 =
-    Yafl.choice
-        |> Yafl.option "Cup of a carpenter" holyGrail__Yafl__select_0
-        |> Yafl.option "Fancy chalice" (Yafl.fail "You chose... poorly")
-
-
-myFieldWithId__Yafl__selectField_0 =
-    Yafl.succeed "Hurrah!" |> Yafl.id "any-string-as-long-as-it's-unique"
-
-
-myChoiceField__Yafl__selectField_0 =
-    Yafl.choice
-        |> Yafl.option "Don't pick me!" (Yafl.fail "Oh no, you failed!")
-        |> Yafl.option "I'm the one!" myFieldWithId__Yafl__selectField_0
-
-
-model__Yafl__selectField_0 =
-    myChoiceField__Yafl__selectField_0 |> Yafl.init |> Tuple.first
-
-
 myFieldWithId__Yafl__send_0 =
-    Examples.fields.string |> Yafl.id "any-string-as-long-as-it's-unique"
+    Examples.fields.string
+        |> Yafl.identifier "any-string-as-long-as-it's-unique"
 
 
 form__Yafl__submit_0 =
@@ -965,38 +848,6 @@ model__Yafl__succeed_0 =
     form__Yafl__succeed_0 |> Yafl.init |> Tuple.first
 
 
-type Foo__Yafl__updateField_0
-    = Foo__Yafl__updateField_0 String.String String.String
-
-
-fooField__Yafl__updateField_0 =
-    Yafl.map2
-        Foo__Yafl__updateField_0
-        firstField__Yafl__updateField_0
-        secondField__Yafl__updateField_0
-
-
-firstField__Yafl__updateField_0 =
-    Examples.fields.string |> Yafl.id "a-unique-string"
-
-
-secondField__Yafl__updateField_0 =
-    Examples.fields.string |> Yafl.id "another-unique-string"
-
-
-model__Yafl__updateField_0 =
-    fooField__Yafl__updateField_0 |> Yafl.init |> Tuple.first
-
-
-updatedModel__Yafl__updateField_0 =
-    model__Yafl__updateField_0
-        |> Yafl.updateField
-            fooField__Yafl__updateField_0
-            firstField__Yafl__updateField_0
-            "Hello!"
-        |> Tuple.first
-
-
 form__Yafl__validate_0 =
     Yafl.succeed 0
         |> Yafl.validate
@@ -1013,18 +864,18 @@ form__Yafl__validate_0 =
 
 
 passwordField__Yafl__validateAt_0 =
-    Examples.fields.string |> Yafl.id "password"
+    Examples.fields.string |> Yafl.identifier "password"
 
 
 confirmField__Yafl__validateAt_0 =
-    Examples.fields.string |> Yafl.id "confirm"
+    Examples.fields.string |> Yafl.identifier "confirm"
 
 
 form__Yafl__validateAt_0 =
     Yafl.succeed
         (\password confirm -> { password = password, confirm = confirm })
-        |> Yafl.andMap passwordField__Yafl__validateAt_0
-        |> Yafl.andMap confirmField__Yafl__validateAt_0
+        |> Yafl.andMap .passwordField passwordField__Yafl__validateAt_0
+        |> Yafl.andMap .confirmField confirmField__Yafl__validateAt_0
         |> Yafl.validateAt
             confirmField__Yafl__validateAt_0
             (\{ password, confirm } ->

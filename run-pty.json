@@ -31,7 +31,7 @@
             "npx",
             "elm-doc-preview",
             "--port",
-            "8002"
+            "8101"
         ],
         "title": "npx elm-doc-preview",
         "status": {
