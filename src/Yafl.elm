@@ -8,8 +8,9 @@ module Yafl exposing
     , choice, option
     , label
     , validate, validateAt, andThen
-    , HasId, NoId, id, intercept, send
+    , HasId, NoId, intercept, send, isFormValid
     , studio, toDOT
+    , identifier
     )
 
 {-| This library helps you build user input forms in Elm by creating and
@@ -51,7 +52,7 @@ composing self-contained [`Widget`](#Widget)s.
 
 ### [Communicating between Fields](#communicating-between-fields)
 
-[`HasId`](#HasId), [`NoId`](#NoId), [`id`](#id), [`intercept`](#intercept), [`send`](#send)
+[`HasId`](#HasId), [`NoId`](#NoId), [`identifier`](#identifier), [`intercept`](#intercept), [`send`](#send)
 
 
 ### [Debugging](#debugging)
@@ -303,7 +304,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 [_Back to top_](#table-of-contents)
 
-@docs HasId, NoId, id, intercept, send
+@docs HasId, NoId, identifier, intercept, send, isFormValid
 
 
 # Debugging
@@ -403,15 +404,15 @@ type Field formModel formMsg id widgetMsg input output
         }
 
 
-{-| Indicates that a [`Field`](#Field) has been given an `id`, and can therefore be
-used with [`intercept`](#intercept), [`send`](#send), etc. See the docs for [`id`](#id).
+{-| Indicates that a [`Field`](#Field) has been given an `identifier`, and can therefore be
+used with [`intercept`](#intercept), [`send`](#send), etc. See the docs for [`identifier`](#identifier).
 -}
 type HasId
     = HasId Never
 
 
-{-| Indicates that a [`Field`](#Field) has not been given an `id`. See the docs for
-[`id`](#id).
+{-| Indicates that a [`Field`](#Field) has not been given an `identifier`. See the docs for
+[`identifier`](#identifier).
 -}
 type NoId
     = NoId Never
@@ -495,6 +496,13 @@ init (Field field) =
             field.init [ 0 ] field.maybeId
     in
     ( Model (checkDuplicateIds node) node, cmd )
+
+
+{-| Check that a form doesn't contain fields with duplicate identifiers.
+-}
+isFormValid : Model formModel output -> Bool
+isFormValid (Model dups _) =
+    List.isEmpty dups
 
 
 checkDuplicateIds : Node a -> List ( String, Int )
@@ -654,7 +662,24 @@ view (Field field) (Model dups model) =
                     H.text ""
 
                 _ ->
-                    H.text "fatal!"
+                    H.div
+                        []
+                        (List.map
+                            (\( id_, count ) ->
+                                H.p []
+                                    [ H.strong []
+                                        [ H.text
+                                            ("⚠️ FATAL ERROR IN FORM DEFINITION: field identifiers must be unique, but the identifier \""
+                                                ++ id_
+                                                ++ "\" is assigned to "
+                                                ++ String.fromInt count
+                                                ++ " different fields."
+                                            )
+                                        ]
+                                    ]
+                            )
+                            dups
+                        )
     in
     fatal
         :: field.view
@@ -845,11 +870,11 @@ you only want to display an error on one field.
 
     passwordField =
         fields.string
-            |> Yafl.id "password"
+            |> Yafl.identifier "password"
 
     confirmField =
         fields.string
-            |> Yafl.id "confirm"
+            |> Yafl.identifier "confirm"
 
     form =
         Yafl.succeed
@@ -914,7 +939,7 @@ messages to that Field.
 
     myFieldWithId =
         myField
-            |> Yafl.id "any-string-as-long-as-it's-unique"
+            |> Yafl.identifier "any-string-as-long-as-it's-unique"
 
     myFieldWithId
 
@@ -930,11 +955,11 @@ Widget, you can use the `id` field of the `ViewConfig` to set the
 `Html.Attributes.id` of the HTML input.
 
 -}
-id :
+identifier :
     String
     -> Field formModel formMsg NoId widgetMsg input output
     -> Field formModel formMsg HasId widgetMsg input output
-id sendId_ (Field field) =
+identifier sendId_ (Field field) =
     Field { field | maybeId = Just sendId_ }
 
 
@@ -959,7 +984,7 @@ a [`choice`](#choice) Field.
 
     myFieldWithId =
         fields.string
-            |> Yafl.id "any-string-as-long-as-it's-unique"
+            |> Yafl.identifier "any-string-as-long-as-it's-unique"
 
     Yafl.send myFieldWithId "Hello!"
 
@@ -991,7 +1016,7 @@ send (Field field) msg =
 
     myFieldWithId =
         fields.string
-            |> Yafl.id "any-string-as-long-as-it's-unique"
+            |> Yafl.identifier "any-string-as-long-as-it's-unique"
 
     Yafl.intercept myFieldWithId
 

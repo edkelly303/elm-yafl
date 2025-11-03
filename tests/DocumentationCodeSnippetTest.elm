@@ -295,7 +295,7 @@ tests =
                     ]
                 ]
             , Test.describe
-                "id"
+                "identifier"
                 [ Test.describe
                     "code snippet 0"
                     [ Test.test
@@ -304,7 +304,7 @@ tests =
                             let
                                 unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                                 unused =
-                                    myField__Yafl__id_0
+                                    myField__Yafl__identifier_0
                             in
                             Expect.pass
                         )
@@ -314,7 +314,7 @@ tests =
                             let
                                 unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.HasId String.String String.String String.String
                                 unused =
-                                    myFieldWithId__Yafl__id_0
+                                    myFieldWithId__Yafl__identifier_0
                             in
                             Expect.pass
                         )
@@ -324,7 +324,9 @@ tests =
                             let
                                 unused : Platform.Cmd.Cmd (Yafl.Msg Examples.FormMsg)
                                 unused =
-                                    Yafl.send myFieldWithId__Yafl__id_0 "Hello!"
+                                    Yafl.send
+                                        myFieldWithId__Yafl__identifier_0
+                                        "Hello!"
                             in
                             Expect.pass
                         )
@@ -719,16 +721,18 @@ model__Yafl__fail_0 =
     form__Yafl__fail_0 |> Yafl.init |> Tuple.first
 
 
-myField__Yafl__id_0 =
+myField__Yafl__identifier_0 =
     Examples.fields.string
 
 
-myFieldWithId__Yafl__id_0 =
-    myField__Yafl__id_0 |> Yafl.id "any-string-as-long-as-it's-unique"
+myFieldWithId__Yafl__identifier_0 =
+    myField__Yafl__identifier_0
+        |> Yafl.identifier "any-string-as-long-as-it's-unique"
 
 
 myFieldWithId__Yafl__intercept_0 =
-    Examples.fields.string |> Yafl.id "any-string-as-long-as-it's-unique"
+    Examples.fields.string
+        |> Yafl.identifier "any-string-as-long-as-it's-unique"
 
 
 nameField__Yafl__label_0 =
@@ -784,7 +788,8 @@ model__Yafl__map2_0 =
 
 
 myFieldWithId__Yafl__send_0 =
-    Examples.fields.string |> Yafl.id "any-string-as-long-as-it's-unique"
+    Examples.fields.string
+        |> Yafl.identifier "any-string-as-long-as-it's-unique"
 
 
 form__Yafl__submit_0 =
@@ -827,11 +832,11 @@ form__Yafl__validate_0 =
 
 
 passwordField__Yafl__validateAt_0 =
-    Examples.fields.string |> Yafl.id "password"
+    Examples.fields.string |> Yafl.identifier "password"
 
 
 confirmField__Yafl__validateAt_0 =
-    Examples.fields.string |> Yafl.id "confirm"
+    Examples.fields.string |> Yafl.identifier "confirm"
 
 
 form__Yafl__validateAt_0 =

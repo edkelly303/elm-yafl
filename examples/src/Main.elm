@@ -58,7 +58,7 @@ type alias Person =
 
 form =
     Yafl.succeed Tuple.pair
-        |> Yafl.andMap .name name
+        |> Yafl.andMap .name (name |> Yafl.identifier "name")
         |> Yafl.andMap .foo foo
         |> Yafl.map (\( a, b ) -> Person a b)
 
@@ -70,7 +70,7 @@ type Foo
 
 foo =
     Yafl.choice
-        |> Yafl.option "Bar" .bar (Yafl.map Bar name)
+        |> Yafl.option "Bar" .bar (Yafl.map Bar (name |> Yafl.identifier "name"))
         |> Yafl.option "Baz" .baz (Yafl.map Baz fields.bool)
         |> Yafl.label "Foo?"
 
@@ -86,6 +86,7 @@ name =
                 else
                     Nothing
             )
+            
 
 
 boolWidget : Yafl.Widget () Bool Bool Bool
