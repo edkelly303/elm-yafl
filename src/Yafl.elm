@@ -8,9 +8,8 @@ module Yafl exposing
     , choice, option
     , label
     , validate, validateAt, andThen
-    , HasId, NoId, intercept, send, isFormValid
+    , HasId, NoId, identifier, intercept, send, isFormValid
     , studio, toDOT
-    , identifier
     )
 
 {-| This library helps you build user input forms in Elm by creating and
@@ -27,17 +26,21 @@ composing self-contained [`Widget`](#Widget)s.
 
 ### [Turning Widgets into Fields](#turning-widgets-into-fields)
 
-[`Field`](#Field), [`defineFields`](#defineFields), [`addWidget`](#addWidget), [`addWidgetWithConfig`](#addWidgetWithConfig), [`endFields`](#endFields)
+[`Field`](#Field), [`defineFields`](#defineFields), [`addWidget`](#addWidget),
+[`addWidgetWithConfig`](#addWidgetWithConfig), [`endFields`](#endFields)
 
 
 ### [Turning Fields into forms](#turning-fields-into-forms)
 
-[`Model`](#Model), [`Msg`](#Msg), [`init`](#init), [`load`](#load), [`update`](#update), [`view`](#view), [`ViewConfig`](#ViewConfig), [`Feedback`](#Feedback), [`subscriptions`](#subscriptions), [`submit`](#submit)
+[`Model`](#Model), [`Msg`](#Msg), [`init`](#init), [`load`](#load),
+[`update`](#update), [`view`](#view), [`ViewConfig`](#ViewConfig),
+[`Feedback`](#Feedback), [`subscriptions`](#subscriptions), [`submit`](#submit)
 
 
 ### [Combining Fields](#combining-fields)
 
-[`succeed`](#succeed), [`fail`](#fail), [`failAt`](#failAt), [`map`](#map), [`map2`](#map2), [`andMap`](#andMap), [`choice`](#choice), [`option`](#option)
+[`succeed`](#succeed), [`fail`](#fail), [`failAt`](#failAt), [`map`](#map),
+[`map2`](#map2), [`andMap`](#andMap), [`andThen`](#andThen), [`choice`](#choice), [`option`](#option)
 
 
 ### [Customizing Fields](#customizing-fields)
@@ -47,12 +50,13 @@ composing self-contained [`Widget`](#Widget)s.
 
 ### [Validating fields](#validating-fields)
 
-[`validate`](#validate), [`validateAt`](#validateAt), [`andThen`](#andThen)
+[`validate`](#validate), [`validateAt`](#validateAt)
 
 
 ### [Communicating between Fields](#communicating-between-fields)
 
-[`HasId`](#HasId), [`NoId`](#NoId), [`identifier`](#identifier), [`intercept`](#intercept), [`send`](#send)
+[`HasId`](#HasId), [`NoId`](#NoId), [`identifier`](#identifier),
+[`intercept`](#intercept), [`send`](#send)
 
 
 ### [Debugging](#debugging)
@@ -64,15 +68,14 @@ composing self-contained [`Widget`](#Widget)s.
 
 [_Back to top_](#table-of-contents)
 
-[`Widget`](#Widget)s are the basic building blocks of this package. Each widget is
-effectively a little Elm application, with its own `init`, `update`, `view` and
-`subscriptions` functions, plus a couple of extra features.
+[`Widget`](#Widget)s are the basic building blocks of this package. Each widget
+is effectively a little Elm application, with its own `init`, `update`, `view`
+and `subscriptions` functions, plus a couple of extra features.
 
-This package doesn't supply any prebuilt widgets. Every app is unique, and
-it's unlikely that a prebuilt widget would precisely fit your use case. But
-the point is, this package gives you the power to create _any_ types of
-widgets you choose, and compose them together very easily with minimal
-boilerplate.
+This package doesn't supply any prebuilt widgets. Every app is unique, and it's
+unlikely that a prebuilt widget would precisely fit your use case. But the point
+is, this package gives you the power to create _any_ types of widgets you
+choose, and compose them together very easily with minimal boilerplate.
 
 Nevertheless, we'll provide some code samples for a few simple widgets that we
 can use in the code snippets in these docs.
@@ -84,9 +87,8 @@ can use in the code snippets in these docs.
     import Html.Events as HE
     import Yafl
 
-
-    {- A basic Widget that produces a String. Its internal
-       Model and Msg types are also Strings.
+    {-| A basic `Widget` that produces a `String`. Its internal
+    `model` and `msg` types are also `String`s.
     -}
     stringWidget : Yafl.Widget String String String
     stringWidget =
@@ -109,27 +111,38 @@ can use in the code snippets in these docs.
         , label = "String"
         }
 
-    boolWidget : Yafl.Widget Bool Bool Bool
-    boolWidget =
-        { init = ( False, Cmd.none )
+    {-| A `Widget` that produces an `Int`, based on the counter
+    example from the Elm Guide. Its internal `model` type is an
+    `Int`, but its `msg` type is a custom type.
+    -}
+    type CounterMsg
+        = Increment
+        | Decrement
+
+    counterWidget : Yafl.Widget () Int CounterMsg Int
+    counterWidget () =
+        { init = ( 0, Cmd.none )
         , update =
-            \msg _ ->
-                ( msg, Cmd.none )
+            \msg model ->
+                case msg of
+                    Increment ->
+                        ( model + 1, Cmd.none )
+
+                    Decrement ->
+                        ( model - 1, Cmd.none )
         , view =
-            \{ label, id, feedback } model ->
+            \{ label, id } model ->
                 [ H.label [ HA.for id ] [ H.text label ]
-                , H.input
-                    [ HA.id id
-                    , HA.type_ "checkbox"
-                    , HA.checked model
-                    , HE.onCheck identity
+                , H.fieldset
+                    [ HA.id id ]
+                    [ H.button [ HA.type_ "button", HE.onClick Decrement ] [ H.text "-" ]
+                    , H.output [] [ H.text (String.fromInt model) ]
+                    , H.button [ HA.type_ "button", HE.onClick Increment ] [ H.text "+" ]
                     ]
-                    []
-                , H.ul [] (List.map (\f -> H.li [] [ H.text f ]) feedback)
                 ]
         , subscriptions = \_ -> Sub.none
         , submit = \model -> Ok model
-        , label = "Bool"
+        , label = "Counter"
         }
 
 @docs Widget
@@ -154,24 +167,20 @@ example below:
     import Yafl exposing (addWidget, defineFields, endFields)
 
     fields =
-        defineFields
-            (\string bool ->
-                { string = string
-                , bool = bool
-                }
-            )
-            |> addWidget stringWidget
-            |> addWidget boolWidget
-            |> endFields
+        Yafl.defineFields
+            (\string counter -> { string = string, counter = counter })
+            |> Yafl.addWidget stringWidget
+            |> Yafl.addWidget counterWidget
+            |> Yafl.endFields
 
     {- This gives us the following Model and Msg types for
        our form:
     -}
     type alias FormModel =
-        ( Maybe String, ( Maybe Bool, () ) )
+        ( Maybe String, ( Maybe Int, () ) )
 
     type alias FormMsg =
-        ( Maybe String, ( Maybe Bool, () ) )
+        ( Maybe String, ( Maybe CounterMsg, () ) )
 
 @docs Field, defineFields, addWidget, addWidgetWithConfig, endFields
 
@@ -189,7 +198,7 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
     -- We can turn any Field into a form:
 
     form =
-        fields.bool
+        fields.counter
 
     -- Initialize it with `Yafl.init` to get a (model, cmd)
     -- tuple:
@@ -199,7 +208,7 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 
     init
 
-    --: ( Yafl.Model FormModel Bool, Cmd (Yafl.Msg FormMsg) )
+    --: ( Yafl.Model FormModel Int, Cmd (Yafl.Msg FormMsg) )
 
     -- The form's model can then be passed to `Yafl.view`,
     -- `Yafl.update`, `Yafl.subscriptions` and `Yafl.submit`:
@@ -217,7 +226,7 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 
     Yafl.submit form model
 
-    --> Ok False
+    --> Ok 0
 
 @docs Model, Msg, init, load, update, view, ViewConfig, Feedback, subscriptions, submit
 
@@ -249,7 +258,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 ## Building product types
 
-@docs map2, andMap
+@docs map2, andMap, andThen
 
 
 ## Building custom types
@@ -259,7 +268,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
     type MyCustomType
         = Foo String
-        | Bar Bool
+        | Bar Int
 
     myCustomTypeField =
         Yafl.choice
@@ -271,7 +280,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
             |> Yafl.map Foo
 
     barField =
-        fields.bool
+        fields.counter
             |> Yafl.map Bar
 
     model =
@@ -297,7 +306,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 [_Back to top_](#table-of-contents)
 
-@docs validate, validateAt, andThen
+@docs validate, validateAt
 
 
 # Communicating between Fields
@@ -481,10 +490,10 @@ type alias InternalFeedback =
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
 
-    fields.bool
+    fields.counter
         |> Yafl.init
 
-    --: ( Yafl.Model FormModel Bool, Cmd (Yafl.Msg FormMsg) )
+    --: ( Yafl.Model FormModel Int, Cmd (Yafl.Msg FormMsg) )
 
 -}
 init :
@@ -548,48 +557,121 @@ checkDuplicateIds node =
 -}
 
 
-{-| Load data into your form. A bit tricky to explain, but see the examples below:
+{-| Load data into your form. A bit tricky to explain, but see the examples
+below:
+
+For simple `Field`s, you just pass a value of the underlying `Widget`'s `msg`
+type. This will dispatch the `msg` to the `Field`'s update function, which may
+then update its model and optionally send a `Cmd`.
 
     import Yafl
-    import Examples exposing (FormModel, FormMsg, fields)
+    import Examples exposing (FormModel, FormMsg, CounterMsg(..), fields)
 
     form =
-        Yafl.succeed (\bool string -> ( bool, string ))
-            |> Yafl.andMap .a fields.bool
-            |> Yafl.andMap .b fields.string
-
-    form 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId Never { a : Maybe Bool, b : Maybe String } ( Bool, String )
+        fields.counter
 
     modelBeforeLoading =
         form
-            |> Yafl.init 
+            |> Yafl.init
             |> Tuple.first
 
-    Yafl.submit form modelBeforeLoading 
-    --> Ok (False, "")
+    Yafl.submit form modelBeforeLoading
+    --> Ok 0
+
+    modelAfterLoading =
+        modelBeforeLoading
+            |> Yafl.load form Increment
+            |> Tuple.first
+
+    Yafl.submit form modelAfterLoading
+    --> Ok 1
+
+For `Field`s composed using `map2` or `andMap`, you can pass in a record where
+each field is a `Maybe widgetMsg`. If the record field's value is `Just`, then
+the message will be dispatched to the `Field`'s update function. If it's
+`Nothing`, then no message will be dispatched and the `Field`'s model will
+remain unchanged.
+
+    import Yafl
+    import Examples exposing (FormModel, FormMsg, CounterMsg(..), fields)
+
+    form =
+        Yafl.succeed (\int string -> ( int, string ))
+            |> Yafl.andMap .a fields.counter
+            |> Yafl.andMap .b fields.string
+
+    form
+    --: Yafl.Field FormModel FormMsg Never Never { a : Maybe CounterMsg, b : Maybe String } ( Int, String )
+
+    modelBeforeLoading =
+        form
+            |> Yafl.init
+            |> Tuple.first
+
+    Yafl.submit form modelBeforeLoading
+    --> Ok (0, "")
 
     modelAfterLoading =
         modelBeforeLoading
             |> Yafl.load form
-                { a = Just True
+                { a = Nothing
                 , b = Just "hello"
-                }
-            |> Tuple.first        
-
-    Yafl.submit form modelAfterLoading 
-    --> Ok ( True, "hello" )
-
-    modelAfterLoadingAgain = 
-        modelAfterLoading
-            |> Yafl.load form
-                { a = Nothing -- don't change the `a` field
-                , b = Just "goodbye"
                 }
             |> Tuple.first
 
-    Yafl.submit form modelAfterLoadingAgain 
-    --> Ok ( True, "goodbye" )
+    Yafl.submit form modelAfterLoading
+    --> Ok ( 0, "hello" )
+
+For `Field`s composed using `choice` and `option`, it's a similar story, except
+that the options are nested within a record of the form `{ selected : Maybe Int,
+options : {...} }`. The `selected` field is used to pick which of the options
+should be selected (it's zero-indexed, so 0 is the first option, 1 is the
+second, etc.)
+
+    import Yafl
+    import Examples exposing (FormModel, FormMsg, CounterMsg(..), fields)
+
+    type Foo
+        = Bar Int
+        | Qux String
+
+    form =
+        Yafl.choice
+            |> Yafl.option "Bar" .bar barField
+            |> Yafl.option "Qux" .qux quxField
+
+    barField =
+        Yafl.map Bar fields.counter
+
+    quxField =
+        Yafl.map Qux fields.string
+
+    form
+    --: Yafl.Field FormModel FormMsg Never Never { selected : Maybe Int, options : Maybe { bar : Maybe CounterMsg, qux : Maybe String } } Foo
+
+    modelBeforeLoading =
+        form
+            |> Yafl.init
+            |> Tuple.first
+
+    Yafl.submit form modelBeforeLoading
+    --> Ok (Bar 0)
+
+    modelAfterLoading =
+        modelBeforeLoading
+            |> Yafl.load form
+                { selected = Just 1
+                , options =
+                    Just
+                        { bar = Nothing
+                        , qux = Just "hello"
+                        }
+                }
+            |> Tuple.first
+
+    Yafl.submit form modelAfterLoading
+    --> Ok (Qux "hello")
+
 -}
 load :
     Field formModel formMsg id widgetMsg input output
@@ -1235,7 +1317,7 @@ failAt (Field failField) e =
 contraMap :
     (input2 -> input)
     -> Field formModel formMsg id widgetMsg input output
-    -> Field formModel formMsg b widgetMsg input2 output
+    -> Field formModel formMsg id widgetMsg input2 output
 contraMap f (Field field) =
     Field
         { init = field.init
@@ -1339,7 +1421,7 @@ If you need to combine the outputs of more than two fields, check out
 
     form =
         Yafl.map2
-            { input = \input -> ( Nothing, Nothing )
+            { input = \( a, b ) -> ( Just a, Just b )
             , output = (\a b -> ( a, b ))
             }
             (fields.string)
@@ -1360,7 +1442,7 @@ map2 :
     }
     -> Field formModel formMsg address1 widgetMsg1 input1 output1
     -> Field formModel formMsg address2 widgetMsg2 input2 output2
-    -> Field formModel formMsg NoId Never input3 output3
+    -> Field formModel formMsg Never Never input3 output3
 map2 mappers (Field field1) (Field field2) =
     Field
         { init =
@@ -1508,7 +1590,7 @@ andMap :
     (input2 -> Maybe input1)
     -> Field formModel formMsg address1 widgetMsg1 input1 output1
     -> Field formModel formMsg address2 widgetMsg2 input2 (output1 -> output2)
-    -> Field formModel formMsg NoId Never input2 output2
+    -> Field formModel formMsg Never Never input2 output2
 andMap getInput (Field field1) (Field field2) =
     let
         (Field mapped) =
@@ -1640,14 +1722,19 @@ andThen f (Field field) =
 
 
 {-| Begin defining a `choice` between multiple [`option`](#option)s.
+
+This doesn't do anything useful on its own - it needs to be used in conjunction 
+with `option`
+
+    import Yafl
+    import Examples exposing (FormModel, FormMsg, fields)
+
+    Yafl.choice
+
+    --: Yafl.Field FormModel FormMsg Never Never { selected : Maybe Int, options : Maybe {} } Int
+
 -}
-
-
-
--- choice : Field formModel formMsg NoId Never input output
-
-
-choice : Field model formMsg id Never { selected : Maybe Int, options : Maybe options } value
+choice : Field model formMsg Never Never { selected : Maybe Int, options : Maybe options } value
 choice =
     Field
         { init = \path maybeId -> ( Sum (newLocation path maybeId) { selected = 0 } [], Cmd.none )
@@ -1711,17 +1798,19 @@ will be rendered underneath the fieldset containing the radio buttons.
     Yafl.choice
         |> Yafl.option
             "This is the label for the radio button"
-            (fields.bool
-                |> Yafl.label "This is a label for the `bool` field"
+            .counter
+            (fields.counter
+                |> Yafl.label "This is a label for the `counter` field"
             )
 
+    --: Yafl.Field FormModel FormMsg Never Never { options : Maybe { counter : Maybe Examples.CounterMsg }, selected : Maybe Int } Int
 -}
 option :
     String
     -> (options -> Maybe input)
     -> Field formModel formMsg id widgetMsg input value
-    -> Field formModel formMsg id2 widgetMsg2 { selected : Maybe Int, options : Maybe options } value
-    -> Field formModel formMsg id2 Never { selected : Maybe Int, options : Maybe options } value
+    -> Field formModel formMsg Never Never { selected : Maybe Int, options : Maybe options } value
+    -> Field formModel formMsg Never Never { selected : Maybe Int, options : Maybe options } value
 option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFields) =
     Field
         { init =

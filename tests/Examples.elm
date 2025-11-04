@@ -1,13 +1,14 @@
 module Examples exposing
-    ( FormModel
+    ( CounterMsg(..)
+    , FormModel
     , FormMsg
     , User
-    , boolWidget
+    , counterWidget
     , fields
     , firstName
-    , isAdmin
     , lastName
     , nonEmptyString
+    , numberOfPets
     , stringWidget
     , user
     )
@@ -21,37 +22,40 @@ import Yafl
 type alias User =
     { firstName : String
     , lastName : String
-    , isAdmin : Bool
+    , numberOfPets : Int
     }
 
 
-boolWidget : Yafl.Widget () Bool Bool Bool
-boolWidget () =
-    { init = ( False, Cmd.none )
+type CounterMsg
+    = Increment
+    | Decrement
+
+
+counterWidget : Yafl.Widget () Int CounterMsg Int
+counterWidget () =
+    { init = ( 0, Cmd.none )
     , update =
-        \msg _ ->
-            ( msg, Cmd.none )
+        \msg model ->
+            case msg of
+                Increment ->
+                    ( model + 1, Cmd.none )
+
+                Decrement ->
+                    ( model - 1, Cmd.none )
     , view =
         \{ label, id } model ->
             [ H.label [ HA.for id ] [ H.text label ]
-            , H.input
-                [ HA.id id
-                , HA.type_ "checkbox"
-                , HA.checked model
-                , HE.onCheck identity
+            , H.fieldset
+                [ HA.id id ]
+                [ H.button [ HA.type_ "button", HE.onClick Decrement ] [ H.text "-" ]
+                , H.output [] [ H.text (String.fromInt model) ]
+                , H.button [ HA.type_ "button", HE.onClick Increment ] [ H.text "+" ]
                 ]
-                []
             ]
     , subscriptions = \_ -> Sub.none
     , submit = \model -> Ok model
-    , label = "Bool"
+    , label = "Counter"
     }
-
-
-
-{- A basic Widget that produces a String. Its internal
-   Model and Msg types are also Strings.
--}
 
 
 stringWidget : Yafl.Widget () String String String
@@ -96,22 +100,22 @@ viewFeedback feedback =
 
 fields :
     { string : Yafl.Field FormModel FormMsg Yafl.NoId String String String
-    , bool : Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool Bool
+    , counter : Yafl.Field FormModel FormMsg Yafl.NoId CounterMsg CounterMsg Int
     }
 fields =
     Yafl.defineFields
-        (\string bool -> { string = string, bool = bool })
+        (\string counter -> { string = string, counter = counter })
         |> Yafl.addWidget stringWidget
-        |> Yafl.addWidget boolWidget
+        |> Yafl.addWidget counterWidget
         |> Yafl.endFields
 
 
 type alias FormModel =
-    ( Maybe String, ( Maybe Bool, () ) )
+    ( Maybe String, ( Maybe Int, () ) )
 
 
 type alias FormMsg =
-    ( Maybe String, ( Maybe Bool, () ) )
+    ( Maybe String, ( Maybe CounterMsg, () ) )
 
 
 nonEmptyString : Yafl.Field FormModel FormMsg Yafl.NoId String String String
@@ -139,25 +143,25 @@ lastName =
         |> Yafl.label "What is the user's last name?"
 
 
-isAdmin : Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool Bool
-isAdmin =
-    fields.bool
-        |> Yafl.label "Is the user an admin?"
+numberOfPets : Yafl.Field FormModel FormMsg Yafl.NoId CounterMsg CounterMsg Int
+numberOfPets =
+    fields.counter
+        |> Yafl.label "How many pets do they have?"
 
 
 user :
     Yafl.Field
         FormModel
         FormMsg
-        Yafl.NoId
+        Never
         Never
         { firstName : Maybe String
-        , isAdmin : Maybe Bool
         , lastName : Maybe String
+        , numberOfPets : Maybe CounterMsg
         }
         User
 user =
     Yafl.succeed User
         |> Yafl.andMap .firstName firstName
         |> Yafl.andMap .lastName lastName
-        |> Yafl.andMap .isAdmin isAdmin
+        |> Yafl.andMap .numberOfPets numberOfPets
