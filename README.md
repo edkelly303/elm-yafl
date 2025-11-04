@@ -70,7 +70,7 @@ type alias User =
 
 ### Step 1: Define your `Widget`s
 
-First, we'll need some `Widget`s for the primitive types (`String` and `Bool`).
+First, we'll need some `Widget`s for the primitive types (`String` and `Int`).
 They are just like little Elm apps! But in addition to `init`, `update`, `view`
 and `subscriptions`, they also have a `submit` function and a `label`:
 
@@ -100,32 +100,39 @@ stringWidget () =
     , label = "String"
     }
 
-boolWidget () =
-    { init = ( False, Cmd.none )
+type CounterMsg 
+    = Increment 
+    | Decrement
+
+counterWidget () =
+    { init = ( 0, Cmd.none )
     , update =
         \msg model ->
-            ( msg, Cmd.none )
+            case msg of
+                Increment ->
+                    ( model + 1, Cmd.none )
+
+                Decrement ->
+                    ( model - 1, Cmd.none )
     , view =
-        \{ label, id, feedback } model ->
+        \{ label, id } model ->
             [ H.label [ HA.for id ] [ H.text label ]
-            , H.input
-                [ HA.id id
-                , HA.type_ "checkbox"
-                , HA.checked model
-                , HE.onCheck identity
+            , H.fieldset
+                [ HA.id id ]
+                [ H.button [ HA.type_ "button", HE.onClick Decrement ] [ H.text "-" ]
+                , H.output [] [ H.text (String.fromInt model) ]
+                , H.button [ HA.type_ "button", HE.onClick Increment ] [ H.text "+" ]
                 ]
-                []
-            , H.ul [] (List.map (\f -> H.li [] [ H.text f ]) feedback)
             ]
-    , subscriptions = \model -> Sub.none
+    , subscriptions = \_ -> Sub.none
     , submit = \model -> Ok model
-    , label = "Bool"
+    , label = "Counter"
     }
 
 
 -- DOC TESTS
 stringWidget --: Yafl.Widget () String String String
-boolWidget --: Yafl.Widget () Bool Bool Bool
+counterWidget --: Yafl.Widget () Int CounterMsg Int
 ```
 
 ### Step 2: Convert `Widget`s into `Field`s
@@ -138,29 +145,30 @@ form, there's no need to include them all).
 import Examples exposing (..)
 import Yafl
 
-fields = 
+fields =
     Yafl.defineFields
-        (\string bool -> { string = string, bool = bool })
+        (\string counter -> { string = string, counter = counter })
         |> Yafl.addWidget stringWidget
-        |> Yafl.addWidget boolWidget
+        |> Yafl.addWidget counterWidget
         |> Yafl.endFields
 
 -- Defining the fields will also define the `Model` and `Msg` 
 -- types for our form:
 
 type alias FormModel = 
-    ( Maybe String, (Maybe Bool, () ) )
+    ( Maybe String, (Maybe Int, () ) )
 
 type alias FormMsg =
-    ( Maybe String, (Maybe Bool, () ) )
+    ( Maybe String, (Maybe CounterMsg, () ) )
 
 
 -- DOC TESTS
-fields --: { string : Yafl.Field FormModel FormMsg Yafl.NoId String String String, bool : Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool Bool }
+fields --: { string : Yafl.Field FormModel FormMsg Yafl.NoId String String String, counter : Yafl.Field FormModel FormMsg Yafl.NoId CounterMsg CounterMsg Int }
 ```
 
-Now whenever we need a `String` field, we can use `fields.string`, and if we
-need a `Bool` field, it's just `fields.bool`.
+Now whenever we need a field that produces a `String`, we can use
+`fields.string`, and if we need a field that produces an `Int`, it's just
+`fields.counter`.
 
 ### Step 3: Customize your `Field`s
 
@@ -188,16 +196,17 @@ lastName =
     nonEmptyString
         |> Yafl.label "What is the user's last name?"
 
-isAdmin =
-    fields.bool
-        |> Yafl.label "Is the user an admin?"
+numberOfPets : Yafl.Field FormModel FormMsg Yafl.NoId CounterMsg CounterMsg Int
+numberOfPets =
+    fields.counter
+        |> Yafl.label "How many pets do they have?"
 
 
 -- DOC TESTS
 nonEmptyString --: Yafl.Field FormModel FormMsg Yafl.NoId String String  String
 firstName --: Yafl.Field FormModel FormMsg Yafl.NoId String String  String
 lastName --: Yafl.Field FormModel FormMsg Yafl.NoId String String  String
-isAdmin --: Yafl.Field FormModel FormMsg Yafl.NoId Bool Bool Bool
+numberOfPets --: Yafl.Field FormModel FormMsg Yafl.NoId CounterMsg CounterMsg Int
 ```
 
 ### Step 4: Compose the `Field`s to create a form
@@ -216,11 +225,10 @@ user =
     Yafl.succeed User
         |> Yafl.andMap .firstName firstName
         |> Yafl.andMap .lastName lastName
-        |> Yafl.andMap .isAdmin isAdmin
-
+        |> Yafl.andMap .numberOfPets numberOfPets
 
 -- DOC TESTS
-user --: Yafl.Field FormModel FormMsg Yafl.NoId Never {firstName : Maybe String, lastName : Maybe String, isAdmin : Maybe Bool } User
+user --: Yafl.Field FormModel FormMsg Yafl.NoId Never {firstName : Maybe String, lastName : Maybe String, numberOfPets : Maybe CounterMsg } User
 ```
 
 ### Step 5: Integrate the form into your Elm application

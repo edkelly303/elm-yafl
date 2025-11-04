@@ -37,9 +37,9 @@ tests =
                     "1"
                     (\() ->
                         let
-                            unused : Yafl.Widget () Basics.Bool Basics.Bool Basics.Bool
+                            unused : Yafl.Widget () Basics.Int CounterMsg__Readme_0 Basics.Int
                             unused =
-                                boolWidget__Readme_0
+                                counterWidget__Readme_0
                         in
                         Expect.pass
                     )
@@ -53,8 +53,8 @@ tests =
                             unused :
                                 { string :
                                     Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
-                                , bool :
-                                    Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId Basics.Bool Basics.Bool Basics.Bool
+                                , counter :
+                                    Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId Examples.CounterMsg Examples.CounterMsg Basics.Int
                                 }
                             unused =
                                 Examples.fields
@@ -98,9 +98,9 @@ tests =
                     "3"
                     (\() ->
                         let
-                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId Basics.Bool Basics.Bool Basics.Bool
+                            unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId Examples.CounterMsg Examples.CounterMsg Basics.Int
                             unused =
-                                Examples.isAdmin
+                                Examples.numberOfPets
                         in
                         Expect.pass
                     )
@@ -120,7 +120,7 @@ tests =
                                     { firstName :
                                         Maybe.Maybe String.String
                                     , lastName : Maybe.Maybe String.String
-                                    , isAdmin : Maybe.Maybe Basics.Bool
+                                    , numberOfPets : Maybe.Maybe Examples.CounterMsg
                                     }
                                     Examples.User
                             unused =
@@ -153,7 +153,7 @@ tests =
                         "0"
                         (\() ->
                             let
-                                unused : ( Yafl.Model Examples.FormModel Basics.Bool, Platform.Cmd.Cmd (Yafl.Msg Examples.FormMsg) )
+                                unused : ( Yafl.Model Examples.FormModel Basics.Int, Platform.Cmd.Cmd (Yafl.Msg Examples.FormMsg) )
                                 unused =
                                     init__Yafl__Header_0
                             in
@@ -189,7 +189,7 @@ tests =
                             Yafl.submit
                                 form__Yafl__Header_0
                                 model__Yafl__Header_0
-                                |> Expect.equal (Result.Ok Basics.False)
+                                |> Expect.equal (Result.Ok 0)
                         )
                     ]
                 , Test.describe
@@ -340,9 +340,9 @@ tests =
                         "0"
                         (\() ->
                             let
-                                unused : ( Yafl.Model Examples.FormModel Basics.Bool, Platform.Cmd.Cmd (Yafl.Msg Examples.FormMsg) )
+                                unused : ( Yafl.Model Examples.FormModel Basics.Int, Platform.Cmd.Cmd (Yafl.Msg Examples.FormMsg) )
                                 unused =
-                                    Examples.fields.bool |> Yafl.init
+                                    Examples.fields.counter |> Yafl.init
                             in
                             Expect.pass
                         )
@@ -390,6 +390,25 @@ tests =
                     [ Test.test
                         "0"
                         (\() ->
+                            Yafl.submit
+                                form__Yafl__load_0
+                                modelBeforeLoading__Yafl__load_0
+                                |> Expect.equal (Result.Ok 0)
+                        )
+                    , Test.test
+                        "1"
+                        (\() ->
+                            Yafl.submit
+                                form__Yafl__load_0
+                                modelAfterLoading__Yafl__load_0
+                                |> Expect.equal (Result.Ok 1)
+                        )
+                    ]
+                , Test.describe
+                    "code snippet 1"
+                    [ Test.test
+                        "0"
+                        (\() ->
                             let
                                 unused :
                                     Yafl.Field
@@ -398,12 +417,12 @@ tests =
                                         Yafl.NoId
                                         Basics.Never
                                         { a :
-                                            Maybe.Maybe Basics.Bool
+                                            Maybe.Maybe Examples.CounterMsg
                                         , b : Maybe.Maybe String.String
                                         }
-                                        ( Basics.Bool, String.String )
+                                        ( Basics.Int, String.String )
                                 unused =
-                                    form__Yafl__load_0
+                                    form__Yafl__load_1
                             in
                             Expect.pass
                         )
@@ -411,27 +430,63 @@ tests =
                         "1"
                         (\() ->
                             Yafl.submit
-                                form__Yafl__load_0
-                                modelBeforeLoading__Yafl__load_0
-                                |> Expect.equal (Result.Ok ( Basics.False, "" ))
+                                form__Yafl__load_1
+                                modelBeforeLoading__Yafl__load_1
+                                |> Expect.equal (Result.Ok ( 0, "" ))
                         )
                     , Test.test
                         "2"
                         (\() ->
                             Yafl.submit
-                                form__Yafl__load_0
-                                modelAfterLoading__Yafl__load_0
-                                |> Expect.equal
-                                    (Result.Ok ( Basics.True, "hello" ))
+                                form__Yafl__load_1
+                                modelAfterLoading__Yafl__load_1
+                                |> Expect.equal (Result.Ok ( 0, "hello" ))
+                        )
+                    ]
+                , Test.describe
+                    "code snippet 2"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            let
+                                unused :
+                                    Yafl.Field
+                                        Examples.FormModel
+                                        Examples.FormMsg
+                                        Yafl.NoId
+                                        Basics.Never
+                                        { selected :
+                                            Maybe.Maybe Basics.Int
+                                        , options :
+                                            Maybe.Maybe
+                                                { bar :
+                                                    Maybe.Maybe Examples.CounterMsg
+                                                , qux : Maybe.Maybe String.String
+                                                }
+                                        }
+                                        Foo__Yafl__load_2
+                                unused =
+                                    form__Yafl__load_2
+                            in
+                            Expect.pass
                         )
                     , Test.test
-                        "3"
+                        "1"
                         (\() ->
                             Yafl.submit
-                                form__Yafl__load_0
-                                modelAfterLoadingAgain__Yafl__load_0
+                                form__Yafl__load_2
+                                modelBeforeLoading__Yafl__load_2
                                 |> Expect.equal
-                                    (Result.Ok ( Basics.True, "goodbye" ))
+                                    (Result.Ok (Bar__Yafl__load_2 0))
+                        )
+                    , Test.test
+                        "2"
+                        (\() ->
+                            Yafl.submit
+                                form__Yafl__load_2
+                                modelAfterLoading__Yafl__load_2
+                                |> Expect.equal
+                                    (Result.Ok (Qux__Yafl__load_2 "hello"))
                         )
                     ]
                 ]
@@ -618,40 +673,59 @@ stringWidget__Readme_0 () =
     }
 
 
-boolWidget__Readme_0 () =
-    { init = ( Basics.False, Platform.Cmd.none )
-    , update = \msg model -> ( msg, Platform.Cmd.none )
+type CounterMsg__Readme_0
+    = Increment__Readme_0
+    | Decrement__Readme_0
+
+
+counterWidget__Readme_0 () =
+    { init = ( 0, Platform.Cmd.none )
+    , update =
+        \msg model ->
+            case msg of
+                Increment__Readme_0 ->
+                    ( model + 1, Platform.Cmd.none )
+
+                Decrement__Readme_0 ->
+                    ( model - 1, Platform.Cmd.none )
     , view =
-        \{ label, id, feedback } model ->
+        \{ label, id } model ->
             [ Html.label [ Html.Attributes.for id ] [ Html.text label ]
-            , Html.input
-                [ Html.Attributes.id id
-                , Html.Attributes.type_ "checkbox"
-                , Html.Attributes.checked model
-                , Html.Events.onCheck Basics.identity
+            , Html.fieldset
+                [ Html.Attributes.id id ]
+                [ Html.button
+                    [ Html.Attributes.type_ "button"
+                    , Html.Events.onClick Decrement__Readme_0
+                    ]
+                    [ Html.text "-" ]
+                , Html.output [] [ Html.text (String.fromInt model) ]
+                , Html.button
+                    [ Html.Attributes.type_ "button"
+                    , Html.Events.onClick Increment__Readme_0
+                    ]
+                    [ Html.text "+" ]
                 ]
-                []
-            , Html.ul [] (List.map (\f -> Html.li [] [ Html.text f ]) feedback)
             ]
-    , subscriptions = \model -> Platform.Sub.none
+    , subscriptions = \_ -> Platform.Sub.none
     , submit = \model -> Result.Ok model
-    , label = "Bool"
+    , label = "Counter"
     }
 
 
 fields__Readme_1 =
-    Yafl.defineFields (\string bool -> { string = string, bool = bool })
+    Yafl.defineFields
+        (\string counter -> { string = string, counter = counter })
         |> Yafl.addWidget Examples.stringWidget
-        |> Yafl.addWidget Examples.boolWidget
+        |> Yafl.addWidget Examples.counterWidget
         |> Yafl.endFields
 
 
 type alias FormModel__Readme_1 =
-    ( Maybe.Maybe String.String, ( Maybe.Maybe Basics.Bool, () ) )
+    ( Maybe.Maybe String.String, ( Maybe.Maybe Basics.Int, () ) )
 
 
 type alias FormMsg__Readme_1 =
-    ( Maybe.Maybe String.String, ( Maybe.Maybe Basics.Bool, () ) )
+    ( Maybe.Maybe String.String, ( Maybe.Maybe Examples.CounterMsg, () ) )
 
 
 nonEmptyString__Readme_2 =
@@ -674,15 +748,16 @@ lastName__Readme_2 =
     Examples.nonEmptyString |> Yafl.label "What is the user's last name?"
 
 
-isAdmin__Readme_2 =
-    Examples.fields.bool |> Yafl.label "Is the user an admin?"
+numberOfPets__Readme_2 : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId Examples.CounterMsg Examples.CounterMsg Basics.Int
+numberOfPets__Readme_2 =
+    Examples.fields.counter |> Yafl.label "How many pets do they have?"
 
 
 user__Readme_3 =
     Yafl.succeed Examples.User
         |> Yafl.andMap .firstName Examples.firstName
         |> Yafl.andMap .lastName Examples.lastName
-        |> Yafl.andMap .isAdmin Examples.isAdmin
+        |> Yafl.andMap .numberOfPets Examples.numberOfPets
 
 
 main__Readme_4 =
@@ -695,7 +770,7 @@ main__Readme_4 =
 
 
 form__Yafl__Header_0 =
-    Examples.fields.bool
+    Examples.fields.counter
 
 
 init__Yafl__Header_0 =
@@ -708,7 +783,7 @@ model__Yafl__Header_0 =
 
 type MyCustomType__Yafl__Header_1
     = Foo__Yafl__Header_1 String.String
-    | Bar__Yafl__Header_1 Basics.Bool
+    | Bar__Yafl__Header_1 Basics.Int
 
 
 myCustomTypeField__Yafl__Header_1 =
@@ -722,7 +797,7 @@ fooField__Yafl__Header_1 =
 
 
 barField__Yafl__Header_1 =
-    Examples.fields.bool |> Yafl.map Bar__Yafl__Header_1
+    Examples.fields.counter |> Yafl.map Bar__Yafl__Header_1
 
 
 model__Yafl__Header_1 =
@@ -773,9 +848,7 @@ nameField__Yafl__label_0 =
 
 
 form__Yafl__load_0 =
-    Yafl.succeed (\bool string -> ( bool, string ))
-        |> Yafl.andMap .a Examples.fields.bool
-        |> Yafl.andMap .b Examples.fields.string
+    Examples.fields.counter
 
 
 modelBeforeLoading__Yafl__load_0 =
@@ -784,17 +857,59 @@ modelBeforeLoading__Yafl__load_0 =
 
 modelAfterLoading__Yafl__load_0 =
     modelBeforeLoading__Yafl__load_0
-        |> Yafl.load
-            form__Yafl__load_0
-            { a = Maybe.Just Basics.True, b = Maybe.Just "hello" }
+        |> Yafl.load form__Yafl__load_0 Examples.Increment
         |> Tuple.first
 
 
-modelAfterLoadingAgain__Yafl__load_0 =
-    modelAfterLoading__Yafl__load_0
+form__Yafl__load_1 =
+    Yafl.succeed (\int string -> ( int, string ))
+        |> Yafl.andMap .a Examples.fields.counter
+        |> Yafl.andMap .b Examples.fields.string
+
+
+modelBeforeLoading__Yafl__load_1 =
+    form__Yafl__load_1 |> Yafl.init |> Tuple.first
+
+
+modelAfterLoading__Yafl__load_1 =
+    modelBeforeLoading__Yafl__load_1
         |> Yafl.load
-            form__Yafl__load_0
-            { a = Maybe.Nothing, b = Maybe.Just "goodbye" }
+            form__Yafl__load_1
+            { a = Maybe.Nothing, b = Maybe.Just "hello" }
+        |> Tuple.first
+
+
+type Foo__Yafl__load_2
+    = Bar__Yafl__load_2 Basics.Int
+    | Qux__Yafl__load_2 String.String
+
+
+form__Yafl__load_2 =
+    Yafl.choice
+        |> Yafl.option "Bar" .bar barField__Yafl__load_2
+        |> Yafl.option "Qux" .qux quxField__Yafl__load_2
+
+
+barField__Yafl__load_2 =
+    Yafl.map Bar__Yafl__load_2 Examples.fields.counter
+
+
+quxField__Yafl__load_2 =
+    Yafl.map Qux__Yafl__load_2 Examples.fields.string
+
+
+modelBeforeLoading__Yafl__load_2 =
+    form__Yafl__load_2 |> Yafl.init |> Tuple.first
+
+
+modelAfterLoading__Yafl__load_2 =
+    modelBeforeLoading__Yafl__load_2
+        |> Yafl.load
+            form__Yafl__load_2
+            { selected = Maybe.Just 1
+            , options =
+                Maybe.Just { bar = Maybe.Nothing, qux = Maybe.Just "hello" }
+            }
         |> Tuple.first
 
 
