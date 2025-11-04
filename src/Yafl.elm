@@ -601,7 +601,7 @@ remain unchanged.
             |> Yafl.andMap .b fields.string
 
     form
-    --: Yafl.Field FormModel FormMsg Yafl.NoId Never { a : Maybe CounterMsg, b : Maybe String } ( Int, String )
+    --: Yafl.Field FormModel FormMsg Never Never { a : Maybe CounterMsg, b : Maybe String } ( Int, String )
 
     modelBeforeLoading =
         form
@@ -647,7 +647,7 @@ second, etc.)
         Yafl.map Qux fields.string
 
     form
-    --: Yafl.Field FormModel FormMsg Yafl.NoId Never { selected : Maybe Int, options : Maybe { bar : Maybe CounterMsg, qux : Maybe String } } Foo
+    --: Yafl.Field FormModel FormMsg Never Never { selected : Maybe Int, options : Maybe { bar : Maybe CounterMsg, qux : Maybe String } } Foo
 
     modelBeforeLoading =
         form
@@ -1317,7 +1317,7 @@ failAt (Field failField) e =
 contraMap :
     (input2 -> input)
     -> Field formModel formMsg id widgetMsg input output
-    -> Field formModel formMsg b widgetMsg input2 output
+    -> Field formModel formMsg id widgetMsg input2 output
 contraMap f (Field field) =
     Field
         { init = field.init
@@ -1442,7 +1442,7 @@ map2 :
     }
     -> Field formModel formMsg address1 widgetMsg1 input1 output1
     -> Field formModel formMsg address2 widgetMsg2 input2 output2
-    -> Field formModel formMsg NoId Never input3 output3
+    -> Field formModel formMsg Never Never input3 output3
 map2 mappers (Field field1) (Field field2) =
     Field
         { init =
@@ -1590,7 +1590,7 @@ andMap :
     (input2 -> Maybe input1)
     -> Field formModel formMsg address1 widgetMsg1 input1 output1
     -> Field formModel formMsg address2 widgetMsg2 input2 (output1 -> output2)
-    -> Field formModel formMsg NoId Never input2 output2
+    -> Field formModel formMsg Never Never input2 output2
 andMap getInput (Field field1) (Field field2) =
     let
         (Field mapped) =
@@ -1731,10 +1731,10 @@ with `option`
 
     Yafl.choice
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId Never { selected : Maybe Int, options : Maybe {} } Int
+    --: Yafl.Field FormModel FormMsg Never Never { selected : Maybe Int, options : Maybe {} } Int
 
 -}
-choice : Field model formMsg id Never { selected : Maybe Int, options : Maybe options } value
+choice : Field model formMsg Never Never { selected : Maybe Int, options : Maybe options } value
 choice =
     Field
         { init = \path maybeId -> ( Sum (newLocation path maybeId) { selected = 0 } [], Cmd.none )
@@ -1803,14 +1803,14 @@ will be rendered underneath the fieldset containing the radio buttons.
                 |> Yafl.label "This is a label for the `counter` field"
             )
 
-    --: Yafl.Field FormModel FormMsg Yafl.NoId Never { options : Maybe { counter : Maybe Examples.CounterMsg }, selected : Maybe Int } Int
+    --: Yafl.Field FormModel FormMsg Never Never { options : Maybe { counter : Maybe Examples.CounterMsg }, selected : Maybe Int } Int
 -}
 option :
     String
     -> (options -> Maybe input)
     -> Field formModel formMsg id widgetMsg input value
-    -> Field formModel formMsg id2 widgetMsg2 { selected : Maybe Int, options : Maybe options } value
-    -> Field formModel formMsg id2 Never { selected : Maybe Int, options : Maybe options } value
+    -> Field formModel formMsg Never Never { selected : Maybe Int, options : Maybe options } value
+    -> Field formModel formMsg Never Never { selected : Maybe Int, options : Maybe options } value
 option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFields) =
     Field
         { init =

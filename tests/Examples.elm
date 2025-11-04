@@ -153,7 +153,7 @@ user :
     Yafl.Field
         FormModel
         FormMsg
-        Yafl.NoId
+        Never
         Never
         { firstName : Maybe String
         , lastName : Maybe String

@@ -115,7 +115,7 @@ tests =
                                 Yafl.Field
                                     Examples.FormModel
                                     Examples.FormMsg
-                                    Yafl.NoId
+                                    Basics.Never
                                     Basics.Never
                                     { firstName :
                                         Maybe.Maybe String.String
@@ -293,7 +293,7 @@ tests =
                                     Yafl.Field
                                         Examples.FormModel
                                         Examples.FormMsg
-                                        Yafl.NoId
+                                        Basics.Never
                                         Basics.Never
                                         { selected :
                                             Maybe.Maybe Basics.Int
@@ -440,7 +440,7 @@ tests =
                                     Yafl.Field
                                         Examples.FormModel
                                         Examples.FormMsg
-                                        Yafl.NoId
+                                        Basics.Never
                                         Basics.Never
                                         { a :
                                             Maybe.Maybe Examples.CounterMsg
@@ -479,7 +479,7 @@ tests =
                                     Yafl.Field
                                         Examples.FormModel
                                         Examples.FormMsg
-                                        Yafl.NoId
+                                        Basics.Never
                                         Basics.Never
                                         { selected :
                                             Maybe.Maybe Basics.Int
@@ -556,7 +556,7 @@ tests =
                                     Yafl.Field
                                         Examples.FormModel
                                         Examples.FormMsg
-                                        Yafl.NoId
+                                        Basics.Never
                                         Basics.Never
                                         { options :
                                             Maybe.Maybe

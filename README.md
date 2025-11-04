@@ -228,7 +228,7 @@ user =
         |> Yafl.andMap .numberOfPets numberOfPets
 
 -- DOC TESTS
-user --: Yafl.Field FormModel FormMsg Yafl.NoId Never {firstName : Maybe String, lastName : Maybe String, numberOfPets : Maybe CounterMsg } User
+user --: Yafl.Field FormModel FormMsg Never Never { firstName : Maybe String, lastName : Maybe String, numberOfPets : Maybe CounterMsg } User
 ```
 
 ### Step 5: Integrate the form into your Elm application
