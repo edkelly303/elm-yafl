@@ -282,6 +282,32 @@ tests =
                     ]
                 ]
             , Test.describe
+                "choice"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            let
+                                unused :
+                                    Yafl.Field
+                                        Examples.FormModel
+                                        Examples.FormMsg
+                                        Yafl.NoId
+                                        Basics.Never
+                                        { selected :
+                                            Maybe.Maybe Basics.Int
+                                        , options : Maybe.Maybe {}
+                                        }
+                                        Basics.Int
+                                unused =
+                                    Yafl.choice
+                            in
+                            Expect.pass
+                        )
+                    ]
+                ]
+            , Test.describe
                 "fail"
                 [ Test.describe
                     "code snippet 0"
@@ -515,6 +541,42 @@ tests =
                         (\() ->
                             Yafl.submit form__Yafl__map2_0 model__Yafl__map2_0
                                 |> Expect.equal (Result.Ok ( "", "" ))
+                        )
+                    ]
+                ]
+            , Test.describe
+                "option"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            let
+                                unused :
+                                    Yafl.Field
+                                        Examples.FormModel
+                                        Examples.FormMsg
+                                        Yafl.NoId
+                                        Basics.Never
+                                        { options :
+                                            Maybe.Maybe
+                                                { counter :
+                                                    Maybe.Maybe Examples.CounterMsg
+                                                }
+                                        , selected : Maybe.Maybe Basics.Int
+                                        }
+                                        Basics.Int
+                                unused =
+                                    Yafl.choice
+                                        |> Yafl.option
+                                            "This is the label for the radio button"
+                                            .counter
+                                            (Examples.fields.counter
+                                                |> Yafl.label
+                                                    "This is a label for the `counter` field"
+                                            )
+                            in
+                            Expect.pass
                         )
                     ]
                 ]
@@ -923,7 +985,7 @@ fooField__Yafl__map_0 =
 
 form__Yafl__map2_0 =
     Yafl.map2
-        { input = \input -> ( Maybe.Nothing, Maybe.Nothing )
+        { input = \( a, b ) -> ( Maybe.Just a, Maybe.Just b )
         , output = \a b -> ( a, b )
         }
         Examples.fields.string

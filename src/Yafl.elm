@@ -40,7 +40,7 @@ composing self-contained [`Widget`](#Widget)s.
 ### [Combining Fields](#combining-fields)
 
 [`succeed`](#succeed), [`fail`](#fail), [`failAt`](#failAt), [`map`](#map),
-[`map2`](#map2), [`andMap`](#andMap), [`choice`](#choice), [`option`](#option)
+[`map2`](#map2), [`andMap`](#andMap), [`andThen`](#andThen), [`choice`](#choice), [`option`](#option)
 
 
 ### [Customizing Fields](#customizing-fields)
@@ -50,7 +50,7 @@ composing self-contained [`Widget`](#Widget)s.
 
 ### [Validating fields](#validating-fields)
 
-[`validate`](#validate), [`validateAt`](#validateAt), [`andThen`](#andThen)
+[`validate`](#validate), [`validateAt`](#validateAt)
 
 
 ### [Communicating between Fields](#communicating-between-fields)
@@ -87,8 +87,7 @@ can use in the code snippets in these docs.
     import Html.Events as HE
     import Yafl
 
-
-    {-| A basic `Widget` that produces a `String`. Its internal 
+    {-| A basic `Widget` that produces a `String`. Its internal
     `model` and `msg` types are also `String`s.
     -}
     stringWidget : Yafl.Widget String String String
@@ -112,12 +111,11 @@ can use in the code snippets in these docs.
         , label = "String"
         }
 
-    {-| A `Widget` that produces an `Int`, based on the counter 
-    example from the Elm Guide. Its internal `model` type is an 
+    {-| A `Widget` that produces an `Int`, based on the counter
+    example from the Elm Guide. Its internal `model` type is an
     `Int`, but its `msg` type is a custom type.
     -}
-
-    type CounterMsg 
+    type CounterMsg
         = Increment
         | Decrement
 
@@ -260,7 +258,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 ## Building product types
 
-@docs map2, andMap
+@docs map2, andMap, andThen
 
 
 ## Building custom types
@@ -308,7 +306,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 [_Back to top_](#table-of-contents)
 
-@docs validate, validateAt, andThen
+@docs validate, validateAt
 
 
 # Communicating between Fields
@@ -563,16 +561,15 @@ checkDuplicateIds node =
 below:
 
 For simple `Field`s, you just pass a value of the underlying `Widget`'s `msg`
-type. This will dispatch the `msg` to the `Field`'s update function, which may 
+type. This will dispatch the `msg` to the `Field`'s update function, which may
 then update its model and optionally send a `Cmd`.
-
 
     import Yafl
     import Examples exposing (FormModel, FormMsg, CounterMsg(..), fields)
 
-    form = 
+    form =
         fields.counter
-    
+
     modelBeforeLoading =
         form
             |> Yafl.init
@@ -589,10 +586,10 @@ then update its model and optionally send a `Cmd`.
     Yafl.submit form modelAfterLoading
     --> Ok 1
 
-For `Field`s composed using `map2` or `andMap`, you can pass in a record where 
-each field is a `Maybe widgetMsg`. If the record field's value is `Just`, then 
-the message will be dispatched to the `Field`'s update function. If it's 
-`Nothing`, then no message will be dispatched and the `Field`'s model will 
+For `Field`s composed using `map2` or `andMap`, you can pass in a record where
+each field is a `Maybe widgetMsg`. If the record field's value is `Just`, then
+the message will be dispatched to the `Field`'s update function. If it's
+`Nothing`, then no message will be dispatched and the `Field`'s model will
 remain unchanged.
 
     import Yafl
@@ -625,10 +622,10 @@ remain unchanged.
     Yafl.submit form modelAfterLoading
     --> Ok ( 0, "hello" )
 
-For `Field`s composed using `choice` and `option`, it's a similar story, except 
-that the options are nested within a record of the form `{ selected : Maybe Int, 
-options : {...} }`. The `selected` field is used to pick which of the options 
-should be selected (it's zero-indexed, so 0 is the first option, 1 is the 
+For `Field`s composed using `choice` and `option`, it's a similar story, except
+that the options are nested within a record of the form `{ selected : Maybe Int,
+options : {...} }`. The `selected` field is used to pick which of the options
+should be selected (it's zero-indexed, so 0 is the first option, 1 is the
 second, etc.)
 
     import Yafl
@@ -639,14 +636,14 @@ second, etc.)
         | Qux String
 
     form =
-        Yafl.choice 
+        Yafl.choice
             |> Yafl.option "Bar" .bar barField
             |> Yafl.option "Qux" .qux quxField
 
-    barField = 
+    barField =
         Yafl.map Bar fields.counter
 
-    quxField = 
+    quxField =
         Yafl.map Qux fields.string
 
     form
@@ -664,10 +661,10 @@ second, etc.)
         modelBeforeLoading
             |> Yafl.load form
                 { selected = Just 1
-                , options = 
-                    Just 
+                , options =
+                    Just
                         { bar = Nothing
-                        , qux = Just "hello" 
+                        , qux = Just "hello"
                         }
                 }
             |> Tuple.first
@@ -1725,13 +1722,18 @@ andThen f (Field field) =
 
 
 {-| Begin defining a `choice` between multiple [`option`](#option)s.
+
+This doesn't do anything useful on its own - it needs to be used in conjunction 
+with `option`
+
+    import Yafl
+    import Examples exposing (FormModel, FormMsg, fields)
+
+    Yafl.choice
+
+    --: Yafl.Field FormModel FormMsg Yafl.NoId Never { selected : Maybe Int, options : Maybe {} } Int
+
 -}
-
-
-
--- choice : Field formModel formMsg NoId Never input output
-
-
 choice : Field model formMsg id Never { selected : Maybe Int, options : Maybe options } value
 choice =
     Field
@@ -1796,10 +1798,12 @@ will be rendered underneath the fieldset containing the radio buttons.
     Yafl.choice
         |> Yafl.option
             "This is the label for the radio button"
+            .counter
             (fields.counter
                 |> Yafl.label "This is a label for the `counter` field"
             )
 
+    --: Yafl.Field FormModel FormMsg Yafl.NoId Never { options : Maybe { counter : Maybe Examples.CounterMsg }, selected : Maybe Int } Int
 -}
 option :
     String
