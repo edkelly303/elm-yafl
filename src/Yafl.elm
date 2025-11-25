@@ -509,9 +509,15 @@ init (Field field) =
 
 {-| Check that a form doesn't contain fields with duplicate identifiers.
 -}
-isFormValid : Model formModel output -> Bool
-isFormValid (Model dups _) =
-    List.isEmpty dups
+isFormValid : Field formModel formMsg id widgetMsg input output -> Bool
+isFormValid field =
+    let 
+        check (Model dups _) =
+            List.isEmpty dups
+    in
+    init field
+        |> Tuple.first
+        |> check
 
 
 checkDuplicateIds : Node a -> List ( String, Int )
