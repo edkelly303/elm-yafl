@@ -321,6 +321,32 @@ tests =
                     ]
                 ]
             , Test.describe
+                "html"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            let
+                                unused :
+                                    Yafl.Field
+                                        Examples.FormModel
+                                        Examples.FormMsg
+                                        Basics.Never
+                                        Basics.Never
+                                        { string1 :
+                                            Maybe.Maybe String.String
+                                        , string2 : Maybe.Maybe String.String
+                                        }
+                                        ()
+                                unused =
+                                    form__Yafl__html_0
+                            in
+                            Expect.pass
+                        )
+                    ]
+                ]
+            , Test.describe
                 "identifier"
                 [ Test.describe
                     "code snippet 0"
@@ -889,6 +915,13 @@ form__Yafl__fail_0 =
 
 model__Yafl__fail_0 =
     form__Yafl__fail_0 |> Yafl.init |> Tuple.first
+
+
+form__Yafl__html_0 =
+    Yafl.succeed (\string1 string2 -> ())
+        |> Yafl.andMap .string1 Examples.fields.string
+        |> Yafl.html (Html.text "Here's some text between two string inputs")
+        |> Yafl.andMap .string2 Examples.fields.string
 
 
 myField__Yafl__identifier_0 =

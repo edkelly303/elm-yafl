@@ -4,10 +4,10 @@ module Yafl exposing
     , Model, Msg, init, load, update, view, ViewConfig, Feedback, subscriptions, submit
     , succeed, fail, failAt
     , map, contraMap
-    , map2, andMap
+    , map2, andMap, andThen
     , choice, option
-    , label
-    , validate, validateAt, andThen
+    , label, html
+    , validate, validateAt
     , HasId, NoId, identifier, intercept, send, isFormValid
     , studio, toDOT
     )
@@ -45,7 +45,7 @@ composing self-contained [`Widget`](#Widget)s.
 
 ### [Customizing Fields](#customizing-fields)
 
-[`label`](#label)
+[`label`](#label), [`html`](#html)
 
 
 ### [Validating fields](#validating-fields)
@@ -299,7 +299,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 [_Back to top_](#table-of-contents)
 
-@docs label
+@docs label, html
 
 
 # Validating fields
@@ -1121,6 +1121,47 @@ intercept (Field field) =
 
 
 {-
+   db   db d888888b .88b  d88. db
+   88   88 `~~88~~' 88'YbdP`88 88
+   88ooo88    88    88  88  88 88
+   88~~~88    88    88  88  88 88
+   88   88    88    88  88  88 88booo.
+   YP   YP    YP    YP  YP  YP Y88888P
+
+
+-}
+
+
+{-| Add some arbitrary HTML after the preceding field
+
+    import Examples exposing (FormModel, FormMsg, fields)
+    import Html
+    import Yafl
+
+    form =
+        Yafl.succeed (\string1 string2 -> ())
+            |> Yafl.andMap .string1 fields.string
+            |> Yafl.html (Html.text "Here's some text between two string inputs")
+            |> Yafl.andMap .string2 fields.string
+
+    form --: Yafl.Field FormModel FormMsg Never Never {string1 : Maybe String, string2 : Maybe String } ()
+
+-}
+html :
+    H.Html Never
+    -> Field formModel formMsg id widgetMsg input output
+    -> Field formModel formMsg id widgetMsg input output
+html html_ (Field field) =
+    Field
+        { field
+            | view =
+                \config model ->
+                    field.view config model ++ [ H.map (always Noop) html_ ]
+        }
+
+
+
+{-
    .d8888. db    db  .o88b.  .o88b. d88888b d88888b d8888b.
    88'  YP 88    88 d8P  Y8 d8P  Y8 88'     88'     88  `8D
    `8bo.   88    88 8P      8P      88ooooo 88ooooo 88   88
@@ -1723,7 +1764,7 @@ andThen f (Field field) =
 
 {-| Begin defining a `choice` between multiple [`option`](#option)s.
 
-This doesn't do anything useful on its own - it needs to be used in conjunction 
+This doesn't do anything useful on its own - it needs to be used in conjunction
 with `option`
 
     import Yafl
@@ -1804,6 +1845,7 @@ will be rendered underneath the fieldset containing the radio buttons.
             )
 
     --: Yafl.Field FormModel FormMsg Never Never { options : Maybe { counter : Maybe Examples.CounterMsg }, selected : Maybe Int } Int
+
 -}
 option :
     String
