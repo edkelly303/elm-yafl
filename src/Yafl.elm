@@ -354,7 +354,7 @@ type alias MaybeId =
 {-| The top-level model type for your form.
 -}
 type Model formModel output
-    = Model (List ( String, Int )) (Node formModel)
+    = Model (Node formModel)
 
 
 type Node formModel
@@ -504,16 +504,16 @@ init (Field field) =
         ( node, cmd ) =
             field.init [ 0 ] field.maybeId
     in
-    ( Model (checkDuplicateIds node) node, cmd )
+    ( Model node, cmd )
 
 
 {-| Check that a form doesn't contain fields with duplicate identifiers.
 -}
 isFormValid : Field formModel formMsg id widgetMsg input output -> Bool
 isFormValid field =
-    let 
-        check (Model dups _) =
-            List.isEmpty dups
+    let
+        check (Model node) =
+            List.isEmpty (checkDuplicateIds node)
     in
     init field
         |> Tuple.first
@@ -684,9 +684,9 @@ load :
     -> input
     -> Model formModel output
     -> ( Model formModel output, Cmd (Msg formMsg) )
-load (Field field) input (Model dups node) =
+load (Field field) input (Model node) =
     field.load (Just input) node
-        |> Tuple.mapFirst (Model dups)
+        |> Tuple.mapFirst Model
 
 
 
@@ -705,9 +705,9 @@ load (Field field) input (Model dups node) =
 {-| Update your form by supplying a `Msg` and `Model`
 -}
 update : Field formModel formMsg id widgetMsg input output -> Msg formMsg -> Model formModel output -> ( Model formModel output, Cmd (Msg formMsg) )
-update (Field field) msg (Model dups node) =
+update (Field field) msg (Model node) =
     field.update msg node
-        |> Tuple.mapFirst (Model dups)
+        |> Tuple.mapFirst Model
 
 
 
@@ -743,7 +743,7 @@ update (Field field) msg (Model dups node) =
 
 -}
 view : Field formModel formMsg id widgetMsg input output -> Model formModel output -> List (H.Html (Msg formMsg))
-view (Field field) (Model dups model) =
+view (Field field) (Model model) =
     let
         feedback =
             case field.submit field.checks model of
@@ -754,11 +754,11 @@ view (Field field) (Model dups model) =
                     f
 
         fatal =
-            case dups of
+            case checkDuplicateIds model of
                 [] ->
                     H.text ""
 
-                _ ->
+                dups ->
                     H.div
                         []
                         (List.map
@@ -819,7 +819,7 @@ view (Field field) (Model dups model) =
 
 -}
 subscriptions : Field formModel formMsg id widgetMsg input output -> Model formModel output -> Sub (Msg formMsg)
-subscriptions (Field field) (Model _ model) =
+subscriptions (Field field) (Model model) =
     field.subscriptions model
 
 
@@ -855,7 +855,7 @@ subscriptions (Field field) (Model _ model) =
 
 -}
 submit : Field formModel formMsg id widgetMsg input output -> Model formModel output -> Result (List ( String, String )) output
-submit (Field field) (Model _ model) =
+submit (Field field) (Model model) =
     field.submit field.checks model
         |> Result.mapError
             (List.map
@@ -2903,7 +2903,7 @@ As the first argument, you should pass in `Debug.toString`.
 
 -}
 toDOT : (model -> String) -> Model model output -> String
-toDOT debugToString (Model _ model) =
+toDOT debugToString (Model model) =
     let
         escape str =
             String.replace "\"" "\\\"" str
