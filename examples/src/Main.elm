@@ -36,7 +36,13 @@ main =
                 in
                 ( m2, Cmd.batch [ c1, c2 ] )
         , update = \msg model -> Yafl.update form msg model
-        , view = \model -> if Yafl.isFormValid model then H.form [] (Yafl.view form model) else H.h1 [] [H.text "Uh oh!"]
+        , view =
+            \model ->
+                if Yafl.isFormValid form then
+                    H.form [] (Yafl.view form model)
+
+                else
+                    H.h1 [] [ H.text "Uh oh!" ]
         , subscriptions = \model -> Yafl.subscriptions form model
         }
 
@@ -59,7 +65,7 @@ type alias Person =
 form =
     Yafl.succeed Tuple.pair
         |> Yafl.andMap .name (name |> Yafl.identifier "name")
-        |> Yafl.html (H.h4 [] [H.text "Here's some HTML between the fields!"])
+        |> Yafl.html (H.h4 [] [ H.text "Here's some HTML between the fields!" ])
         |> Yafl.andMap .foo foo
         |> Yafl.map (\( a, b ) -> Person a b)
 
@@ -87,7 +93,6 @@ name =
                 else
                     Nothing
             )
-            
 
 
 boolWidget : Yafl.Widget () Bool Bool Bool
