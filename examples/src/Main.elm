@@ -21,7 +21,7 @@ main =
 
                     ( m2, c2 ) =
                         Yafl.load form
-                            { name = Just "Ed"
+                            {selected = Just 0, options = Just { name = Just "Ed"
                             , foo =
                                 Just
                                     { selected = Just 1
@@ -31,19 +31,27 @@ main =
                                             , baz = Just False
                                             }
                                     }
-                            }
+                            }}
                             m1
                 in
-                ( m2, Cmd.batch [ c1, c2 ] )
-        , update = \msg model -> Yafl.update form msg model
+                ( (Err [], m2)
+                , Cmd.batch [ c1, c2 ] |> Cmd.map Just
+                )
+        , update = \msg (output, model) -> 
+            case msg of 
+                Nothing -> ((Yafl.submit form model, model), Cmd.none)
+                Just fmsg -> 
+                    Yafl.update form fmsg model 
+                        |> Tuple.mapSecond (Cmd.map Just)
+                        |> Tuple.mapFirst (\m -> (output, m))
         , view =
-            \model ->
+            \(output, model) ->
                 if Yafl.isFormValid form then
-                    H.form [] (Yafl.view form model)
+                    H.form [HE.onSubmit Nothing] ((Yafl.view form model |> List.map (H.map Just)) ++ [H.input [HA.type_ "submit" ] [H.text "submit"], H.pre [] [H.text (Debug.toString output)]])
 
                 else
                     H.h1 [] [ H.text "Uh oh!" ]
-        , subscriptions = \model -> Yafl.subscriptions form model
+        , subscriptions = \(_, model) -> Yafl.subscriptions form model|> Sub.map Just
         }
 
 
@@ -63,10 +71,10 @@ type alias Person =
 
 
 form =
-    Yafl.succeed Tuple.pair
-        |> Yafl.andMap .name (name |> Yafl.identifier "name")
+    Yafl.wizard Tuple.pair
+        |> Yafl.step .name (name |> Yafl.identifier "name")
         |> Yafl.html (H.h4 [] [ H.text "Here's some HTML between the fields!" ])
-        |> Yafl.andMap .foo foo
+        |> Yafl.step .foo foo
         |> Yafl.map (\( a, b ) -> Person a b)
 
 

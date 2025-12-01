@@ -10,6 +10,7 @@ module Yafl exposing
     , validate, validateAt
     , HasId, NoId, identifier, intercept, send, isFormValid
     , studio, toDOT
+    , step, wizard
     )
 
 {-| This library helps you build user input forms in Elm by creating and
@@ -360,7 +361,7 @@ type Model formModel output
 type Node formModel
     = Value Location formModel
     | Product Location { selected : Int } (Node formModel) (Node formModel)
-    | Sum Location { selected : Int } (List ( String, Node formModel ))
+    | Sum Location { selected : Int, last : Int } (List ( String, Node formModel ))
     | Empty EmptyType Location
 
 
@@ -1784,12 +1785,12 @@ with `option`
 choice : Field model formMsg Never Never { selected : Maybe Int, options : Maybe options } value
 choice =
     Field
-        { init = \path maybeId -> ( Sum (newLocation path maybeId) { selected = 0 } [], Cmd.none )
+        { init = \path maybeId -> ( Sum (newLocation path maybeId) { selected = 0, last = -1 } [], Cmd.none )
         , load =
             \input model ->
                 case ( Maybe.andThen .selected input, model ) of
-                    ( Just selected, Sum loc _ nodes ) ->
-                        ( Sum loc { selected = selected } nodes
+                    ( Just selected, Sum loc meta nodes ) ->
+                        ( Sum loc { meta | selected = selected } nodes
                         , Cmd.none
                         )
 
@@ -1864,12 +1865,12 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
         { init =
             \path _ ->
                 case previousOptionFields.init path previousOptionFields.maybeId of
-                    ( Sum location selection previousOptions, previousOptionsCmd ) ->
+                    ( Sum location meta previousOptions, previousOptionsCmd ) ->
                         let
                             ( thisOptionModel, thisOptionCmd ) =
                                 thisOptionField.init (List.length previousOptions :: path) thisOptionField.maybeId
                         in
-                        ( Sum location selection (( thisOptionLabel, thisOptionModel ) :: previousOptions)
+                        ( Sum location { meta | last = meta.last + 1 } (( thisOptionLabel, thisOptionModel ) :: previousOptions)
                         , Cmd.batch [ previousOptionsCmd, thisOptionCmd ]
                         )
 
@@ -1900,7 +1901,7 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
         , update =
             \msg model ->
                 case model of
-                    Sum location selection ((( _, thisOptionModel ) :: previousOptionLabelsAndModels) as options) ->
+                    Sum location meta ((( _, thisOptionModel ) :: previousOptionLabelsAndModels) as options) ->
                         let
                             fallback =
                                 let
@@ -1908,11 +1909,11 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
                                         thisOptionField.update msg thisOptionModel
 
                                     ( newPreviousOptionModels, previousOptionsCmd ) =
-                                        previousOptionFields.update msg (Sum location selection previousOptionLabelsAndModels)
+                                        previousOptionFields.update msg (Sum location meta previousOptionLabelsAndModels)
                                 in
                                 case newPreviousOptionModels of
                                     Sum _ _ newPreviousOptionLabelsAndModels ->
-                                        ( Sum location selection (( thisOptionLabel, newThisOptionModel ) :: newPreviousOptionLabelsAndModels)
+                                        ( Sum location meta (( thisOptionLabel, newThisOptionModel ) :: newPreviousOptionLabelsAndModels)
                                         , Cmd.batch [ previousOptionsCmd, thisOptionCmd ]
                                         )
 
@@ -1922,7 +1923,7 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
                         case msg of
                             OptionSelected path selected ->
                                 if path == pathFromModel model then
-                                    ( Sum location { selected = selected } options
+                                    ( Sum location { meta | selected = selected } options
                                     , Cmd.none
                                     )
 
@@ -2003,6 +2004,244 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
 
                         else
                             previousOptionFields.submit previousOptionFields.checks (Sum location meta previousOptionLabelsAndModels)
+
+                    _ ->
+                        Err
+                            [ { message = "Fatal error in `option` submit function"
+                              , fail = True
+                              , locator = locatorFromModel model
+                              }
+                            ]
+        , checks = []
+        , send = \_ msg -> never msg
+        , intercept = \_ _ -> Nothing
+        , label = previousOptionFields.label
+        , maybeId = Nothing
+        }
+
+
+
+{-
+   db   d8b   db d888888b d88888D  .d8b.  d8888b. d8888b.
+   88   I8I   88   `88'   YP  d8' d8' `8b 88  `8D 88  `8D
+   88   I8I   88    88       d8'  88ooo88 88oobY' 88   88
+   Y8   I8I   88    88      d8'   88~~~88 88`8b   88   88
+   `8b d8'8b d8'   .88.    d8' db 88   88 88 `88. 88  .8D
+    `8b8' `8d8'  Y888888P d88888P YP   YP 88   YD Y8888D'
+
+
+-}
+
+
+{-| Begin defining a `wizard` with multiple [`step`](#step)s.
+
+This doesn't do anything useful on its own - it needs to be used in conjunction
+with `step`.
+
+    import Yafl
+    import Examples exposing (FormModel, FormMsg, fields)
+
+    Yafl.wizard
+
+    --: Yafl.Field FormModel FormMsg Never Never { selected : Maybe Int, options : Maybe {} } Int
+
+-}
+wizard : ctor -> Field model formMsg Never Never { selected : Maybe Int, options : Maybe options } ctor
+wizard ctor =
+    Field
+        { init = \path maybeId -> ( Sum (newLocation path maybeId) { selected = 0, last = -1 } [], Cmd.none )
+        , load =
+            \input model ->
+                case ( Maybe.andThen .selected input, model ) of
+                    ( Just selected, Sum loc meta nodes ) ->
+                        ( Sum loc { meta | selected = selected } nodes
+                        , Cmd.none
+                        )
+
+                    _ ->
+                        ( model, Cmd.none )
+        , update = \_ model -> ( model, Cmd.none )
+        , view = \_ _ -> []
+        , subscriptions = \_ -> Sub.none
+        , submit =
+            \_ _ ->
+                Ok ctor
+        , checks = []
+        , send = \_ msg -> never msg
+        , intercept = \_ _ -> Nothing
+        , label = ""
+        , maybeId = Nothing
+        }
+
+
+
+{-
+   .d8888. d888888b d88888b d8888b.
+   88'  YP `~~88~~' 88'     88  `8D
+   `8bo.      88    88ooooo 88oodD'
+     `Y8b.    88    88~~~~~ 88~~~
+   db   8D    88    88.     88
+   `8888Y'    YP    Y88888P 88
+
+
+-}
+
+
+{-| Add an step to a [`wizard`](#wizard).
+
+    import Yafl
+    import Examples exposing (FormModel, FormMsg, fields)
+
+    Yafl.wizard
+        |> Yafl.step
+            .counter
+            (fields.counter
+                |> Yafl.label "This is a label for the `counter` field"
+            )
+
+    --: Yafl.Field FormModel FormMsg Never Never { options : Maybe { counter : Maybe Examples.CounterMsg }, selected : Maybe Int } Int
+
+-}
+step :
+    (options -> Maybe input)
+    -> Field formModel formMsg id widgetMsg input output
+    -> Field formModel formMsg Never Never { selected : Maybe Int, options : Maybe options } (output -> output2)
+    -> Field formModel formMsg Never Never { selected : Maybe Int, options : Maybe options } output2
+step getInput (Field thisOptionField) (Field previousOptionFields) =
+    Field
+        { init =
+            \path _ ->
+                case previousOptionFields.init path previousOptionFields.maybeId of
+                    ( Sum location meta previousOptions, previousOptionsCmd ) ->
+                        let
+                            ( thisOptionModel, thisOptionCmd ) =
+                                thisOptionField.init (List.length previousOptions :: path) thisOptionField.maybeId
+                        in
+                        ( Sum location { meta | last = meta.last + 1 } (( "", thisOptionModel ) :: previousOptions)
+                        , Cmd.batch [ previousOptionsCmd, thisOptionCmd ]
+                        )
+
+                    _ ->
+                        thisOptionField.init path thisOptionField.maybeId
+        , load =
+            \input model ->
+                case ( input |> Maybe.andThen .options |> Maybe.andThen getInput, model ) of
+                    ( thisOptionInput, Sum loc sel (( _, thisOptionNode ) :: previousOptionLabelsAndNodes) ) ->
+                        let
+                            ( newThisOptionNode, thisOptionCmd ) =
+                                thisOptionField.load thisOptionInput thisOptionNode
+
+                            ( newPreviousOptionsNode, previousOptionsCmd ) =
+                                previousOptionFields.load input (Sum loc sel previousOptionLabelsAndNodes)
+                        in
+                        case newPreviousOptionsNode of
+                            Sum _ newSel newPreviousOptionLabelsAndNodes ->
+                                ( Sum loc newSel (( "", newThisOptionNode ) :: newPreviousOptionLabelsAndNodes)
+                                , Cmd.batch [ thisOptionCmd, previousOptionsCmd ]
+                                )
+
+                            _ ->
+                                ( model, Cmd.none )
+
+                    _ ->
+                        ( model, Cmd.none )
+        , update =
+            \msg model ->
+                case model of
+                    Sum location meta ((( _, thisOptionModel ) :: previousOptionLabelsAndModels) as options) ->
+                        let
+                            fallback =
+                                let
+                                    ( newThisOptionModel, thisOptionCmd ) =
+                                        thisOptionField.update msg thisOptionModel
+
+                                    ( newPreviousOptionModels, previousOptionsCmd ) =
+                                        previousOptionFields.update msg (Sum location meta previousOptionLabelsAndModels)
+                                in
+                                case newPreviousOptionModels of
+                                    Sum _ _ newPreviousOptionLabelsAndModels ->
+                                        ( Sum location meta (( "", newThisOptionModel ) :: newPreviousOptionLabelsAndModels)
+                                        , Cmd.batch [ previousOptionsCmd, thisOptionCmd ]
+                                        )
+
+                                    _ ->
+                                        ( model, Cmd.none )
+                        in
+                        case msg of
+                            OptionSelected path selected ->
+                                if path == pathFromModel model then
+                                    ( Sum location { meta | selected = selected } options
+                                    , Cmd.none
+                                    )
+
+                                else
+                                    fallback
+
+                            _ ->
+                                fallback
+
+                    _ ->
+                        ( model, Cmd.none )
+        , view =
+            \config model ->
+                case model of
+                    Sum location meta ((( _, thisOptionModel ) :: previousOptionLabelsAndModels) as options) ->
+                        if meta.selected == List.length previousOptionLabelsAndModels then
+                            [ H.div []
+                                (thisOptionField.view
+                                    { config
+                                        | label = thisOptionField.label
+                                        , id = thisOptionModel |> locationFromModel |> locationToString
+                                    }
+                                    thisOptionModel
+                                )
+                            , H.div []
+                                [ if meta.selected == 0 then
+                                    H.text ""
+
+                                  else
+                                    H.button [ HA.type_ "button", HE.onClick (OptionSelected (pathFromModel model) (meta.selected - 1)) ] [ H.text "Back" ]
+                                , if meta.selected == meta.last then
+                                    H.text ""
+
+                                  else
+                                    H.button [ HA.type_ "button", HE.onClick (OptionSelected (pathFromModel model) (meta.selected + 1)) ] [ H.text "Next" ]
+                                ]
+                            ]
+
+                        else
+                            previousOptionFields.view
+                                { config
+                                    | label = previousOptionFields.label
+                                    , id = "never used"
+                                }
+                                (Sum location meta previousOptionLabelsAndModels)
+
+                    _ ->
+                        [ H.text "Fatal error in `option` view function" ]
+        , subscriptions =
+            \model ->
+                case model of
+                    Sum location meta (( _, thisOptionModel ) :: previousOptionLabelsAndModels) ->
+                        Sub.batch
+                            [ previousOptionFields.subscriptions (Sum location meta previousOptionLabelsAndModels)
+                            , thisOptionField.subscriptions thisOptionModel
+                            ]
+
+                    _ ->
+                        Sub.none
+        , submit =
+            \_ model ->
+                case model of
+                    Sum location meta (( _, thisOptionModel ) :: previousOptionLabelsAndModels) ->
+                        let
+                            this =
+                                thisOptionField.submit thisOptionField.checks thisOptionModel
+
+                            prev =
+                                previousOptionFields.submit previousOptionFields.checks (Sum location meta previousOptionLabelsAndModels)
+                        in
+                        Result.map2 (\x f -> f x) this prev
 
                     _ ->
                         Err
