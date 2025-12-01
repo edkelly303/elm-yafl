@@ -1959,8 +1959,12 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
                                 List.reverse (thisOptionLabel :: previousLabels)
 
                             viewOptionSelector =
-                                H.fieldset [ HA.id (locationToString location) ]
-                                    (H.legend [] [ H.text config.label ] :: List.indexedMap radio labels)
+                                if meta.last == List.length previousOptionLabelsAndModels then
+                                    H.fieldset [ HA.id (locationToString location) ]
+                                        (H.legend [] [ H.text config.label ] :: List.indexedMap radio labels)
+
+                                else
+                                    H.text ""
 
                             viewSelectedOption =
                                 if meta.selected == List.length previousOptionLabelsAndModels then
@@ -1978,7 +1982,6 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
                                             , id = "never used"
                                         }
                                         (Sum location meta previousOptionLabelsAndModels)
-                                        |> List.drop 1
                         in
                         viewOptionSelector :: viewSelectedOption
 
@@ -2041,9 +2044,9 @@ with `step`.
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
 
-    Yafl.wizard
+    Yafl.wizard ()
 
-    --: Yafl.Field FormModel FormMsg Never Never { selected : Maybe Int, options : Maybe {} } Int
+    --: Yafl.Field FormModel FormMsg Never Never { selected : Maybe Int, options : Maybe {} } ()
 
 -}
 wizard : ctor -> Field model formMsg Never Never { selected : Maybe Int, options : Maybe options } ctor
@@ -2092,7 +2095,7 @@ wizard ctor =
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
 
-    Yafl.wizard
+    Yafl.wizard identity
         |> Yafl.step
             .counter
             (fields.counter

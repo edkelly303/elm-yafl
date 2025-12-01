@@ -47,7 +47,12 @@ main =
         , view =
             \(output, model) ->
                 if Yafl.isFormValid form then
-                    H.form [HE.onSubmit Nothing] ((Yafl.view form model |> List.map (H.map Just)) ++ [H.input [HA.type_ "submit" ] [H.text "submit"], H.pre [] [H.text (Debug.toString output)]])
+                    H.form [HE.onSubmit Nothing] ((Yafl.view form model |> List.map (H.map Just)) ++ 
+                    [ H.input [HA.type_ "submit" ] [H.text "submit"]
+                    , H.pre [] [H.text (Debug.toString output)] 
+                    , H.div [] [H.a [HA.href ("https://dreampuf.github.io/GraphvizOnline")] [H.text "Graphviz"]]
+                    , H.text (Yafl.toDOT Debug.toString model)
+                    ])
 
                 else
                     H.h1 [] [ H.text "Uh oh!" ]
