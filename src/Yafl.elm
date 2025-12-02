@@ -415,8 +415,9 @@ type Field formModel formMsg id widgetMsg input output
 
 
 type View formMsg
-    = ViewOne (List (H.Html (Msg formMsg)))
-    | ViewMany (List (View formMsg))
+    = ViewNone
+    | ViewOne (List (H.Html (Msg formMsg)))
+    | ViewMany (View formMsg) (List (View formMsg))
 
 
 {-| Indicates that a [`Field`](#Field) has been given an `identifier`, and can therefore be
@@ -776,11 +777,14 @@ view (Field field) (Model _ model) =
 viewToList : List (H.Html (Msg formMsg)) -> View formMsg -> List (H.Html (Msg formMsg))
 viewToList acc v =
     case v of
-        ViewOne listOfHtml ->
-            acc ++ listOfHtml
+        ViewNone ->
+            acc
 
-        ViewMany many ->
-            List.foldl (\listOfHtml acc_ -> viewToList acc_ listOfHtml) acc many
+        ViewOne one ->
+            acc ++ one
+
+        ViewMany one more ->
+            List.foldl (\listOfHtml acc_ -> viewToList acc_ listOfHtml) acc (one :: more)
 
 
 viewWizard : Field formModel formMsg id widgetMsg input output -> Model formModel output -> List (H.Html (Msg formMsg))
@@ -798,10 +802,10 @@ viewWizard (Field field) (Model meta model) =
             viewToList [ checkDuplicatesErrorView model ]
     in
     case field.view { label = field.label, feedback = feedback, id = locationFromModel model |> locationToString } model of
-        ViewMany vs ->
+        ViewMany v vs ->
             let
                 currentPage =
-                    vs
+                    (v :: vs)
                         |> List.reverse
                         |> List.Extra.getAt meta.selected
                         |> Maybe.map toList
@@ -820,13 +824,13 @@ viewWizard (Field field) (Model meta model) =
             in
             currentPage
                 ++ [ H.div []
-                        [ btn "Back" (-) (meta.selected > 1)
-                        , btn "Next" (+) (meta.selected < List.length vs - 1)
+                        [ btn "Back" (-) (meta.selected > 0)
+                        , btn "Next" (+) (meta.selected < List.length vs)
                         ]
                    ]
 
-        viewOne ->
-            toList viewOne
+        otherView ->
+            toList otherView
 
 
 checkDuplicatesErrorView : Node formModel -> H.Html msg
@@ -1232,11 +1236,19 @@ html html_ (Field field) =
             | view =
                 \config model ->
                     case field.view config model of
+                        ViewNone ->
+                            ViewNone
+
                         ViewOne v ->
                             ViewOne (v ++ [ H.map (always Noop) html_ ])
 
-                        ViewMany vs ->
-                            ViewMany (vs ++ [ ViewOne [ H.map (always Noop) html_ ] ])
+                        ViewMany v vs ->
+                            ViewMany v
+                                (vs
+                                    |> List.reverse
+                                    |> (::) (ViewOne [ H.map (always Noop) html_ ])
+                                    |> List.reverse
+                                )
                                 |> Debug.log "This is probably not what we want, we should add the html_ to the last element of ViewMany"
         }
 
@@ -1277,7 +1289,7 @@ succeed output =
         { init = \path maybeId -> ( Empty Succeed (newLocation path maybeId), Cmd.none )
         , load = \_ model -> ( model, Cmd.none )
         , update = \_ model -> ( model, Cmd.none )
-        , view = \_ _ -> ViewOne []
+        , view = \_ _ -> ViewNone
         , subscriptions = \_ -> Sub.none
         , submit = \checks model -> runChecks checks model output
         , checks = []
@@ -1659,14 +1671,14 @@ andMap getInput (Field thisOptionField) (Field previousOptionFields) =
                                 }
                                 (Product location previousOptionLabelsAndModels)
                         of
+                            ViewNone ->
+                                thisView
+
                             ViewOne v ->
-                                ViewMany [ thisView, ViewOne v ]
+                                ViewMany thisView [ ViewOne v ]
 
-                            ViewMany ((ViewOne v) :: vs) ->
-                                ViewMany ([ thisView, ViewOne v ] ++ vs)
-
-                            _ ->
-                                ViewOne [ H.text "Fatal error in `andMap` view function" ]
+                            ViewMany v vs ->
+                                ViewMany thisView (v :: vs)
 
                     _ ->
                         ViewOne [ H.text "Fatal error in `andMap` view function (not a product)" ]
@@ -2025,8 +2037,8 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
                             ViewOne v ->
                                 ViewOne (viewOptionSelector :: v)
 
-                            ViewMany ((ViewOne v) :: vs) ->
-                                ViewMany (ViewOne (viewOptionSelector :: v) :: vs)
+                            ViewMany (ViewOne v) vs ->
+                                ViewMany (ViewOne (viewOptionSelector :: v)) vs
 
                             _ ->
                                 ViewOne [ viewOptionSelector ]
