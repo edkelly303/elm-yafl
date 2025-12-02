@@ -4,7 +4,7 @@ module Yafl exposing
     , Model, Msg, init, load, update, view, ViewConfig, Feedback, subscriptions, submit
     , succeed, fail, failAt
     , map, contraMap
-    , map2, andMap, andThen
+    , andMap, andThen
     , choice, option
     , label, html
     , validate, validateAt
@@ -360,7 +360,7 @@ type Model formModel output
 
 type Node formModel
     = Value Location formModel
-    | Product Location (Node formModel) (Node formModel)
+    | Product Location (List (Node formModel)) --(Node formModel) (Node formModel)
     | Sum Location { selected : Int, last : Int } (List ( String, Node formModel ))
     | Empty EmptyType Location
 
@@ -542,8 +542,8 @@ checkDuplicateIds node =
                 Value loc _ ->
                     locationToId loc :: output
 
-                Product loc n1 n2 ->
-                    locationToId loc :: help [] n1 ++ help [] n2 ++ output
+                Product loc ns ->
+                    locationToId loc :: List.concatMap (help []) ns ++ output
 
                 Sum loc _ ns ->
                     locationToId loc :: List.concatMap (Tuple.second >> help []) ns ++ output
@@ -801,7 +801,9 @@ viewWizard (Field field) (Model meta model) =
         ViewMany vs ->
             let
                 currentPage =
-                    List.Extra.getAt meta.selected vs
+                    vs
+                        |> List.reverse
+                        |> List.Extra.getAt meta.selected
                         |> Maybe.map toList
                         |> Maybe.withDefault []
 
@@ -818,7 +820,7 @@ viewWizard (Field field) (Model meta model) =
             in
             currentPage
                 ++ [ H.div []
-                        [ btn "Back" (-) (meta.selected > 0)
+                        [ btn "Back" (-) (meta.selected > 1)
                         , btn "Next" (+) (meta.selected < List.length vs - 1)
                         ]
                    ]
@@ -1046,7 +1048,7 @@ you only want to display an error on one field.
             |> Yafl.andMap .passwordField passwordField
             |> Yafl.andMap .confirmField confirmField
             |> Yafl.validateAt confirmField
-                (\{password, confirm} ->
+                (\{ password, confirm } ->
                     if password == confirm then
                         Nothing
                     else
@@ -1519,164 +1521,6 @@ map f (Field field) =
 
 
 {-
-   .88b  d88.  .d8b.  d8888b. .d888b.
-   88'YbdP`88 d8' `8b 88  `8D VP  `8D
-   88  88  88 88ooo88 88oodD'    odD'
-   88  88  88 88~~~88 88~~~    .88'
-   88  88  88 88   88 88      j88.
-   YP  YP  YP YP   YP 88      888888D
-
-
--}
-
-
-{-| Combine the outputs of two [`Fields`](#Field) into a new output type.
-
-You can use this to create tuples, records with two fields, custom type variants
-with two arguments, and so on.
-
-If you need to combine the outputs of more than two fields, check out
-[`andMap`](#andMap) instead.
-
-    import Yafl
-    import Examples exposing (FormModel, FormMsg, fields)
-
-    form =
-        Yafl.map2
-            { input = \( a, b ) -> ( Just a, Just b )
-            , output = (\a b -> ( a, b ))
-            }
-            (fields.string)
-            (fields.string)
-
-    model =
-        Yafl.init form
-            |> Tuple.first
-
-    Yafl.submit form model
-
-    --> Ok ( "", "" )
-
--}
-map2 :
-    { input : input3 -> ( Maybe input1, Maybe input2 )
-    , output : output1 -> output2 -> output3
-    }
-    -> Field formModel formMsg address1 widgetMsg1 input1 output1
-    -> Field formModel formMsg address2 widgetMsg2 input2 output2
-    -> Field formModel formMsg Never Never input3 output3
-map2 mappers (Field field1) (Field field2) =
-    Field
-        { init =
-            \path maybeId ->
-                let
-                    ( model1, cmd1 ) =
-                        field1.init (0 :: path) field1.maybeId
-
-                    ( model2, cmd2 ) =
-                        field2.init (1 :: path) field2.maybeId
-                in
-                ( Product (newLocation path maybeId) model1 model2
-                , Cmd.batch
-                    [ cmd1
-                    , cmd2
-                    ]
-                )
-        , load =
-            \input model ->
-                case ( Maybe.map mappers.input input, model ) of
-                    ( Just ( input1, input2 ), Product location node1 node2 ) ->
-                        let
-                            ( newModel1, cmd1 ) =
-                                field1.load input1 node1
-
-                            ( newModel2, cmd2 ) =
-                                field2.load input2 node2
-                        in
-                        ( Product location newModel1 newModel2
-                        , Cmd.batch [ cmd1, cmd2 ]
-                        )
-
-                    _ ->
-                        ( model, Cmd.none )
-        , update =
-            \msg model ->
-                case model of
-                    Product location model1 model2 ->
-                        let
-                            ( newModel1, cmd1 ) =
-                                field1.update msg model1
-
-                            ( newModel2, cmd2 ) =
-                                field2.update msg model2
-                        in
-                        ( Product location newModel1 newModel2
-                        , Cmd.batch [ cmd1, cmd2 ]
-                        )
-
-                    _ ->
-                        ( model, Cmd.none )
-        , view =
-            \config model ->
-                case model of
-                    Product _ model1 model2 ->
-                        ViewMany
-                            [ field1.view { config | label = field1.label, id = locationFromModel model1 |> locationToString } model1
-                            , field2.view { config | label = field2.label, id = locationFromModel model1 |> locationToString } model2
-                            ]
-
-                    _ ->
-                        ViewOne []
-        , subscriptions =
-            \model ->
-                case model of
-                    Product _ model1 model2 ->
-                        Sub.batch
-                            [ field1.subscriptions model1
-                            , field2.subscriptions model2
-                            ]
-
-                    _ ->
-                        Sub.none
-        , submit =
-            \checks model ->
-                case model of
-                    Product _ model1 model2 ->
-                        case
-                            ( field1.submit field1.checks model1
-                            , field2.submit field2.checks model2
-                            )
-                        of
-                            ( Ok output1, Ok output2 ) ->
-                                mappers.output output1 output2
-                                    |> runChecks checks model
-
-                            ( Err errs, Ok _ ) ->
-                                Err errs
-
-                            ( Ok _, Err errs ) ->
-                                Err errs
-
-                            ( Err errs1, Err errs2 ) ->
-                                Err (errs2 ++ errs1)
-
-                    _ ->
-                        Err
-                            [ { message = "weird map2 error"
-                              , fail = True
-                              , locator = locatorFromModel model
-                              }
-                            ]
-        , checks = []
-        , send = \_ msg -> never msg
-        , intercept = \_ _ -> Nothing
-        , label = ""
-        , maybeId = Nothing
-        }
-
-
-
-{-
     .d8b.  d8b   db d8888b. .88b  d88.  .d8b.  d8888b.
    d8' `8b 888o  88 88  `8D 88'YbdP`88 d8' `8b 88  `8D
    88ooo88 88V8o 88 88   88 88  88  88 88ooo88 88oodD'
@@ -1688,9 +1532,7 @@ map2 mappers (Field field1) (Field field2) =
 -}
 
 
-{-| Combine multiple fields. This is useful when [`map2`](#map2) isn't enough.
-
-Use in combination with [`succeed`](#succeed).
+{-| Combine multiple fields. Use in combination with [`succeed`](#succeed).
 
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
@@ -1706,42 +1548,160 @@ Use in combination with [`succeed`](#succeed).
             |> Tuple.first
 
     Yafl.submit form model
-
     --> Ok { firstName = "", middleName = "", lastName = "" }
 
 -}
 andMap :
-    (input2 -> Maybe input1)
-    -> Field formModel formMsg address1 widgetMsg1 input1 output1
-    -> Field formModel formMsg address2 widgetMsg2 input2 (output1 -> output2)
-    -> Field formModel formMsg Never Never input2 output2
-andMap getInput (Field field1) (Field field2) =
-    let
-        (Field mapped) =
-            map2
-                { input =
-                    \input ->
-                        ( getInput input
-                        , Just input
-                        )
-                , output = \x f -> f x
-                }
-                (Field field1)
-                (Field field2)
-    in
+    (options -> Maybe input)
+    -> Field formModel formMsg id widgetMsg input output1
+    -> Field formModel formMsg Never Never options (output1 -> output2)
+    -> Field formModel formMsg Never Never options output2
+andMap getInput (Field thisOptionField) (Field previousOptionFields) =
     Field
-        { mapped
-            | view =
-                \config model ->
-                    case model of
-                        Product _ model1 model2 ->
-                            ViewMany
-                                [ field2.view { config | label = field2.label, id = locationFromModel model2 |> locationToString } model2
-                                , field1.view { config | label = field1.label, id = locationFromModel model1 |> locationToString } model1
-                                ]
+        { init =
+            \path maybeId ->
+                let
+                    ( previousOptionModel, previousOptionCmd ) =
+                        previousOptionFields.init path previousOptionFields.maybeId
+                in
+                case previousOptionModel of
+                    Product location previousOptions ->
+                        let
+                            ( thisOptionModel, thisOptionCmd ) =
+                                thisOptionField.init (List.length previousOptions :: path) thisOptionField.maybeId
+                        in
+                        ( Product location (thisOptionModel :: previousOptions)
+                        , Cmd.batch [ previousOptionCmd, thisOptionCmd ]
+                        )
 
-                        _ ->
-                            ViewOne []
+                    Empty _ _ ->
+                        let
+                            ( thisOptionModel, thisOptionCmd ) =
+                                thisOptionField.init (0 :: path) thisOptionField.maybeId
+                        in
+                        ( Product (newLocation path maybeId) [ thisOptionModel ]
+                        , Cmd.batch [ thisOptionCmd ]
+                        )
+
+                    _ ->
+                        let
+                            ( newPreviousOptionModel, _ ) =
+                                previousOptionFields.init (0 :: path) previousOptionFields.maybeId
+
+                            ( thisOptionModel, thisOptionCmd ) =
+                                thisOptionField.init (1 :: path) thisOptionField.maybeId
+                        in
+                        ( Product (newLocation path maybeId) [ thisOptionModel, newPreviousOptionModel ]
+                        , Cmd.batch [ previousOptionCmd, thisOptionCmd ]
+                        )
+        , load =
+            \input model ->
+                case ( input |> Maybe.andThen getInput, model ) of
+                    ( thisOptionInput, Product loc (thisOptionNode :: previousOptionNodes) ) ->
+                        let
+                            ( newThisOptionNode, thisOptionCmd ) =
+                                thisOptionField.load thisOptionInput thisOptionNode
+
+                            ( newPreviousOptionsNode, previousOptionsCmd ) =
+                                previousOptionFields.load input (Product loc previousOptionNodes)
+                        in
+                        case newPreviousOptionsNode of
+                            Product _ nodes ->
+                                ( Product loc (newThisOptionNode :: nodes)
+                                , Cmd.batch [ thisOptionCmd, previousOptionsCmd ]
+                                )
+
+                            _ ->
+                                ( model, Cmd.none )
+
+                    _ ->
+                        ( model, Cmd.none )
+        , update =
+            \msg model ->
+                case model of
+                    Product location (thisOptionModel :: previousOptionModels) ->
+                        let
+                            ( newThisOptionModel, thisOptionCmd ) =
+                                thisOptionField.update msg thisOptionModel
+
+                            ( newPreviousOptionModels, previousOptionsCmd ) =
+                                previousOptionFields.update msg (Product location previousOptionModels)
+                        in
+                        case newPreviousOptionModels of
+                            Product _ nodes ->
+                                ( Product location (newThisOptionModel :: nodes)
+                                , Cmd.batch [ previousOptionsCmd, thisOptionCmd ]
+                                )
+
+                            _ ->
+                                ( model, Cmd.none )
+
+                    _ ->
+                        ( model, Cmd.none )
+        , view =
+            \config model ->
+                case model of
+                    Product location (thisOptionModel :: previousOptionLabelsAndModels) ->
+                        let
+                            thisView =
+                                thisOptionField.view
+                                    { config
+                                        | label = thisOptionField.label
+                                        , id = thisOptionModel |> locationFromModel |> locationToString
+                                    }
+                                    thisOptionModel
+                        in
+                        case
+                            previousOptionFields.view
+                                { config
+                                    | label = previousOptionFields.label
+                                    , id = "never used"
+                                }
+                                (Product location previousOptionLabelsAndModels)
+                        of
+                            ViewOne v ->
+                                ViewMany [ thisView, ViewOne v ]
+
+                            ViewMany ((ViewOne v) :: vs) ->
+                                ViewMany ([ thisView, ViewOne v ] ++ vs)
+
+                            _ ->
+                                ViewOne [ H.text "Fatal error in `andMap` view function" ]
+
+                    _ ->
+                        ViewOne [ H.text "Fatal error in `andMap` view function (not a product)" ]
+        , subscriptions =
+            \model ->
+                case model of
+                    Product location (thisOptionModel :: previousOptionLabelsAndModels) ->
+                        Sub.batch
+                            [ previousOptionFields.subscriptions (Product location previousOptionLabelsAndModels)
+                            , thisOptionField.subscriptions thisOptionModel
+                            ]
+
+                    _ ->
+                        Sub.none
+        , submit =
+            \checks model ->
+                case model of
+                    Product location (thisOptionModel :: previousOptionLabelsAndModels) ->
+                        Result.map2 (\this prev -> prev this)
+                            (thisOptionField.submit thisOptionField.checks thisOptionModel)
+                            (previousOptionFields.submit previousOptionFields.checks (Product location previousOptionLabelsAndModels))
+                            |> Result.andThen (runChecks checks model)
+
+                    _ ->
+                        Err
+                            [ { message = "Fatal error in `andMap` submit function"
+                              , fail = True
+                              , locator = locatorFromModel model
+                              }
+                            ]
+        , checks = []
+        , send = \_ msg -> never msg
+        , intercept = \_ _ -> Nothing
+        , label = previousOptionFields.label
+        , maybeId = Nothing
         }
 
 
@@ -2901,7 +2861,7 @@ locationFromModel model =
         Value loc _ ->
             loc
 
-        Product loc _ _ ->
+        Product loc _ ->
             loc
 
         Sum loc _ _ ->
@@ -3019,13 +2979,12 @@ toDOT debugToString (Model _ model) =
                       )
                     ]
 
-                Product loc m1 m2 ->
+                Product loc ms ->
                     ( locationToPath loc
                     , nodeLabel loc "Product"
                     , "square"
                     )
-                        :: toPathsAndLabels m1
-                        ++ toPathsAndLabels m2
+                        :: List.concatMap toPathsAndLabels ms
 
                 Sum loc _ ms ->
                     ( locationToPath loc

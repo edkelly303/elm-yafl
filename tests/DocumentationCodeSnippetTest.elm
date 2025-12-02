@@ -559,18 +559,6 @@ tests =
                     ]
                 ]
             , Test.describe
-                "map2"
-                [ Test.describe
-                    "code snippet 0"
-                    [ Test.test
-                        "0"
-                        (\() ->
-                            Yafl.submit form__Yafl__map2_0 model__Yafl__map2_0
-                                |> Expect.equal (Result.Ok ( "", "" ))
-                        )
-                    ]
-                ]
-            , Test.describe
                 "option"
                 [ Test.describe
                     "code snippet 0"
@@ -1014,19 +1002,6 @@ type MyCustomType__Yafl__map_0
 
 fooField__Yafl__map_0 =
     Yafl.map Foo__Yafl__map_0 Examples.fields.string
-
-
-form__Yafl__map2_0 =
-    Yafl.map2
-        { input = \( a, b ) -> ( Maybe.Just a, Maybe.Just b )
-        , output = \a b -> ( a, b )
-        }
-        Examples.fields.string
-        Examples.fields.string
-
-
-model__Yafl__map2_0 =
-    Yafl.init form__Yafl__map2_0 |> Tuple.first
 
 
 myFieldWithId__Yafl__send_0 =
