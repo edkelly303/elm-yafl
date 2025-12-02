@@ -781,7 +781,7 @@ viewToList acc v =
             acc
 
         ViewOne one ->
-            acc ++ one
+            one ++ acc
 
         ViewMany one more ->
             List.foldl (\listOfHtml acc_ -> viewToList acc_ listOfHtml) acc (one :: more)

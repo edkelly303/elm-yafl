@@ -32,6 +32,7 @@ main =
                                             , baz = Just False
                                             }
                                     }
+                            , rec = Nothing
                             }
                             m1
                 in
@@ -77,17 +78,22 @@ type alias Person =
 
 
 form =
-    Yafl.succeed (\a b c -> (a, b, c))
+    Yafl.succeed (\a b c () -> (a, b, c))
         |> Yafl.andMap .name 
             (name 
                 -- |> Yafl.identifier "name"
             )
-        --|> Yafl.html (H.h4 [] [ H.text "Here's some HTML between the fields!" ])
+        |> Yafl.html (H.h4 [] [ H.text "Here's some HTML between the fields!" ])
         |> Yafl.andMap .bool fields.bool
         |> Yafl.andMap .foo foo
+        |> Yafl.andMap .rec rec
         |> Yafl.map (\( a, _, c) -> Person a c)
 
-
+rec = 
+    Yafl.succeed (\_ _ _ -> ())
+        |> Yafl.andMap .one (fields.bool |> Yafl.label "one")
+        |> Yafl.andMap .two (fields.bool |> Yafl.label "two")
+        |> Yafl.andMap .three (fields.bool |> Yafl.label "three")
 type Foo
     = Bar String
     | Baz Bool
