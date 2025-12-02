@@ -36,28 +36,51 @@ main =
                             }
                             m1
                 in
-                ( (Err [], m2)
+                ( ( Err [], m2 )
                 , Cmd.batch [ c1, c2 ] |> Cmd.map Just
                 )
-        , update = \msg (output, model) -> 
-            case msg of 
-                Nothing -> ((Yafl.submit form model, model), Cmd.none)
-                Just fmsg -> 
-                    Yafl.update form fmsg model 
-                        |> Tuple.mapSecond (Cmd.map Just)
-                        |> Tuple.mapFirst (\m -> (output, m))
-        , view =
-            \(output, model) ->
-                if Yafl.isFormValid form then
-                    H.form [HE.onSubmit Nothing] ((Yafl.viewWizard form model |> List.map (H.map Just)) ++ 
-                    [ H.input [HA.type_ "submit" ] [H.text "submit"]
-                    , H.pre [] [H.text (Debug.toString output)] 
-                    , H.div [] [H.a [HA.href ("https://dreampuf.github.io/GraphvizOnline")] [H.text "Graphviz"]]
-                    , H.text (Yafl.toDOT Debug.toString model)
-                    ])
+        , update =
+            \msg ( output, model ) ->
+                case msg of
+                    Nothing ->
+                        ( ( Yafl.submit form model, model ), Cmd.none )
 
-                else H.h1 [] [ H.text "Uh oh!" ]
-        , subscriptions = \(_, model) -> Yafl.subscriptions form model|> Sub.map Just
+                    Just fmsg ->
+                        Yafl.update form fmsg model
+                            |> Tuple.mapSecond (Cmd.map Just)
+                            |> Tuple.mapFirst (\m -> ( output, m ))
+        , view =
+            \( output, model ) ->
+                if Yafl.isFormValid form then
+                    let
+                        { step, backMsg, nextMsg } =
+                            Yafl.viewWizard form model
+                    in
+                    H.form [ HE.onSubmit Nothing ]
+                        ((step |> List.map (H.map Just))
+                            ++ [ H.div []
+                                    [ case backMsg of
+                                        Nothing ->
+                                            H.text ""
+
+                                        Just msg ->
+                                            H.button [ HA.type_ "button", HE.onClick (Just msg) ] [ H.text "Back" ]
+                                    , case nextMsg of
+                                        Nothing ->
+                                            H.input [ HA.type_ "submit", HA.value "Submit" ] []
+
+                                        Just msg ->
+                                            H.button [ HA.type_ "button", HE.onClick (Just msg) ] [ H.text "Next" ]
+                                    ]
+                               , H.pre [] [ H.text (Debug.toString output) ]
+                               , H.div [] [ H.a [ HA.href "https://dreampuf.github.io/GraphvizOnline" ] [ H.text "Graphviz" ] ]
+                               , H.text (Yafl.toDOT Debug.toString model)
+                               ]
+                        )
+
+                else
+                    H.h1 [] [ H.text "Uh oh!" ]
+        , subscriptions = \( _, model ) -> Yafl.subscriptions form model |> Sub.map Just
         }
 
 
@@ -77,22 +100,25 @@ type alias Person =
 
 
 form =
-    Yafl.succeed (\a b c () -> (a, b, c))
-        |> Yafl.andMap .name 
-            (name 
+    Yafl.succeed (\a b c () -> ( a, b, c ))
+        |> Yafl.andMap .name
+            (name
                 |> Yafl.identifier "name"
             )
         |> Yafl.html (H.h4 [] [ H.text "Here's some HTML between the fields!" ])
         |> Yafl.andMap .bool fields.bool
         |> Yafl.andMap .foo foo
         |> Yafl.andMap .rec rec
-        |> Yafl.map (\( a, _, c) -> Person a c)
+        |> Yafl.map (\( a, _, c ) -> Person a c)
 
-rec = 
+
+rec =
     Yafl.succeed (\_ _ _ -> ())
         |> Yafl.andMap .one (fields.bool |> Yafl.label "one")
         |> Yafl.andMap .two (fields.bool |> Yafl.label "two")
         |> Yafl.andMap .three (fields.bool |> Yafl.label "three")
+
+
 type Foo
     = Bar String
     | Baz Bool
@@ -100,9 +126,10 @@ type Foo
 
 foo =
     Yafl.choice
-        |> Yafl.option "Bar" .bar 
-            (Yafl.map Bar 
-                (name 
+        |> Yafl.option "Bar"
+            .bar
+            (Yafl.map Bar
+                (name
                     |> Yafl.identifier "bar-name"
                 )
             )

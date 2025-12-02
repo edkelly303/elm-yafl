@@ -1,7 +1,7 @@
 module Yafl exposing
     ( Widget
     , Field, defineFields, addWidget, addWidgetWithConfig, endFields
-    , Model, Msg, init, load, update, view, ViewConfig, Feedback, subscriptions, submit
+    , Model, Msg, init, load, update, view, viewWizard, ViewConfig, Feedback, subscriptions, submit
     , succeed, fail, failAt
     , map, contraMap
     , andMap, andThen
@@ -10,7 +10,6 @@ module Yafl exposing
     , validate, validateAt
     , HasId, NoId, identifier, intercept, send, isFormValid
     , studio, toDOT
-    , viewWizard
     )
 
 {-| This library helps you build user input forms in Elm by creating and
@@ -34,7 +33,7 @@ composing self-contained [`Widget`](#Widget)s.
 ### [Turning Fields into forms](#turning-fields-into-forms)
 
 [`Model`](#Model), [`Msg`](#Msg), [`init`](#init), [`load`](#load),
-[`update`](#update), [`view`](#view), [`ViewConfig`](#ViewConfig),
+[`update`](#update), [`view`](#view), [`viewWizard`](#viewWizard), [`ViewConfig`](#ViewConfig),
 [`Feedback`](#Feedback), [`subscriptions`](#subscriptions), [`submit`](#submit)
 
 
@@ -229,7 +228,7 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 
     --> Ok 0
 
-@docs Model, Msg, init, load, update, view, ViewConfig, Feedback, subscriptions, submit
+@docs Model, Msg, init, load, update, view, viewWizard, ViewConfig, Feedback, subscriptions, submit
 
 
 # Combining Fields
@@ -360,7 +359,7 @@ type Model formModel output
 
 type Node formModel
     = Value Location formModel
-    | Product Location (List (Node formModel)) --(Node formModel) (Node formModel)
+    | Product Location (List (Node formModel))
     | Sum Location { selected : Int, last : Int } (List ( String, Node formModel ))
     | Empty EmptyType Location
 
@@ -776,20 +775,30 @@ view (Field field) (Model _ model) =
            )
 
 
-viewToList : List (H.Html (Msg formMsg)) -> View formMsg -> List (H.Html (Msg formMsg))
-viewToList acc v =
-    case v of
-        ViewNone ->
-            acc
 
-        ViewOne one ->
-            one ++ acc
-
-        ViewMany one more ->
-            List.foldl (\v_ acc_ -> viewToList acc_ v_) acc (one :: more)
+{-
+   db    db d888888b d88888b db   d8b   db db   d8b   db d888888b d88888D  .d8b.  d8888b. d8888b.
+   88    88   `88'   88'     88   I8I   88 88   I8I   88   `88'   YP  d8' d8' `8b 88  `8D 88  `8D
+   Y8    8P    88    88ooooo 88   I8I   88 88   I8I   88    88       d8'  88ooo88 88oobY' 88   88
+   `8b  d8'    88    88~~~~~ Y8   I8I   88 Y8   I8I   88    88      d8'   88~~~88 88`8b   88   88
+    `8bd8'    .88.   88.     `8b d8'8b d8' `8b d8'8b d8'   .88.    d8' db 88   88 88 `88. 88  .8D
+      YP    Y888888P Y88888P  `8b8' `8d8'   `8b8' `8d8'  Y888888P d88888P YP   YP 88   YD Y8888D'
 
 
-viewWizard : Field formModel formMsg id widgetMsg input output -> Model formModel output -> List (H.Html (Msg formMsg))
+-}
+
+
+{-| View your form as a multi-step wizard. This will only work if the top level
+of your form is a product type created with `succeed` and `andMap`.
+-}
+viewWizard :
+    Field formModel formMsg id widgetMsg input output
+    -> Model formModel output
+    ->
+        { step : List (H.Html (Msg formMsg))
+        , backMsg : Maybe (Msg formMsg)
+        , nextMsg : Maybe (Msg formMsg)
+        }
 viewWizard (Field field) (Model meta model) =
     let
         feedback =
@@ -812,28 +821,40 @@ viewWizard (Field field) (Model meta model) =
                         |> List.Extra.getAt meta.selected
                         |> Maybe.map toList
                         |> Maybe.withDefault []
-
-                btn txt op cond =
-                    if cond then
-                        H.button
-                            [ HA.type_ "button"
-                            , HE.onClick (OptionSelected [] (op meta.selected 1))
-                            ]
-                            [ H.text txt ]
-
-                    else
-                        H.text ""
             in
-            checkDuplicatesErrorView model
-                :: currentPage
-                ++ [ H.div []
-                        [ btn "Back" (-) (meta.selected > 0)
-                        , btn "Next" (+) (meta.selected < List.length vs)
-                        ]
-                   ]
+            { step = checkDuplicatesErrorView model :: currentPage
+            , nextMsg =
+                if meta.selected < List.length vs then
+                    Just (OptionSelected [] (meta.selected + 1))
+
+                else
+                    Nothing
+            , backMsg =
+                if meta.selected > 0 then
+                    Just (OptionSelected [] (meta.selected - 1))
+
+                else
+                    Nothing
+            }
 
         otherView ->
-            checkDuplicatesErrorView model :: toList otherView
+            { step = checkDuplicatesErrorView model :: toList otherView
+            , nextMsg = Nothing
+            , backMsg = Nothing
+            }
+
+
+viewToList : List (H.Html (Msg formMsg)) -> View formMsg -> List (H.Html (Msg formMsg))
+viewToList acc v =
+    case v of
+        ViewNone ->
+            acc
+
+        ViewOne one ->
+            one ++ acc
+
+        ViewMany one more ->
+            List.foldl (\v_ acc_ -> viewToList acc_ v_) acc (one :: more)
 
 
 checkDuplicatesErrorView : Node formModel -> H.Html msg
