@@ -359,7 +359,7 @@ type Model formModel output
 
 type Node formModel
     = Value Location formModel
-    | Product Location { selected : Int } (Node formModel) (Node formModel)
+    | Product Location (Node formModel) (Node formModel)
     | Sum Location { selected : Int, last : Int } (List ( String, Node formModel ))
     | Empty EmptyType Location
 
@@ -541,7 +541,7 @@ checkDuplicateIds node =
                 Value loc _ ->
                     locationToId loc :: output
 
-                Product loc _ n1 n2 ->
+                Product loc n1 n2 ->
                     locationToId loc :: help [] n1 ++ help [] n2 ++ output
 
                 Sum loc _ ns ->
@@ -1524,7 +1524,7 @@ map2 mappers (Field field1) (Field field2) =
                     ( model2, cmd2 ) =
                         field2.init (1 :: path) field2.maybeId
                 in
-                ( Product (newLocation path maybeId) { selected = 0 } model1 model2
+                ( Product (newLocation path maybeId) model1 model2
                 , Cmd.batch
                     [ cmd1
                     , cmd2
@@ -1533,7 +1533,7 @@ map2 mappers (Field field1) (Field field2) =
         , load =
             \input model ->
                 case ( Maybe.map mappers.input input, model ) of
-                    ( Just ( input1, input2 ), Product location selected node1 node2 ) ->
+                    ( Just ( input1, input2 ), Product location  node1 node2 ) ->
                         let
                             ( newModel1, cmd1 ) =
                                 field1.load input1 node1
@@ -1541,7 +1541,7 @@ map2 mappers (Field field1) (Field field2) =
                             ( newModel2, cmd2 ) =
                                 field2.load input2 node2
                         in
-                        ( Product location selected newModel1 newModel2
+                        ( Product location newModel1 newModel2
                         , Cmd.batch [ cmd1, cmd2 ]
                         )
 
@@ -1550,7 +1550,7 @@ map2 mappers (Field field1) (Field field2) =
         , update =
             \msg model ->
                 case model of
-                    Product location selected model1 model2 ->
+                    Product location model1 model2 ->
                         let
                             ( newModel1, cmd1 ) =
                                 field1.update msg model1
@@ -1558,7 +1558,7 @@ map2 mappers (Field field1) (Field field2) =
                             ( newModel2, cmd2 ) =
                                 field2.update msg model2
                         in
-                        ( Product location selected newModel1 newModel2
+                        ( Product location newModel1 newModel2
                         , Cmd.batch [ cmd1, cmd2 ]
                         )
 
@@ -1567,7 +1567,7 @@ map2 mappers (Field field1) (Field field2) =
         , view =
             \config model ->
                 case model of
-                    Product _ selected model1 model2 ->
+                    Product _ model1 model2 ->
                         ViewMany
                             [ field1.view { config | label = field1.label, id = locationFromModel model1 |> locationToString } model1
                             , field2.view { config | label = field2.label, id = locationFromModel model1 |> locationToString } model2
@@ -1578,7 +1578,7 @@ map2 mappers (Field field1) (Field field2) =
         , subscriptions =
             \model ->
                 case model of
-                    Product _ selected model1 model2 ->
+                    Product _ model1 model2 ->
                         Sub.batch
                             [ field1.subscriptions model1
                             , field2.subscriptions model2
@@ -1589,7 +1589,7 @@ map2 mappers (Field field1) (Field field2) =
         , submit =
             \checks model ->
                 case model of
-                    Product _ selected model1 model2 ->
+                    Product _ model1 model2 ->
                         case
                             ( field1.submit field1.checks model1
                             , field2.submit field2.checks model2
@@ -1682,7 +1682,7 @@ andMap getInput (Field field1) (Field field2) =
             | view =
                 \config model ->
                     case model of
-                        Product _ _ model1 model2 ->
+                        Product _ model1 model2 ->
                             ViewMany
                                 [ field2.view { config | label = field2.label, id = locationFromModel model2 |> locationToString } model2
                                 , field1.view { config | label = field1.label, id = locationFromModel model1 |> locationToString } model1
@@ -2849,7 +2849,7 @@ locationFromModel model =
         Value loc _ ->
             loc
 
-        Product loc _ _ _ ->
+        Product loc _ _ ->
             loc
 
         Sum loc _ _ ->
@@ -2967,7 +2967,7 @@ toDOT debugToString (Model model) =
                       )
                     ]
 
-                Product loc _ m1 m2 ->
+                Product loc m1 m2 ->
                     ( locationToPath loc
                     , nodeLabel loc "Product"
                     , "square"
