@@ -765,13 +765,15 @@ view (Field field) (Model _ model) =
                 Err f ->
                     f
     in
-    field.view
-        { label = field.label
-        , feedback = feedback
-        , id = locationFromModel model |> locationToString
-        }
-        model
-        |> viewToList [ checkDuplicatesErrorView model ]
+    checkDuplicatesErrorView model
+        :: (field.view
+                { label = field.label
+                , feedback = feedback
+                , id = locationFromModel model |> locationToString
+                }
+                model
+                |> viewToList []
+           )
 
 
 viewToList : List (H.Html (Msg formMsg)) -> View formMsg -> List (H.Html (Msg formMsg))
@@ -784,7 +786,7 @@ viewToList acc v =
             one ++ acc
 
         ViewMany one more ->
-            List.foldl (\listOfHtml acc_ -> viewToList acc_ listOfHtml) acc (one :: more)
+            List.foldl (\v_ acc_ -> viewToList acc_ v_) acc (one :: more)
 
 
 viewWizard : Field formModel formMsg id widgetMsg input output -> Model formModel output -> List (H.Html (Msg formMsg))
@@ -799,7 +801,7 @@ viewWizard (Field field) (Model meta model) =
                     f
 
         toList =
-            viewToList [ checkDuplicatesErrorView model ]
+            viewToList []
     in
     case field.view { label = field.label, feedback = feedback, id = locationFromModel model |> locationToString } model of
         ViewMany v vs ->
@@ -822,7 +824,8 @@ viewWizard (Field field) (Model meta model) =
                     else
                         H.text ""
             in
-            currentPage
+            checkDuplicatesErrorView model
+                :: currentPage
                 ++ [ H.div []
                         [ btn "Back" (-) (meta.selected > 0)
                         , btn "Next" (+) (meta.selected < List.length vs)
@@ -830,7 +833,7 @@ viewWizard (Field field) (Model meta model) =
                    ]
 
         otherView ->
-            toList otherView
+            checkDuplicatesErrorView model :: toList otherView
 
 
 checkDuplicatesErrorView : Node formModel -> H.Html msg

@@ -56,8 +56,7 @@ main =
                     , H.text (Yafl.toDOT Debug.toString model)
                     ])
 
-                else
-                    H.h1 [] [ H.text "Uh oh!" ]
+                else H.h1 [] [ H.text "Uh oh!" ]
         , subscriptions = \(_, model) -> Yafl.subscriptions form model|> Sub.map Just
         }
 
@@ -81,7 +80,7 @@ form =
     Yafl.succeed (\a b c () -> (a, b, c))
         |> Yafl.andMap .name 
             (name 
-                -- |> Yafl.identifier "name"
+                |> Yafl.identifier "name"
             )
         |> Yafl.html (H.h4 [] [ H.text "Here's some HTML between the fields!" ])
         |> Yafl.andMap .bool fields.bool
@@ -101,10 +100,12 @@ type Foo
 
 foo =
     Yafl.choice
-        |> Yafl.option "Bar" .bar (Yafl.map Bar (name 
-        -- |> Yafl.identifier "foo-name"
-        )
-        )
+        |> Yafl.option "Bar" .bar 
+            (Yafl.map Bar 
+                (name 
+                    |> Yafl.identifier "bar-name"
+                )
+            )
         |> Yafl.option "Baz" .baz (Yafl.map Baz fields.bool)
         |> Yafl.label "Foo?"
 
