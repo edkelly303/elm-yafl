@@ -10,6 +10,7 @@ module Yafl exposing
     , validate, validateAt
     , HasId, NoId, identifier, intercept, send, isFormValid
     , studio, toDOT
+    , viewWizard
     )
 
 {-| This library helps you build user input forms in Elm by creating and
@@ -354,7 +355,7 @@ type alias MaybeId =
 {-| The top-level model type for your form.
 -}
 type Model formModel output
-    = Model (Node formModel)
+    = Model { selected : Int } (Node formModel)
 
 
 type Node formModel
@@ -509,7 +510,7 @@ init (Field field) =
         ( node, cmd ) =
             field.init [ 0 ] field.maybeId
     in
-    ( Model node, cmd )
+    ( Model { selected = 0 } node, cmd )
 
 
 {-| Check that a form doesn't contain fields with duplicate identifiers.
@@ -517,7 +518,7 @@ init (Field field) =
 isFormValid : Field formModel formMsg id widgetMsg input output -> Bool
 isFormValid field =
     let
-        check (Model node) =
+        check (Model _ node) =
             List.isEmpty (checkDuplicateIds node)
     in
     init field
@@ -689,9 +690,9 @@ load :
     -> input
     -> Model formModel output
     -> ( Model formModel output, Cmd (Msg formMsg) )
-load (Field field) input (Model node) =
+load (Field field) input (Model meta node) =
     field.load (Just input) node
-        |> Tuple.mapFirst Model
+        |> Tuple.mapFirst (Model meta)
 
 
 
@@ -710,9 +711,14 @@ load (Field field) input (Model node) =
 {-| Update your form by supplying a `Msg` and `Model`
 -}
 update : Field formModel formMsg id widgetMsg input output -> Msg formMsg -> Model formModel output -> ( Model formModel output, Cmd (Msg formMsg) )
-update (Field field) msg (Model node) =
-    field.update msg node
-        |> Tuple.mapFirst Model
+update (Field field) msg (Model meta node) =
+    case msg of
+        OptionSelected [] n ->
+            ( Model { meta | selected = n } node, Cmd.none )
+
+        _ ->
+            field.update msg node
+                |> Tuple.mapFirst (Model meta)
 
 
 
@@ -748,7 +754,7 @@ update (Field field) msg (Model node) =
 
 -}
 view : Field formModel formMsg id widgetMsg input output -> Model formModel output -> List (H.Html (Msg formMsg))
-view (Field field) (Model model) =
+view (Field field) (Model meta model) =
     let
         feedback =
             case field.submit field.checks model of
@@ -802,6 +808,69 @@ viewToList acc v =
             List.foldl (\listOfHtml acc_ -> viewToList acc_ listOfHtml) acc many
 
 
+viewWizard : Field formModel formMsg id widgetMsg input output -> Model formModel output -> List (H.Html (Msg formMsg))
+viewWizard (Field field) (Model meta model) =
+    let
+        feedback =
+            case field.submit field.checks model of
+                Ok _ ->
+                    []
+
+                Err f ->
+                    f
+
+        fatal =
+            case checkDuplicateIds model of
+                [] ->
+                    H.text ""
+
+                dups ->
+                    H.div
+                        []
+                        (List.map
+                            (\( id_, count ) ->
+                                H.p []
+                                    [ H.strong []
+                                        [ H.text
+                                            ("⚠️ FATAL ERROR IN FORM DEFINITION: field identifiers must be unique, but the identifier \""
+                                                ++ id_
+                                                ++ "\" is assigned to "
+                                                ++ String.fromInt count
+                                                ++ " different fields."
+                                            )
+                                        ]
+                                    ]
+                            )
+                            dups
+                        )
+    in
+    case field.view { label = field.label, feedback = feedback, id = locationFromModel model |> locationToString } model of
+        ViewMany vs ->
+            let
+                currentPage =
+                    List.Extra.getAt meta.selected vs
+                        |> Maybe.map (viewToList [ fatal ])
+                        |> Maybe.withDefault []
+            in
+            currentPage
+                ++ [ H.div []
+                        [ if meta.selected > 0 then
+                            H.button [ HA.type_ "button", HE.onClick (OptionSelected [] (meta.selected - 1)) ] [ H.text "Back" ]
+
+                          else
+                            H.text ""
+                        , if meta.selected < List.length vs - 1 then
+                            H.button [ HA.type_ "button", HE.onClick (OptionSelected [] (meta.selected + 1)) ] [ H.text "Next" ]
+
+                          else
+                            H.text ""
+                        ]
+                   ]
+
+        viewOne ->
+            viewToList [ fatal ] viewOne
+
+
 
 {-
    .d8888. db    db d8888b. .d8888.  .o88b. d8888b. d888888b d8888b. d888888b d888888b  .d88b.  d8b   db .d8888.
@@ -834,7 +903,7 @@ viewToList acc v =
 
 -}
 subscriptions : Field formModel formMsg id widgetMsg input output -> Model formModel output -> Sub (Msg formMsg)
-subscriptions (Field field) (Model model) =
+subscriptions (Field field) (Model _ model) =
     field.subscriptions model
 
 
@@ -870,7 +939,7 @@ subscriptions (Field field) (Model model) =
 
 -}
 submit : Field formModel formMsg id widgetMsg input output -> Model formModel output -> Result (List ( String, String )) output
-submit (Field field) (Model model) =
+submit (Field field) (Model _ model) =
     field.submit field.checks model
         |> Result.mapError
             (List.map
@@ -1533,7 +1602,7 @@ map2 mappers (Field field1) (Field field2) =
         , load =
             \input model ->
                 case ( Maybe.map mappers.input input, model ) of
-                    ( Just ( input1, input2 ), Product location  node1 node2 ) ->
+                    ( Just ( input1, input2 ), Product location node1 node2 ) ->
                         let
                             ( newModel1, cmd1 ) =
                                 field1.load input1 node1
@@ -2935,7 +3004,7 @@ As the first argument, you should pass in `Debug.toString`.
 
 -}
 toDOT : (model -> String) -> Model model output -> String
-toDOT debugToString (Model model) =
+toDOT debugToString (Model _ model) =
     let
         escape str =
             String.replace "\"" "\\\"" str
