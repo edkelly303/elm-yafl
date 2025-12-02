@@ -795,9 +795,12 @@ viewWizard :
     Field formModel formMsg id widgetMsg input output
     -> Model formModel output
     ->
-        { step : List (H.Html (Msg formMsg))
+        { stepView : List (H.Html (Msg formMsg))
+        , stepIndex : Int
+        , totalSteps : Int
         , backMsg : Maybe (Msg formMsg)
         , nextMsg : Maybe (Msg formMsg)
+        , selectStepMsg : Int -> Msg formMsg
         }
 viewWizard (Field field) (Model meta model) =
     let
@@ -811,6 +814,15 @@ viewWizard (Field field) (Model meta model) =
 
         toList =
             viewToList []
+
+        default =
+            { stepView = []
+            , nextMsg = Nothing
+            , backMsg = Nothing
+            , selectStepMsg = OptionSelected []
+            , stepIndex = meta.selected
+            , totalSteps = 0
+            }
     in
     case field.view { label = field.label, feedback = feedback, id = locationFromModel model |> locationToString } model of
         ViewMany v vs ->
@@ -821,27 +833,29 @@ viewWizard (Field field) (Model meta model) =
                         |> List.Extra.getAt meta.selected
                         |> Maybe.map toList
                         |> Maybe.withDefault []
+
+                totalSteps =
+                    List.length (v :: vs)
             in
-            { step = checkDuplicatesErrorView model :: currentPage
-            , nextMsg =
-                if meta.selected < List.length vs then
-                    Just (OptionSelected [] (meta.selected + 1))
+            { default
+                | stepView = checkDuplicatesErrorView model :: currentPage
+                , nextMsg =
+                    if meta.selected < totalSteps - 1 then
+                        Just (OptionSelected [] (meta.selected + 1))
 
-                else
-                    Nothing
-            , backMsg =
-                if meta.selected > 0 then
-                    Just (OptionSelected [] (meta.selected - 1))
+                    else
+                        Nothing
+                , backMsg =
+                    if meta.selected > 0 then
+                        Just (OptionSelected [] (meta.selected - 1))
 
-                else
-                    Nothing
+                    else
+                        Nothing
+                , totalSteps = totalSteps
             }
 
         otherView ->
-            { step = checkDuplicatesErrorView model :: toList otherView
-            , nextMsg = Nothing
-            , backMsg = Nothing
-            }
+            { default | stepView = checkDuplicatesErrorView model :: toList otherView }
 
 
 viewToList : List (H.Html (Msg formMsg)) -> View formMsg -> List (H.Html (Msg formMsg))

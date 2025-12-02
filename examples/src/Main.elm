@@ -53,18 +53,19 @@ main =
             \( output, model ) ->
                 if Yafl.isFormValid form then
                     let
-                        { step, backMsg, nextMsg } =
+                        { stepView, backMsg, nextMsg, stepIndex, totalSteps } =
                             Yafl.viewWizard form model
                     in
                     H.form [ HE.onSubmit Nothing ]
-                        ((step |> List.map (H.map Just))
+                        ((stepView |> List.map (H.map Just))
                             ++ [ H.div []
                                     [ case backMsg of
                                         Nothing ->
-                                            H.text ""
+                                            H.button [ HA.type_ "button", HA.disabled True ] [ H.text "Back" ]
 
                                         Just msg ->
                                             H.button [ HA.type_ "button", HE.onClick (Just msg) ] [ H.text "Back" ]
+                                    , H.text (String.fromInt (stepIndex + 1) ++ " of " ++ String.fromInt totalSteps)
                                     , case nextMsg of
                                         Nothing ->
                                             H.input [ HA.type_ "submit", HA.value "Submit" ] []
