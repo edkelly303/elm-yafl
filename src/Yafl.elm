@@ -714,7 +714,14 @@ update : Field formModel formMsg id widgetMsg input output -> Msg formMsg -> Mod
 update (Field field) msg (Model meta node) =
     case msg of
         OptionSelected [] n ->
-            ( Model { meta | selected = n } node, Cmd.none )
+            case node of
+                Product _ ns ->
+                    ( Model { meta | selected = clamp 0 (List.length ns - 1) n } node
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( Model meta node, Cmd.none )
 
         _ ->
             field.update msg node

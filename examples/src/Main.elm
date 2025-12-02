@@ -53,7 +53,7 @@ main =
             \( output, model ) ->
                 if Yafl.isFormValid form then
                     let
-                        { stepView, backMsg, nextMsg, stepIndex, totalSteps } =
+                        { stepView, backMsg, nextMsg, stepIndex, totalSteps, selectStepMsg } =
                             Yafl.viewWizard form model
                     in
                     H.form [ HE.onSubmit Nothing ]
