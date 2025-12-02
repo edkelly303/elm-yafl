@@ -625,41 +625,6 @@ tests =
                     ]
                 ]
             , Test.describe
-                "step"
-                [ Test.describe
-                    "code snippet 0"
-                    [ Test.test
-                        "0"
-                        (\() ->
-                            let
-                                unused :
-                                    Yafl.Field
-                                        Examples.FormModel
-                                        Examples.FormMsg
-                                        Basics.Never
-                                        Basics.Never
-                                        { options :
-                                            Maybe.Maybe
-                                                { counter :
-                                                    Maybe.Maybe Examples.CounterMsg
-                                                }
-                                        , selected : Maybe.Maybe Basics.Int
-                                        }
-                                        Basics.Int
-                                unused =
-                                    Yafl.wizard Basics.identity
-                                        |> Yafl.step
-                                            .counter
-                                            (Examples.fields.counter
-                                                |> Yafl.label
-                                                    "This is a label for the `counter` field"
-                                            )
-                            in
-                            Expect.pass
-                        )
-                    ]
-                ]
-            , Test.describe
                 "submit"
                 [ Test.describe
                     "code snippet 0"
@@ -766,32 +731,6 @@ tests =
                                     Yafl.view
                                         form__Yafl__view_0
                                         model__Yafl__view_0
-                            in
-                            Expect.pass
-                        )
-                    ]
-                ]
-            , Test.describe
-                "wizard"
-                [ Test.describe
-                    "code snippet 0"
-                    [ Test.test
-                        "0"
-                        (\() ->
-                            let
-                                unused :
-                                    Yafl.Field
-                                        Examples.FormModel
-                                        Examples.FormMsg
-                                        Basics.Never
-                                        Basics.Never
-                                        { selected :
-                                            Maybe.Maybe Basics.Int
-                                        , options : Maybe.Maybe {}
-                                        }
-                                        ()
-                                unused =
-                                    Yafl.wizard ()
                             in
                             Expect.pass
                         )

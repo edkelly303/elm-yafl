@@ -21,7 +21,7 @@ main =
 
                     ( m2, c2 ) =
                         Yafl.load form
-                            {selected = Just 0, options = Just { name = Just "Ed"
+                            { name = Just "Ed"
                             , foo =
                                 Just
                                     { selected = Just 1
@@ -31,7 +31,7 @@ main =
                                             , baz = Just False
                                             }
                                     }
-                            }}
+                            }
                             m1
                 in
                 ( (Err [], m2)
@@ -76,10 +76,10 @@ type alias Person =
 
 
 form =
-    Yafl.wizard Tuple.pair
-        |> Yafl.step .name (name |> Yafl.identifier "name")
+    Yafl.succeed Tuple.pair
+        |> Yafl.andMap .name (name |> Yafl.identifier "name")
         |> Yafl.html (H.h4 [] [ H.text "Here's some HTML between the fields!" ])
-        |> Yafl.step .foo foo
+        |> Yafl.andMap .foo foo
         |> Yafl.map (\( a, b ) -> Person a b)
 
 

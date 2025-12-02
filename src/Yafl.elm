@@ -10,7 +10,6 @@ module Yafl exposing
     , validate, validateAt
     , HasId, NoId, identifier, intercept, send, isFormValid
     , studio, toDOT
-    , step, wizard
     )
 
 {-| This library helps you build user input forms in Elm by creating and
@@ -398,7 +397,7 @@ type Field formModel formMsg id widgetMsg input output
         , view :
             InternalViewConfig
             -> Node formModel
-            -> List (H.Html (Msg formMsg))
+            -> View formMsg
         , submit :
             List ( MaybeId, output -> Maybe String )
             -> Node formModel
@@ -412,6 +411,11 @@ type Field formModel formMsg id widgetMsg input output
         , label : String
         , maybeId : MaybeId
         }
+
+
+type View formMsg
+    = ViewOne (List (H.Html (Msg formMsg)))
+    | ViewMany (List (View formMsg))
 
 
 {-| Indicates that a [`Field`](#Field) has been given an `identifier`, and can therefore be
@@ -779,13 +783,23 @@ view (Field field) (Model model) =
                             dups
                         )
     in
-    fatal
-        :: field.view
-            { label = field.label
-            , feedback = feedback
-            , id = locationFromModel model |> locationToString
-            }
-            model
+    field.view
+        { label = field.label
+        , feedback = feedback
+        , id = locationFromModel model |> locationToString
+        }
+        model
+        |> viewToList [ fatal ]
+
+
+viewToList : List (H.Html (Msg formMsg)) -> View formMsg -> List (H.Html (Msg formMsg))
+viewToList acc v =
+    case v of
+        ViewOne listOfHtml ->
+            acc ++ listOfHtml
+
+        ViewMany many ->
+            List.foldl (\listOfHtml acc_ -> viewToList acc_ listOfHtml) acc many
 
 
 
@@ -1163,7 +1177,13 @@ html html_ (Field field) =
         { field
             | view =
                 \config model ->
-                    field.view config model ++ [ H.map (always Noop) html_ ]
+                    case field.view config model of
+                        ViewOne v ->
+                            ViewOne (v ++ [ H.map (always Noop) html_ ])
+
+                        ViewMany vs ->
+                            ViewMany (vs ++ [ ViewOne [ H.map (always Noop) html_ ] ])
+                                |> Debug.log "This is probably not what we want, we should add the html_ to the last element of ViewMany"
         }
 
 
@@ -1203,7 +1223,7 @@ succeed output =
         { init = \path maybeId -> ( Empty Succeed (newLocation path maybeId), Cmd.none )
         , load = \_ model -> ( model, Cmd.none )
         , update = \_ model -> ( model, Cmd.none )
-        , view = \_ _ -> []
+        , view = \_ _ -> ViewOne []
         , subscriptions = \_ -> Sub.none
         , submit = \checks model -> runChecks checks model output
         , checks = []
@@ -1252,18 +1272,19 @@ fail e =
         , update = \_ model -> ( model, Cmd.none )
         , view =
             \{ feedback } model ->
-                case List.filter (\f -> isLocated f.locator (locationFromModel model)) feedback of
-                    [] ->
-                        []
+                ViewOne <|
+                    case List.filter (\f -> isLocated f.locator (locationFromModel model)) feedback of
+                        [] ->
+                            []
 
-                    filtered ->
-                        [ H.ul []
-                            (List.map
-                                (\f -> H.li [] [ H.text f.message ])
-                                filtered
-                            )
-                        ]
-                            |> Debug.log "We really need to give the user a way to define how they want errors to be rendered"
+                        filtered ->
+                            [ H.ul []
+                                (List.map
+                                    (\f -> H.li [] [ H.text f.message ])
+                                    filtered
+                                )
+                            ]
+                                |> Debug.log "We really need to give the user a way to define how they want errors to be rendered"
         , subscriptions = \_ -> Sub.none
         , submit =
             \_ model ->
@@ -1310,18 +1331,19 @@ failAt (Field failField) e =
         , update = \_ model -> ( model, Cmd.none )
         , view =
             \{ feedback } model ->
-                case List.filter (\f -> isLocated f.locator (locationFromModel model)) feedback of
-                    [] ->
-                        []
+                ViewOne <|
+                    case List.filter (\f -> isLocated f.locator (locationFromModel model)) feedback of
+                        [] ->
+                            []
 
-                    filtered ->
-                        [ H.ul []
-                            (List.map
-                                (\f -> H.li [] [ H.text f.message ])
-                                filtered
-                            )
-                        ]
-                            |> Debug.log "We really need to give the user a way to define how they want errors to be rendered"
+                        filtered ->
+                            [ H.ul []
+                                (List.map
+                                    (\f -> H.li [] [ H.text f.message ])
+                                    filtered
+                                )
+                            ]
+                                |> Debug.log "We really need to give the user a way to define how they want errors to be rendered"
         , subscriptions = \_ -> Sub.none
         , submit =
             \_ model ->
@@ -1546,11 +1568,13 @@ map2 mappers (Field field1) (Field field2) =
             \config model ->
                 case model of
                     Product _ selected model1 model2 ->
-                        field1.view { config | label = field1.label, id = locationFromModel model1 |> locationToString } model1
-                            ++ field2.view { config | label = field2.label, id = locationFromModel model1 |> locationToString } model2
+                        ViewMany
+                            [ field1.view { config | label = field1.label, id = locationFromModel model1 |> locationToString } model1
+                            , field2.view { config | label = field2.label, id = locationFromModel model1 |> locationToString } model2
+                            ]
 
                     _ ->
-                        []
+                        ViewOne []
         , subscriptions =
             \model ->
                 case model of
@@ -1659,11 +1683,13 @@ andMap getInput (Field field1) (Field field2) =
                 \config model ->
                     case model of
                         Product _ _ model1 model2 ->
-                            field2.view { config | label = field2.label, id = locationFromModel model2 |> locationToString } model2
-                                ++ field1.view { config | label = field1.label, id = locationFromModel model1 |> locationToString } model1
+                            ViewMany
+                                [ field2.view { config | label = field2.label, id = locationFromModel model2 |> locationToString } model2
+                                , field1.view { config | label = field1.label, id = locationFromModel model1 |> locationToString } model1
+                                ]
 
                         _ ->
-                            []
+                            ViewOne []
         }
 
 
@@ -1797,7 +1823,7 @@ choice =
                     _ ->
                         ( model, Cmd.none )
         , update = \_ model -> ( model, Cmd.none )
-        , view = \_ _ -> []
+        , view = \_ _ -> ViewOne []
         , subscriptions = \_ -> Sub.none
         , submit =
             \_ model ->
@@ -1983,10 +2009,18 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
                                         }
                                         (Sum location meta previousOptionLabelsAndModels)
                         in
-                        viewOptionSelector :: viewSelectedOption
+                        case viewSelectedOption of
+                            ViewOne v ->
+                                ViewOne (viewOptionSelector :: v)
+
+                            ViewMany ((ViewOne v) :: vs) ->
+                                ViewMany (ViewOne (viewOptionSelector :: v) :: vs)
+
+                            _ ->
+                                ViewOne [ viewOptionSelector ]
 
                     _ ->
-                        [ H.text "Fatal error in `option` view function" ]
+                        ViewOne [ H.text "Fatal error in `option` view function" ]
         , subscriptions =
             \model ->
                 case model of
@@ -2007,244 +2041,6 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
 
                         else
                             previousOptionFields.submit previousOptionFields.checks (Sum location meta previousOptionLabelsAndModels)
-
-                    _ ->
-                        Err
-                            [ { message = "Fatal error in `option` submit function"
-                              , fail = True
-                              , locator = locatorFromModel model
-                              }
-                            ]
-        , checks = []
-        , send = \_ msg -> never msg
-        , intercept = \_ _ -> Nothing
-        , label = previousOptionFields.label
-        , maybeId = Nothing
-        }
-
-
-
-{-
-   db   d8b   db d888888b d88888D  .d8b.  d8888b. d8888b.
-   88   I8I   88   `88'   YP  d8' d8' `8b 88  `8D 88  `8D
-   88   I8I   88    88       d8'  88ooo88 88oobY' 88   88
-   Y8   I8I   88    88      d8'   88~~~88 88`8b   88   88
-   `8b d8'8b d8'   .88.    d8' db 88   88 88 `88. 88  .8D
-    `8b8' `8d8'  Y888888P d88888P YP   YP 88   YD Y8888D'
-
-
--}
-
-
-{-| Begin defining a `wizard` with multiple [`step`](#step)s.
-
-This doesn't do anything useful on its own - it needs to be used in conjunction
-with `step`.
-
-    import Yafl
-    import Examples exposing (FormModel, FormMsg, fields)
-
-    Yafl.wizard ()
-
-    --: Yafl.Field FormModel FormMsg Never Never { selected : Maybe Int, options : Maybe {} } ()
-
--}
-wizard : ctor -> Field model formMsg Never Never { selected : Maybe Int, options : Maybe options } ctor
-wizard ctor =
-    Field
-        { init = \path maybeId -> ( Sum (newLocation path maybeId) { selected = 0, last = -1 } [], Cmd.none )
-        , load =
-            \input model ->
-                case ( Maybe.andThen .selected input, model ) of
-                    ( Just selected, Sum loc meta nodes ) ->
-                        ( Sum loc { meta | selected = selected } nodes
-                        , Cmd.none
-                        )
-
-                    _ ->
-                        ( model, Cmd.none )
-        , update = \_ model -> ( model, Cmd.none )
-        , view = \_ _ -> []
-        , subscriptions = \_ -> Sub.none
-        , submit =
-            \_ _ ->
-                Ok ctor
-        , checks = []
-        , send = \_ msg -> never msg
-        , intercept = \_ _ -> Nothing
-        , label = ""
-        , maybeId = Nothing
-        }
-
-
-
-{-
-   .d8888. d888888b d88888b d8888b.
-   88'  YP `~~88~~' 88'     88  `8D
-   `8bo.      88    88ooooo 88oodD'
-     `Y8b.    88    88~~~~~ 88~~~
-   db   8D    88    88.     88
-   `8888Y'    YP    Y88888P 88
-
-
--}
-
-
-{-| Add an step to a [`wizard`](#wizard).
-
-    import Yafl
-    import Examples exposing (FormModel, FormMsg, fields)
-
-    Yafl.wizard identity
-        |> Yafl.step
-            .counter
-            (fields.counter
-                |> Yafl.label "This is a label for the `counter` field"
-            )
-
-    --: Yafl.Field FormModel FormMsg Never Never { options : Maybe { counter : Maybe Examples.CounterMsg }, selected : Maybe Int } Int
-
--}
-step :
-    (options -> Maybe input)
-    -> Field formModel formMsg id widgetMsg input output
-    -> Field formModel formMsg Never Never { selected : Maybe Int, options : Maybe options } (output -> output2)
-    -> Field formModel formMsg Never Never { selected : Maybe Int, options : Maybe options } output2
-step getInput (Field thisOptionField) (Field previousOptionFields) =
-    Field
-        { init =
-            \path _ ->
-                case previousOptionFields.init path previousOptionFields.maybeId of
-                    ( Sum location meta previousOptions, previousOptionsCmd ) ->
-                        let
-                            ( thisOptionModel, thisOptionCmd ) =
-                                thisOptionField.init (List.length previousOptions :: path) thisOptionField.maybeId
-                        in
-                        ( Sum location { meta | last = meta.last + 1 } (( "", thisOptionModel ) :: previousOptions)
-                        , Cmd.batch [ previousOptionsCmd, thisOptionCmd ]
-                        )
-
-                    _ ->
-                        thisOptionField.init path thisOptionField.maybeId
-        , load =
-            \input model ->
-                case ( input |> Maybe.andThen .options |> Maybe.andThen getInput, model ) of
-                    ( thisOptionInput, Sum loc sel (( _, thisOptionNode ) :: previousOptionLabelsAndNodes) ) ->
-                        let
-                            ( newThisOptionNode, thisOptionCmd ) =
-                                thisOptionField.load thisOptionInput thisOptionNode
-
-                            ( newPreviousOptionsNode, previousOptionsCmd ) =
-                                previousOptionFields.load input (Sum loc sel previousOptionLabelsAndNodes)
-                        in
-                        case newPreviousOptionsNode of
-                            Sum _ newSel newPreviousOptionLabelsAndNodes ->
-                                ( Sum loc newSel (( "", newThisOptionNode ) :: newPreviousOptionLabelsAndNodes)
-                                , Cmd.batch [ thisOptionCmd, previousOptionsCmd ]
-                                )
-
-                            _ ->
-                                ( model, Cmd.none )
-
-                    _ ->
-                        ( model, Cmd.none )
-        , update =
-            \msg model ->
-                case model of
-                    Sum location meta ((( _, thisOptionModel ) :: previousOptionLabelsAndModels) as options) ->
-                        let
-                            fallback =
-                                let
-                                    ( newThisOptionModel, thisOptionCmd ) =
-                                        thisOptionField.update msg thisOptionModel
-
-                                    ( newPreviousOptionModels, previousOptionsCmd ) =
-                                        previousOptionFields.update msg (Sum location meta previousOptionLabelsAndModels)
-                                in
-                                case newPreviousOptionModels of
-                                    Sum _ _ newPreviousOptionLabelsAndModels ->
-                                        ( Sum location meta (( "", newThisOptionModel ) :: newPreviousOptionLabelsAndModels)
-                                        , Cmd.batch [ previousOptionsCmd, thisOptionCmd ]
-                                        )
-
-                                    _ ->
-                                        ( model, Cmd.none )
-                        in
-                        case msg of
-                            OptionSelected path selected ->
-                                if path == pathFromModel model then
-                                    ( Sum location { meta | selected = selected } options
-                                    , Cmd.none
-                                    )
-
-                                else
-                                    fallback
-
-                            _ ->
-                                fallback
-
-                    _ ->
-                        ( model, Cmd.none )
-        , view =
-            \config model ->
-                case model of
-                    Sum location meta ((( _, thisOptionModel ) :: previousOptionLabelsAndModels) as options) ->
-                        if meta.selected == List.length previousOptionLabelsAndModels then
-                            [ H.div []
-                                (thisOptionField.view
-                                    { config
-                                        | label = thisOptionField.label
-                                        , id = thisOptionModel |> locationFromModel |> locationToString
-                                    }
-                                    thisOptionModel
-                                )
-                            , H.div []
-                                [ if meta.selected == 0 then
-                                    H.text ""
-
-                                  else
-                                    H.button [ HA.type_ "button", HE.onClick (OptionSelected (pathFromModel model) (meta.selected - 1)) ] [ H.text "Back" ]
-                                , if meta.selected == meta.last then
-                                    H.text ""
-
-                                  else
-                                    H.button [ HA.type_ "button", HE.onClick (OptionSelected (pathFromModel model) (meta.selected + 1)) ] [ H.text "Next" ]
-                                ]
-                            ]
-
-                        else
-                            previousOptionFields.view
-                                { config
-                                    | label = previousOptionFields.label
-                                    , id = "never used"
-                                }
-                                (Sum location meta previousOptionLabelsAndModels)
-
-                    _ ->
-                        [ H.text "Fatal error in `option` view function" ]
-        , subscriptions =
-            \model ->
-                case model of
-                    Sum location meta (( _, thisOptionModel ) :: previousOptionLabelsAndModels) ->
-                        Sub.batch
-                            [ previousOptionFields.subscriptions (Sum location meta previousOptionLabelsAndModels)
-                            , thisOptionField.subscriptions thisOptionModel
-                            ]
-
-                    _ ->
-                        Sub.none
-        , submit =
-            \_ model ->
-                case model of
-                    Sum location meta (( _, thisOptionModel ) :: previousOptionLabelsAndModels) ->
-                        let
-                            this =
-                                thisOptionField.submit thisOptionField.checks thisOptionModel
-
-                            prev =
-                                previousOptionFields.submit previousOptionFields.checks (Sum location meta previousOptionLabelsAndModels)
-                        in
-                        Result.map2 (\x f -> f x) this prev
 
                     _ ->
                         Err
@@ -2878,6 +2674,7 @@ convertToField args =
                     }
                     model_
                     |> List.map (H.map mapper)
+                    |> ViewOne
         , submit =
             \checks model ->
                 case model of
