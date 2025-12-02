@@ -22,6 +22,7 @@ main =
                     ( m2, c2 ) =
                         Yafl.load form
                             { name = Just "Ed"
+                            , bool = Nothing
                             , foo =
                                 Just
                                     { selected = Just 1
@@ -76,11 +77,12 @@ type alias Person =
 
 
 form =
-    Yafl.succeed Tuple.pair
+    Yafl.succeed (\a b c -> (a, b, c))
         |> Yafl.andMap .name (name |> Yafl.identifier "name")
         |> Yafl.html (H.h4 [] [ H.text "Here's some HTML between the fields!" ])
+        |> Yafl.andMap .bool fields.bool
         |> Yafl.andMap .foo foo
-        |> Yafl.map (\( a, b ) -> Person a b)
+        |> Yafl.map (\( a, _, c) -> Person a c)
 
 
 type Foo

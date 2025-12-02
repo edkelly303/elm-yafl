@@ -754,7 +754,7 @@ update (Field field) msg (Model meta node) =
 
 -}
 view : Field formModel formMsg id widgetMsg input output -> Model formModel output -> List (H.Html (Msg formMsg))
-view (Field field) (Model meta model) =
+view (Field field) (Model _ model) =
     let
         feedback =
             case field.submit field.checks model of
@@ -763,31 +763,6 @@ view (Field field) (Model meta model) =
 
                 Err f ->
                     f
-
-        fatal =
-            case checkDuplicateIds model of
-                [] ->
-                    H.text ""
-
-                dups ->
-                    H.div
-                        []
-                        (List.map
-                            (\( id_, count ) ->
-                                H.p []
-                                    [ H.strong []
-                                        [ H.text
-                                            ("⚠️ FATAL ERROR IN FORM DEFINITION: field identifiers must be unique, but the identifier \""
-                                                ++ id_
-                                                ++ "\" is assigned to "
-                                                ++ String.fromInt count
-                                                ++ " different fields."
-                                            )
-                                        ]
-                                    ]
-                            )
-                            dups
-                        )
     in
     field.view
         { label = field.label
@@ -795,7 +770,7 @@ view (Field field) (Model meta model) =
         , id = locationFromModel model |> locationToString
         }
         model
-        |> viewToList [ fatal ]
+        |> viewToList [ checkDuplicatesErrorView model ]
 
 
 viewToList : List (H.Html (Msg formMsg)) -> View formMsg -> List (H.Html (Msg formMsg))
@@ -819,56 +794,64 @@ viewWizard (Field field) (Model meta model) =
                 Err f ->
                     f
 
-        fatal =
-            case checkDuplicateIds model of
-                [] ->
-                    H.text ""
-
-                dups ->
-                    H.div
-                        []
-                        (List.map
-                            (\( id_, count ) ->
-                                H.p []
-                                    [ H.strong []
-                                        [ H.text
-                                            ("⚠️ FATAL ERROR IN FORM DEFINITION: field identifiers must be unique, but the identifier \""
-                                                ++ id_
-                                                ++ "\" is assigned to "
-                                                ++ String.fromInt count
-                                                ++ " different fields."
-                                            )
-                                        ]
-                                    ]
-                            )
-                            dups
-                        )
+        toList =
+            viewToList [ checkDuplicatesErrorView model ]
     in
     case field.view { label = field.label, feedback = feedback, id = locationFromModel model |> locationToString } model of
         ViewMany vs ->
             let
                 currentPage =
                     List.Extra.getAt meta.selected vs
-                        |> Maybe.map (viewToList [ fatal ])
+                        |> Maybe.map toList
                         |> Maybe.withDefault []
+
+                btn txt op cond =
+                    if cond then
+                        H.button
+                            [ HA.type_ "button"
+                            , HE.onClick (OptionSelected [] (op meta.selected 1))
+                            ]
+                            [ H.text txt ]
+
+                    else
+                        H.text ""
             in
             currentPage
                 ++ [ H.div []
-                        [ if meta.selected > 0 then
-                            H.button [ HA.type_ "button", HE.onClick (OptionSelected [] (meta.selected - 1)) ] [ H.text "Back" ]
-
-                          else
-                            H.text ""
-                        , if meta.selected < List.length vs - 1 then
-                            H.button [ HA.type_ "button", HE.onClick (OptionSelected [] (meta.selected + 1)) ] [ H.text "Next" ]
-
-                          else
-                            H.text ""
+                        [ btn "Back" (-) (meta.selected > 0)
+                        , btn "Next" (+) (meta.selected < List.length vs - 1)
                         ]
                    ]
 
         viewOne ->
-            viewToList [ fatal ] viewOne
+            toList viewOne
+
+
+checkDuplicatesErrorView : Node formModel -> H.Html msg
+checkDuplicatesErrorView model =
+    case checkDuplicateIds model of
+        [] ->
+            H.text ""
+
+        dups ->
+            H.div
+                []
+                (List.map
+                    (\( id_, count ) ->
+                        H.p []
+                            [ H.strong []
+                                [ H.text
+                                    ("⚠️ FATAL ERROR IN FORM DEFINITION: field identifiers must be unique, but the identifier \""
+                                        ++ id_
+                                        ++ "\" is assigned to "
+                                        ++ String.fromInt count
+                                        ++ " different fields."
+                                    )
+                                ]
+                            ]
+                    )
+                    dups
+                )
 
 
 
