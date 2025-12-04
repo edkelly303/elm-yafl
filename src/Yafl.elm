@@ -1,7 +1,7 @@
 module Yafl exposing
     ( Widget
     , Field, defineFields, addWidget, addWidgetWithConfig, endFields
-    , Model, Msg, init, load, update, view, viewWizard, ViewConfig, Feedback, subscriptions, submit
+    , Model, Msg, init, load, update, view, viewWizard, viewStep, countSteps, ViewConfig, Feedback, subscriptions, submit
     , succeed, fail, failAt
     , map, contraMap
     , andMap, andThen
@@ -228,7 +228,7 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 
     --> Ok 0
 
-@docs Model, Msg, init, load, update, view, viewWizard, ViewConfig, Feedback, subscriptions, submit
+@docs Model, Msg, init, load, update, view, viewWizard, viewStep, countSteps, ViewConfig, Feedback, subscriptions, submit
 
 
 # Combining Fields
@@ -324,6 +324,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 -}
 
+import Array
 import Browser
 import Dict
 import Html as H
@@ -863,6 +864,44 @@ viewWizard (Field field) (Model meta model) =
 
         otherView ->
             { default | stepView = checkDuplicatesErrorView model :: toList otherView }
+
+
+viewStep :
+    Int
+    -> Field formModel formMsg id widgetMsg input output
+    -> Model formModel output
+    -> List (H.Html (Msg formMsg))
+viewStep n (Field field) (Model _ node) =
+    let
+        feedback =
+            case field.submit field.checks node of
+                Ok _ ->
+                    []
+
+                Err f ->
+                    f
+    in
+    case field.view { label = field.label, feedback = feedback, id = locationFromModel node |> locationToString } node of
+        ViewMany v vs ->
+            List.Extra.getAt n (List.reverse (viewToList [] v :: List.map (viewToList []) vs))
+                |> Maybe.withDefault []
+
+        v ->
+            viewToList [] v
+
+
+countSteps : Field formModel formMsg id widgetMsg input output -> Int
+countSteps (Field field) =
+    let
+        ( node, _ ) =
+            field.init [] Nothing
+    in
+    case node of
+        Product _ nodes ->
+            List.length nodes
+
+        _ ->
+            1
 
 
 viewToList : List (H.Html (Msg formMsg)) -> View formMsg -> List (H.Html (Msg formMsg))

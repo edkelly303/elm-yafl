@@ -5,7 +5,7 @@ import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
 import Yafl
-
+import Array
 
 main =
     Browser.element
@@ -76,6 +76,8 @@ main =
                                , H.pre [] [ H.text (Debug.toString output) ]
                                , H.div [] [ H.a [ HA.href "https://dreampuf.github.io/GraphvizOnline" ] [ H.text "Graphviz" ] ]
                                , H.text (Yafl.toDOT Debug.toString model)
+                               , H.div [] (Yafl.viewStep 4 form model) |> H.map Just
+                               , H.text (String.fromInt (Yafl.countSteps form))
                                ]
                         )
 
