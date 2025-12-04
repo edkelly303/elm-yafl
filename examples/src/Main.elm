@@ -106,7 +106,8 @@ form =
             (name
                 |> Yafl.identifier "name"
             )
-        |> Yafl.html (H.h4 [] [ H.text "Here's some HTML between the fields!" ])
+        |> Yafl.htmlAfter (H.p [] [ H.text "Here's some HTML after the name field!" ])
+        |> Yafl.htmlBefore (H.p [] [ H.text "Here's some HTML before the name field!" ])
         |> Yafl.andMap .bool fields.bool
         |> Yafl.andMap .foo foo
         |> Yafl.andMap .rec rec

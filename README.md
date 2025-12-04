@@ -22,7 +22,6 @@ have the full power of the Elm architecture at your disposal.
 `Field`s can be transformed and composed using standard functional combinators
 such as
 [`map`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#map),
-[`map2`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#map2),
 [`andMap`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#andMap)
 and
 [`andThen`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#andThen).

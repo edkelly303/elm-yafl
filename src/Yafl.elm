@@ -6,7 +6,7 @@ module Yafl exposing
     , map, contraMap
     , andMap, andThen
     , choice, option
-    , label, html
+    , label, htmlBefore, htmlAfter
     , validate, validateAt
     , HasId, NoId, identifier, intercept, send, isFormValid
     , studio, toDOT
@@ -40,15 +40,15 @@ composing self-contained [`Widget`](#Widget)s.
 ### [Combining Fields](#combining-fields)
 
 [`succeed`](#succeed), [`fail`](#fail), [`failAt`](#failAt), [`map`](#map),
-[`map2`](#map2), [`andMap`](#andMap), [`andThen`](#andThen), [`choice`](#choice), [`option`](#option)
+[`andMap`](#andMap), [`andThen`](#andThen), [`choice`](#choice), [`option`](#option)
 
 
 ### [Customizing Fields](#customizing-fields)
 
-[`label`](#label), [`html`](#html)
+[`label`](#label), [`htmlBefore`](#htmlBefore), [`htmlAfter`](#htmlAfter)
 
 
-### [Validating fields](#validating-fields)
+### [Validating Fields](#validating-fields)
 
 [`validate`](#validate), [`validateAt`](#validateAt)
 
@@ -59,7 +59,7 @@ composing self-contained [`Widget`](#Widget)s.
 [`intercept`](#intercept), [`send`](#send)
 
 
-### [Debugging](#debugging)
+### [Testing and debugging](#debugging)
 
 [`studio`](#studio), [`toDOT`](#toDOT)
 
@@ -258,7 +258,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 ## Building product types
 
-@docs map2, andMap, andThen
+@docs andMap, andThen
 
 
 ## Building custom types
@@ -299,7 +299,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 [_Back to top_](#table-of-contents)
 
-@docs label, html
+@docs label, htmlBefore, htmlAfter
 
 
 # Validating fields
@@ -1256,45 +1256,72 @@ intercept (Field field) =
 -}
 
 
-{-| Add some arbitrary HTML after the preceding field
+{-| Add some arbitrary HTML before the view of a field.
 
     import Examples exposing (FormModel, FormMsg, fields)
     import Html
     import Yafl
 
     form =
-        Yafl.succeed (\string1 string2 -> ())
-            |> Yafl.andMap .string1 fields.string
-            |> Yafl.html (Html.text "Here's some text between two string inputs")
-            |> Yafl.andMap .string2 fields.string
+        fields.string
+            |> Yafl.htmlBefore (Html.text "Here's some text")
 
-    form --: Yafl.Field FormModel FormMsg Never Never {string1 : Maybe String, string2 : Maybe String } ()
+    form --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
 
 -}
-html :
+htmlBefore :
     H.Html Never
     -> Field formModel formMsg id widgetMsg input output
     -> Field formModel formMsg id widgetMsg input output
-html html_ (Field field) =
+htmlBefore html_ field =
+    insertHtml (\h v -> h ++ v) html_ field
+
+
+{-| Add some arbitrary HTML after the view of a field.
+
+    import Examples exposing (FormModel, FormMsg, fields)
+    import Html
+    import Yafl
+
+    form =
+        fields.string
+            |> Yafl.htmlAfter (Html.text "Here's some text")
+
+    form --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
+
+-}
+htmlAfter :
+    H.Html Never
+    -> Field formModel formMsg id widgetMsg input output
+    -> Field formModel formMsg id widgetMsg input output
+htmlAfter html_ field =
+    insertHtml (\h v -> v ++ h) html_ field
+
+
+insertHtml :
+    (List (H.Html (Msg formMsg)) -> List (H.Html (Msg formMsg)) -> List (H.Html (Msg formMsg)))
+    -> H.Html Never
+    -> Field formModel formMsg id widgetMsg input output
+    -> Field formModel formMsg d widgetMsg input output
+insertHtml inserter html_ (Field field) =
     Field
         { field
             | view =
                 \config model ->
-                    case field.view config model of
-                        ViewNone ->
-                            ViewNone
+                    let
+                        recursivelyInsertHtml view_ =
+                            case view_ of
+                                ViewNone ->
+                                    ViewNone
 
-                        ViewOne v ->
-                            ViewOne (v ++ [ H.map (always Noop) html_ ])
+                                ViewOne v ->
+                                    ViewOne (inserter [ H.map (always Noop) html_ ] v)
 
-                        ViewMany v vs ->
-                            ViewMany v
-                                (vs
-                                    |> List.reverse
-                                    |> (::) (ViewOne [ H.map (always Noop) html_ ])
-                                    |> List.reverse
-                                )
-                                |> Debug.log "This is probably not what we want, we should add the html_ to the last element of ViewMany"
+                                ViewMany v vs ->
+                                    ViewMany (recursivelyInsertHtml v) vs
+                    in
+                    field.view config model
+                        |> recursivelyInsertHtml
         }
 
 
@@ -1637,7 +1664,7 @@ andMap getInput (Field thisOptionField) (Field previousOptionFields) =
                                 thisOptionField.init (0 :: path) thisOptionField.maybeId
                         in
                         ( Product (newLocation path maybeId) [ thisOptionModel ]
-                        , Cmd.batch [ thisOptionCmd ]
+                        , thisOptionCmd
                         )
 
                     _ ->
