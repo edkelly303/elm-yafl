@@ -332,7 +332,6 @@ import Html.Events as HE
 import List.Extra
 import NestedTuple as NT
 import Regex
-import Result.Extra
 import Task
 
 
@@ -1764,7 +1763,7 @@ andMap getInput (Field thisOptionField) (Field previousOptionFields) =
         , view =
             \config model ->
                 case model of
-                    Product location (thisOptionModel :: previousOptionLabelsAndModels) ->
+                    Product location (thisOptionModel :: previousOptionModels) ->
                         let
                             thisView =
                                 thisOptionField.view
@@ -1780,7 +1779,7 @@ andMap getInput (Field thisOptionField) (Field previousOptionFields) =
                                     | label = previousOptionFields.label
                                     , id = "never used"
                                 }
-                                (Product location previousOptionLabelsAndModels)
+                                (Product location previousOptionModels)
                         of
                             ViewNone ->
                                 thisView
@@ -1796,9 +1795,9 @@ andMap getInput (Field thisOptionField) (Field previousOptionFields) =
         , subscriptions =
             \model ->
                 case model of
-                    Product location (thisOptionModel :: previousOptionLabelsAndModels) ->
+                    Product location (thisOptionModel :: previousOptionModels) ->
                         Sub.batch
-                            [ previousOptionFields.subscriptions (Product location previousOptionLabelsAndModels)
+                            [ previousOptionFields.subscriptions (Product location previousOptionModels)
                             , thisOptionField.subscriptions thisOptionModel
                             ]
 
@@ -1807,22 +1806,24 @@ andMap getInput (Field thisOptionField) (Field previousOptionFields) =
         , submit =
             \checks model ->
                 case model of
-                    Product location (thisOptionModel :: previousOptionLabelsAndModels) ->
+                    Product location (thisOptionModel :: previousOptionModels) ->
                         case
-                            ( thisOptionField.submit thisOptionField.checks thisOptionModel, previousOptionFields.submit previousOptionFields.checks (Product location previousOptionLabelsAndModels) )
+                            ( thisOptionField.submit thisOptionField.checks thisOptionModel
+                            , previousOptionFields.submit previousOptionFields.checks (Product location previousOptionModels)
+                            )
                         of
                             ( Ok this, Ok prev ) ->
                                 prev this
                                     |> runChecks checks model
 
-                            ( Ok _, Err prevE ) ->
-                                Err prevE
+                            ( Ok _, Err previousErrors ) ->
+                                Err previousErrors
 
-                            ( Err thisE, Ok _ ) ->
-                                Err thisE
+                            ( Err thisError, Ok _ ) ->
+                                Err thisError
 
-                            ( Err thisE, Err prevE ) ->
-                                Err (prevE ++ thisE)
+                            ( Err thisError, Err previousErrors ) ->
+                                Err (previousErrors ++ thisError)
 
                     _ ->
                         Err
