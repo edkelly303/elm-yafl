@@ -324,7 +324,6 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 -}
 
-import Array
 import Browser
 import Dict
 import Html as H
