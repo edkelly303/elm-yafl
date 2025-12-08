@@ -1678,59 +1678,59 @@ andMap :
     -> Field formModel formMsg id widgetMsg input output1
     -> Field formModel formMsg Never Never options (output1 -> output2)
     -> Field formModel formMsg Never Never options output2
-andMap getInput (Field thisOptionField) (Field previousOptionFields) =
+andMap getInput (Field thisField) (Field previousFields) =
     Field
         { init =
             \path maybeId ->
                 let
-                    ( previousOptionModel, previousOptionCmd ) =
-                        previousOptionFields.init path previousOptionFields.maybeId
+                    ( previousFieldsModel, previousFieldsCmd ) =
+                        previousFields.init path previousFields.maybeId
                 in
-                case previousOptionModel of
-                    Product location previousOptions ->
+                case previousFieldsModel of
+                    Product location previousFieldNodes ->
                         let
-                            ( thisOptionModel, thisOptionCmd ) =
-                                thisOptionField.init (List.length previousOptions :: path) thisOptionField.maybeId
+                            ( thisFieldNode, thisFieldCmd ) =
+                                thisField.init (List.length previousFieldNodes :: path) thisField.maybeId
                         in
-                        ( Product location (thisOptionModel :: previousOptions)
-                        , Cmd.batch [ previousOptionCmd, thisOptionCmd ]
+                        ( Product location (thisFieldNode :: previousFieldNodes)
+                        , Cmd.batch [ previousFieldsCmd, thisFieldCmd ]
                         )
 
                     Empty _ _ ->
                         let
-                            ( thisOptionModel, thisOptionCmd ) =
-                                thisOptionField.init (0 :: path) thisOptionField.maybeId
+                            ( thisFieldNode, thisFieldCmd ) =
+                                thisField.init (0 :: path) thisField.maybeId
                         in
-                        ( Product (newLocation path maybeId) [ thisOptionModel ]
-                        , thisOptionCmd
+                        ( Product (newLocation path maybeId) [ thisFieldNode ]
+                        , thisFieldCmd
                         )
 
                     _ ->
                         let
-                            ( newPreviousOptionModel, _ ) =
-                                previousOptionFields.init (0 :: path) previousOptionFields.maybeId
+                            ( newPreviousFieldsModel, _ ) =
+                                previousFields.init (0 :: path) previousFields.maybeId
 
-                            ( thisOptionModel, thisOptionCmd ) =
-                                thisOptionField.init (1 :: path) thisOptionField.maybeId
+                            ( thisFieldModel, thisFieldCmd ) =
+                                thisField.init (1 :: path) thisField.maybeId
                         in
-                        ( Product (newLocation path maybeId) [ thisOptionModel, newPreviousOptionModel ]
-                        , Cmd.batch [ previousOptionCmd, thisOptionCmd ]
+                        ( Product (newLocation path maybeId) [ thisFieldModel, newPreviousFieldsModel ]
+                        , Cmd.batch [ previousFieldsCmd, thisFieldCmd ]
                         )
         , load =
             \input model ->
                 case ( input |> Maybe.andThen getInput, model ) of
-                    ( thisOptionInput, Product loc (thisOptionNode :: previousOptionNodes) ) ->
+                    ( thisFieldInput, Product loc (thisFieldNode :: previousFieldNodes) ) ->
                         let
                             ( newThisOptionNode, thisOptionCmd ) =
-                                thisOptionField.load thisOptionInput thisOptionNode
+                                thisField.load thisFieldInput thisFieldNode
 
-                            ( newPreviousOptionsNode, previousOptionsCmd ) =
-                                previousOptionFields.load input (Product loc previousOptionNodes)
+                            ( newPreviousFieldsNode, previousFieldsCmd ) =
+                                previousFields.load input (Product loc previousFieldNodes)
                         in
-                        case newPreviousOptionsNode of
+                        case newPreviousFieldsNode of
                             Product _ nodes ->
                                 ( Product loc (newThisOptionNode :: nodes)
-                                , Cmd.batch [ thisOptionCmd, previousOptionsCmd ]
+                                , Cmd.batch [ thisOptionCmd, previousFieldsCmd ]
                                 )
 
                             _ ->
@@ -1741,18 +1741,18 @@ andMap getInput (Field thisOptionField) (Field previousOptionFields) =
         , update =
             \msg model ->
                 case model of
-                    Product location (thisOptionModel :: previousOptionModels) ->
+                    Product location (thisFieldNode :: previousFieldNodes) ->
                         let
-                            ( newThisOptionModel, thisOptionCmd ) =
-                                thisOptionField.update msg thisOptionModel
+                            ( newThisFieldNode, thisFieldCmd ) =
+                                thisField.update msg thisFieldNode
 
-                            ( newPreviousOptionModels, previousOptionsCmd ) =
-                                previousOptionFields.update msg (Product location previousOptionModels)
+                            ( newPreviousFieldsNode, previousFieldsCmd ) =
+                                previousFields.update msg (Product location previousFieldNodes)
                         in
-                        case newPreviousOptionModels of
+                        case newPreviousFieldsNode of
                             Product _ nodes ->
-                                ( Product location (newThisOptionModel :: nodes)
-                                , Cmd.batch [ previousOptionsCmd, thisOptionCmd ]
+                                ( Product location (newThisFieldNode :: nodes)
+                                , Cmd.batch [ previousFieldsCmd, thisFieldCmd ]
                                 )
 
                             _ ->
@@ -1763,23 +1763,23 @@ andMap getInput (Field thisOptionField) (Field previousOptionFields) =
         , view =
             \config model ->
                 case model of
-                    Product location (thisOptionModel :: previousOptionModels) ->
+                    Product location (thisFieldNode :: previousFieldNodes) ->
                         let
                             thisView =
-                                thisOptionField.view
+                                thisField.view
                                     { config
-                                        | label = thisOptionField.label
-                                        , id = thisOptionModel |> locationFromModel |> locationToString
+                                        | label = thisField.label
+                                        , id = thisFieldNode |> locationFromModel |> locationToString
                                     }
-                                    thisOptionModel
+                                    thisFieldNode
                         in
                         case
-                            previousOptionFields.view
+                            previousFields.view
                                 { config
-                                    | label = previousOptionFields.label
+                                    | label = previousFields.label
                                     , id = "never used"
                                 }
-                                (Product location previousOptionModels)
+                                (Product location previousFieldNodes)
                         of
                             ViewNone ->
                                 thisView
@@ -1795,10 +1795,10 @@ andMap getInput (Field thisOptionField) (Field previousOptionFields) =
         , subscriptions =
             \model ->
                 case model of
-                    Product location (thisOptionModel :: previousOptionModels) ->
+                    Product location (thisFieldNode :: previousFieldNodes) ->
                         Sub.batch
-                            [ previousOptionFields.subscriptions (Product location previousOptionModels)
-                            , thisOptionField.subscriptions thisOptionModel
+                            [ previousFields.subscriptions (Product location previousFieldNodes)
+                            , thisField.subscriptions thisFieldNode
                             ]
 
                     _ ->
@@ -1806,14 +1806,14 @@ andMap getInput (Field thisOptionField) (Field previousOptionFields) =
         , submit =
             \checks model ->
                 case model of
-                    Product location (thisOptionModel :: previousOptionModels) ->
+                    Product location (thisFieldNode :: previousFieldNodes) ->
                         case
-                            ( thisOptionField.submit thisOptionField.checks thisOptionModel
-                            , previousOptionFields.submit previousOptionFields.checks (Product location previousOptionModels)
+                            ( thisField.submit thisField.checks thisFieldNode
+                            , previousFields.submit previousFields.checks (Product location previousFieldNodes)
                             )
                         of
-                            ( Ok this, Ok prev ) ->
-                                prev this
+                            ( Ok thisFieldOutput, Ok outputConstructor ) ->
+                                outputConstructor thisFieldOutput
                                     |> runChecks checks model
 
                             ( Ok _, Err previousErrors ) ->
@@ -1835,7 +1835,7 @@ andMap getInput (Field thisOptionField) (Field previousOptionFields) =
         , checks = []
         , send = \_ msg -> never msg
         , intercept = \_ _ -> Nothing
-        , label = previousOptionFields.label
+        , label = previousFields.label
         , maybeId = Nothing
         }
 
