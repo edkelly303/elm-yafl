@@ -332,6 +332,7 @@ import Html.Events as HE
 import List.Extra
 import NestedTuple as NT
 import Regex
+import Result.Extra
 import Task
 
 
@@ -1807,10 +1808,21 @@ andMap getInput (Field thisOptionField) (Field previousOptionFields) =
             \checks model ->
                 case model of
                     Product location (thisOptionModel :: previousOptionLabelsAndModels) ->
-                        Result.map2 (\this prev -> prev this)
-                            (thisOptionField.submit thisOptionField.checks thisOptionModel)
-                            (previousOptionFields.submit previousOptionFields.checks (Product location previousOptionLabelsAndModels))
-                            |> Result.andThen (runChecks checks model)
+                        case
+                            ( thisOptionField.submit thisOptionField.checks thisOptionModel, previousOptionFields.submit previousOptionFields.checks (Product location previousOptionLabelsAndModels) )
+                        of
+                            ( Ok this, Ok prev ) ->
+                                prev this
+                                    |> runChecks checks model
+
+                            ( Ok _, Err prevE ) ->
+                                Err prevE
+
+                            ( Err thisE, Ok _ ) ->
+                                Err thisE
+
+                            ( Err thisE, Err prevE ) ->
+                                Err (prevE ++ thisE)
 
                     _ ->
                         Err
