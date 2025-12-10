@@ -715,8 +715,8 @@ update (Field field) msg (Model meta node) =
     case msg of
         OptionSelected [] n ->
             case node of
-                Product _ ns ->
-                    ( Model { meta | selected = clamp 0 (List.length ns - 1) n } node
+                Product _ _ ->
+                    ( Model { meta | selected = n } node
                     , Cmd.none
                     )
 
@@ -805,8 +805,6 @@ viewWizard :
         { stepView : List (H.Html (Msg formMsg))
         , stepIndex : Int
         , totalSteps : Int
-        , backMsg : Maybe (Msg formMsg)
-        , nextMsg : Maybe (Msg formMsg)
         , selectStepMsg : Int -> Msg formMsg
         }
 viewWizard (Field field) (Model meta model) =
@@ -824,8 +822,6 @@ viewWizard (Field field) (Model meta model) =
 
         default =
             { stepView = []
-            , nextMsg = Nothing
-            , backMsg = Nothing
             , selectStepMsg = OptionSelected []
             , stepIndex = meta.selected
             , totalSteps = 0
@@ -846,18 +842,6 @@ viewWizard (Field field) (Model meta model) =
             in
             { default
                 | stepView = checkDuplicatesErrorView model :: currentPage
-                , nextMsg =
-                    if meta.selected < totalSteps - 1 then
-                        Just (OptionSelected [] (meta.selected + 1))
-
-                    else
-                        Nothing
-                , backMsg =
-                    if meta.selected > 0 then
-                        Just (OptionSelected [] (meta.selected - 1))
-
-                    else
-                        Nothing
                 , totalSteps = totalSteps
             }
 
