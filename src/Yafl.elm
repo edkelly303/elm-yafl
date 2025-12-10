@@ -1,7 +1,7 @@
 module Yafl exposing
     ( Widget
     , Field, defineFields, addWidget, addWidgetWithConfig, endFields
-    , Model, Msg, init, load, update, view, viewWizard, viewStep, countSteps, ViewConfig, Feedback, subscriptions, submit
+    , Model, Msg, init, load, update, ViewConfig, view, Wizard, viewWizard, Feedback, subscriptions, submit
     , succeed, fail, failAt
     , map, contraMap
     , andMap, andThen
@@ -33,14 +33,16 @@ composing self-contained [`Widget`](#Widget)s.
 ### [Turning Fields into forms](#turning-fields-into-forms)
 
 [`Model`](#Model), [`Msg`](#Msg), [`init`](#init), [`load`](#load),
-[`update`](#update), [`view`](#view), [`viewWizard`](#viewWizard), [`ViewConfig`](#ViewConfig),
-[`Feedback`](#Feedback), [`subscriptions`](#subscriptions), [`submit`](#submit)
+[`update`](#update), [`ViewConfig`](#ViewConfig), [`view`](#view),
+[`Wizard`](#Wizard), [`viewWizard`](#viewWizard), [`Feedback`](#Feedback),
+[`subscriptions`](#subscriptions), [`submit`](#submit)
 
 
 ### [Combining Fields](#combining-fields)
 
 [`succeed`](#succeed), [`fail`](#fail), [`failAt`](#failAt), [`map`](#map),
-[`andMap`](#andMap), [`andThen`](#andThen), [`choice`](#choice), [`option`](#option)
+[`andMap`](#andMap), [`andThen`](#andThen), [`choice`](#choice),
+[`option`](#option)
 
 
 ### [Customizing Fields](#customizing-fields)
@@ -228,7 +230,7 @@ Imagine we just want a simple form that allows a user to choose an `Int`:
 
     --> Ok 0
 
-@docs Model, Msg, init, load, update, view, viewWizard, viewStep, countSteps, ViewConfig, Feedback, subscriptions, submit
+@docs Model, Msg, init, load, update, ViewConfig, view, Wizard, viewWizard, Feedback, subscriptions, submit
 
 
 # Combining Fields
@@ -795,18 +797,24 @@ view (Field field) (Model _ model) =
 -}
 
 
+{-| A record produced by `viewWizard`, containing fields that are useful if you
+want to render your form as a multi-step "wizard".
+-}
+type alias Wizard formMsg =
+    { stepView : List (H.Html (Msg formMsg))
+    , stepIndex : Int
+    , totalSteps : Int
+    , selectStepMsg : Int -> Msg formMsg
+    }
+
+
 {-| View your form as a multi-step wizard. This will only work if the top level
 of your form is a product type created with `succeed` and `andMap`.
 -}
 viewWizard :
     Field formModel formMsg id widgetMsg input output
     -> Model formModel output
-    ->
-        { stepView : List (H.Html (Msg formMsg))
-        , stepIndex : Int
-        , totalSteps : Int
-        , selectStepMsg : Int -> Msg formMsg
-        }
+    -> Wizard formMsg
 viewWizard (Field field) (Model meta model) =
     let
         feedback =
@@ -827,7 +835,14 @@ viewWizard (Field field) (Model meta model) =
             , totalSteps = 0
             }
     in
-    case field.view { label = field.label, feedback = feedback, id = locationFromModel model |> locationToString } model of
+    case
+        field.view
+            { label = field.label
+            , feedback = feedback
+            , id = locationFromModel model |> locationToString
+            }
+            model
+    of
         ViewMany v vs ->
             let
                 currentPage =
@@ -847,44 +862,6 @@ viewWizard (Field field) (Model meta model) =
 
         otherView ->
             { default | stepView = checkDuplicatesErrorView model :: toList otherView }
-
-
-viewStep :
-    Int
-    -> Field formModel formMsg id widgetMsg input output
-    -> Model formModel output
-    -> List (H.Html (Msg formMsg))
-viewStep n (Field field) (Model _ node) =
-    let
-        feedback =
-            case field.submit field.checks node of
-                Ok _ ->
-                    []
-
-                Err f ->
-                    f
-    in
-    case field.view { label = field.label, feedback = feedback, id = locationFromModel node |> locationToString } node of
-        ViewMany v vs ->
-            List.Extra.getAt n (List.reverse (viewToList [] v :: List.map (viewToList []) vs))
-                |> Maybe.withDefault []
-
-        v ->
-            viewToList [] v
-
-
-countSteps : Field formModel formMsg id widgetMsg input output -> Int
-countSteps (Field field) =
-    let
-        ( node, _ ) =
-            field.init [] Nothing
-    in
-    case node of
-        Product _ nodes ->
-            List.length nodes
-
-        _ ->
-            1
 
 
 viewToList : List (H.Html (Msg formMsg)) -> View formMsg -> List (H.Html (Msg formMsg))
