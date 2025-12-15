@@ -332,6 +332,7 @@ import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
 import List.Extra
+import Maybe.Extra
 import NestedTuple as NT
 import Regex
 import Task
@@ -344,11 +345,6 @@ type Locator
     | ById String
 
 
-type Location
-    = Located Path
-    | Identified Path String
-
-
 type alias MaybeId =
     Maybe String
 
@@ -356,14 +352,14 @@ type alias MaybeId =
 {-| The top-level model type for your form.
 -}
 type Model formModel output
-    = Model { selected : Int } (Node formModel)
+    = Model { selected : Int, idLookup : Dict.Dict String Path } (Node formModel)
 
 
 type Node formModel
-    = Value Location formModel
-    | Product Location (List (Node formModel))
-    | Sum Location { selected : Int, last : Int } (List ( String, Node formModel ))
-    | Empty EmptyType Location
+    = Value Path formModel
+    | Product Path (List (Node formModel))
+    | Sum Path { selected : Int, last : Int } (List ( String, Node formModel ))
+    | Empty EmptyType Path
 
 
 type EmptyType
@@ -374,7 +370,8 @@ type EmptyType
 {-| The top-level message type for your form.
 -}
 type Msg formMsg
-    = ValueChanged Locator formMsg
+    = ValueChanged Path formMsg
+    | ValueChangedById String formMsg
     | OptionSelected Path Int
     | Noop
 
@@ -390,7 +387,7 @@ type alias Path =
 type Field formModel formMsg id widgetMsg input output
     = Field
         { init :
-            Path -> MaybeId -> ( Node formModel, Cmd (Msg formMsg) )
+            Path -> MaybeId -> ( Node formModel, Cmd (Msg formMsg), List ( String, Path ) )
         , load : Maybe input -> Node formModel -> ( Node formModel, Cmd (Msg formMsg) )
         , update :
             Msg formMsg
@@ -472,12 +469,16 @@ type alias Feedback =
 type alias InternalViewConfig =
     { label : String
     , id : String
-    , feedback : List InternalFeedback
+    , feedback : List LocatedFeedback
     }
 
 
 type alias InternalFeedback =
     { message : String, fail : Bool, locator : Locator }
+
+
+type alias LocatedFeedback =
+    { message : String, fail : Bool, path : Path }
 
 
 
@@ -509,52 +510,27 @@ init :
     -> ( Model formModel output, Cmd (Msg formMsg) )
 init (Field field) =
     let
-        ( node, cmd ) =
+        ( node, cmd, idLookup ) =
             field.init [ 0 ] field.maybeId
     in
-    ( Model { selected = 0 } node, cmd )
+    ( Model { selected = 0, idLookup = Dict.fromList idLookup } node, cmd )
 
 
 {-| Check that a form doesn't contain fields with duplicate identifiers.
 -}
 isFormValid : Field formModel formMsg id widgetMsg input output -> Bool
 isFormValid field =
+    List.isEmpty (checkDuplicateIds field)
+
+
+checkDuplicateIds : Field formModel formMsg id widgetMsg input output -> List ( String, Int )
+checkDuplicateIds (Field field) =
     let
-        check (Model _ node) =
-            List.isEmpty (checkDuplicateIds node)
+        ( _, _, lookups ) =
+            field.init [ 0 ] field.maybeId
     in
-    init field
-        |> Tuple.first
-        |> check
-
-
-checkDuplicateIds : Node a -> List ( String, Int )
-checkDuplicateIds node =
-    let
-        locationToId l =
-            case l of
-                Identified _ id_ ->
-                    Just id_
-
-                Located _ ->
-                    Nothing
-
-        help output n =
-            case n of
-                Value loc _ ->
-                    locationToId loc :: output
-
-                Product loc ns ->
-                    locationToId loc :: List.concatMap (help []) ns ++ output
-
-                Sum loc _ ns ->
-                    locationToId loc :: List.concatMap (Tuple.second >> help []) ns ++ output
-
-                Empty _ loc ->
-                    locationToId loc :: output
-    in
-    help [] node
-        |> List.filterMap identity
+    lookups
+        |> List.map (\( id_, _ ) -> id_)
         |> List.Extra.frequencies
         |> List.filter (\( _, count ) -> count > 1)
 
@@ -725,6 +701,16 @@ update (Field field) msg (Model meta node) =
                 _ ->
                     ( Model meta node, Cmd.none )
 
+        ValueChangedById id_ widgetMsg ->
+            case Dict.get id_ meta.idLookup of
+                Just path ->
+                    field.update (ValueChanged path widgetMsg) node
+                        |> Tuple.mapFirst (Model meta)
+
+                Nothing ->
+                    -- this should be impossible
+                    ( Model meta node, Cmd.none )
+
         _ ->
             field.update msg node
                 |> Tuple.mapFirst (Model meta)
@@ -763,21 +749,16 @@ update (Field field) msg (Model meta node) =
 
 -}
 view : Field formModel formMsg id widgetMsg input output -> Model formModel output -> List (H.Html (Msg formMsg))
-view (Field field) (Model _ model) =
+view (Field field) (Model meta model) =
     let
         feedback =
-            case field.submit field.checks model of
-                Ok _ ->
-                    []
-
-                Err f ->
-                    f
+            locateFeedback (Field field) (Model meta model)
     in
-    checkDuplicatesErrorView model
+    checkDuplicatesErrorView (Field field)
         :: (field.view
                 { label = field.label
                 , feedback = feedback
-                , id = locationFromModel model |> locationToString
+                , id = pathFromModel model |> pathToString
                 }
                 model
                 |> viewToList []
@@ -818,12 +799,7 @@ viewWizard :
 viewWizard (Field field) (Model meta model) =
     let
         feedback =
-            case field.submit field.checks model of
-                Ok _ ->
-                    []
-
-                Err f ->
-                    f
+            locateFeedback (Field field) (Model meta model)
 
         toList =
             viewToList []
@@ -839,7 +815,7 @@ viewWizard (Field field) (Model meta model) =
         field.view
             { label = field.label
             , feedback = feedback
-            , id = locationFromModel model |> locationToString
+            , id = pathFromModel model |> pathToString
             }
             model
     of
@@ -856,12 +832,45 @@ viewWizard (Field field) (Model meta model) =
                     List.length (v :: vs)
             in
             { default
-                | stepView = checkDuplicatesErrorView model :: currentPage
+                | stepView = checkDuplicatesErrorView (Field field) :: currentPage
                 , totalSteps = totalSteps
             }
 
         otherView ->
-            { default | stepView = checkDuplicatesErrorView model :: toList otherView }
+            { default | stepView = checkDuplicatesErrorView (Field field) :: toList otherView }
+
+
+locateFeedback :
+    Field formModel formMsg id widgetMsg input output
+    -> Model formModel output
+    -> List LocatedFeedback
+locateFeedback (Field field) (Model meta model) =
+    case field.submit field.checks model of
+        Ok _ ->
+            []
+
+        Err fdbk ->
+            fdbk
+                |> List.filterMap
+                    (\f ->
+                        case f.locator of
+                            ById id ->
+                                Dict.get id meta.idLookup
+                                    |> Maybe.map
+                                        (\path ->
+                                            { message = f.message
+                                            , fail = f.fail
+                                            , path = path
+                                            }
+                                        )
+
+                            ByPath path ->
+                                Just
+                                    { message = f.message
+                                    , fail = f.fail
+                                    , path = path
+                                    }
+                    )
 
 
 viewToList : List (H.Html (Msg formMsg)) -> View formMsg -> List (H.Html (Msg formMsg))
@@ -877,9 +886,9 @@ viewToList acc v =
             List.foldl (\v_ acc_ -> viewToList acc_ v_) acc (one :: more)
 
 
-checkDuplicatesErrorView : Node formModel -> H.Html msg
-checkDuplicatesErrorView model =
-    case checkDuplicateIds model of
+checkDuplicatesErrorView : Field formModel formMsg id widgetMsg input output -> H.Html msg
+checkDuplicatesErrorView (Field field) =
+    case checkDuplicateIds (Field field) of
         [] ->
             H.text ""
 
@@ -977,7 +986,12 @@ submit (Field field) (Model _ model) =
         |> Result.mapError
             (List.map
                 (\{ message, locator } ->
-                    ( locatorToString locator
+                    ( case locator of
+                        ById id_ ->
+                            id_
+
+                        ByPath path ->
+                            pathToString path
                     , message
                     )
                 )
@@ -1357,7 +1371,12 @@ insertHtml inserter html_ (Field field) =
 succeed : output -> Field formModel formMsg Never Never input output
 succeed output =
     Field
-        { init = \path maybeId -> ( Empty Succeed (newLocation path maybeId), Cmd.none )
+        { init =
+            \path maybeId ->
+                ( Empty Succeed path
+                , Cmd.none
+                , Maybe.map (\id -> ( id, path )) maybeId |> Maybe.Extra.toList
+                )
         , load = \_ model -> ( model, Cmd.none )
         , update = \_ model -> ( model, Cmd.none )
         , view = \_ _ -> ViewNone
@@ -1404,13 +1423,18 @@ succeed output =
 fail : String -> Field formModel formMsg Never Never input output
 fail e =
     Field
-        { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
+        { init =
+            \path maybeId ->
+                ( Empty Fail path
+                , Cmd.none
+                , Maybe.map (\id -> ( id, path )) maybeId |> Maybe.Extra.toList
+                )
         , load = \_ model -> ( model, Cmd.none )
         , update = \_ model -> ( model, Cmd.none )
         , view =
             \{ feedback } model ->
                 ViewOne <|
-                    case List.filter (\f -> isLocated f.locator (locationFromModel model)) feedback of
+                    case List.filter (\f -> f.path == pathFromModel model) feedback of
                         [] ->
                             []
 
@@ -1463,13 +1487,18 @@ failAt :
     -> Field formModel formMsg Never Never input2 output2
 failAt (Field failField) e =
     Field
-        { init = \path maybeId -> ( Empty Fail (newLocation path maybeId), Cmd.none )
+        { init =
+            \path maybeId ->
+                ( Empty Fail path
+                , Cmd.none
+                , Maybe.map (\id -> ( id, path )) maybeId |> Maybe.Extra.toList
+                )
         , load = \_ model -> ( model, Cmd.none )
         , update = \_ model -> ( model, Cmd.none )
         , view =
             \{ feedback } model ->
                 ViewOne <|
-                    case List.filter (\f -> isLocated f.locator (locationFromModel model)) feedback of
+                    case List.filter (\f -> f.path == pathFromModel model) feedback of
                         [] ->
                             []
 
@@ -1642,40 +1671,43 @@ andMap :
 andMap getInput (Field thisField) (Field previousFields) =
     Field
         { init =
-            \path maybeId ->
+            \path _ ->
                 let
-                    ( previousFieldsModel, previousFieldsCmd ) =
+                    ( previousFieldsModel, previousFieldsCmd, previousFieldsLookups ) =
                         previousFields.init path previousFields.maybeId
                 in
                 case previousFieldsModel of
                     Product location previousFieldNodes ->
                         let
-                            ( thisFieldNode, thisFieldCmd ) =
+                            ( thisFieldNode, thisFieldCmd, thisFieldLookups ) =
                                 thisField.init (List.length previousFieldNodes :: path) thisField.maybeId
                         in
                         ( Product location (thisFieldNode :: previousFieldNodes)
                         , Cmd.batch [ previousFieldsCmd, thisFieldCmd ]
+                        , thisFieldLookups ++ previousFieldsLookups
                         )
 
                     Empty _ _ ->
                         let
-                            ( thisFieldNode, thisFieldCmd ) =
+                            ( thisFieldNode, thisFieldCmd, thisFieldLookups ) =
                                 thisField.init (0 :: path) thisField.maybeId
                         in
-                        ( Product (newLocation path maybeId) [ thisFieldNode ]
+                        ( Product path [ thisFieldNode ]
                         , thisFieldCmd
+                        , thisFieldLookups ++ previousFieldsLookups
                         )
 
                     _ ->
                         let
-                            ( newPreviousFieldsModel, _ ) =
+                            ( newPreviousFieldsModel, _, newPreviousFieldsLookups ) =
                                 previousFields.init (0 :: path) previousFields.maybeId
 
-                            ( thisFieldModel, thisFieldCmd ) =
+                            ( thisFieldModel, thisFieldCmd, thisFieldLookups ) =
                                 thisField.init (1 :: path) thisField.maybeId
                         in
-                        ( Product (newLocation path maybeId) [ thisFieldModel, newPreviousFieldsModel ]
+                        ( Product path [ thisFieldModel, newPreviousFieldsModel ]
                         , Cmd.batch [ previousFieldsCmd, thisFieldCmd ]
+                        , thisFieldLookups ++ newPreviousFieldsLookups
                         )
         , load =
             \input model ->
@@ -1730,7 +1762,7 @@ andMap getInput (Field thisField) (Field previousFields) =
                                 thisField.view
                                     { config
                                         | label = thisField.label
-                                        , id = thisFieldNode |> locationFromModel |> locationToString
+                                        , id = thisFieldNode |> pathFromModel |> pathToString
                                     }
                                     thisFieldNode
                         in
@@ -1919,7 +1951,12 @@ with `option`
 choice : Field model formMsg Never Never { selected : Maybe Int, options : Maybe options } value
 choice =
     Field
-        { init = \path maybeId -> ( Sum (newLocation path maybeId) { selected = 0, last = -1 } [], Cmd.none )
+        { init =
+            \path maybeId ->
+                ( Sum path { selected = 0, last = -1 } []
+                , Cmd.none
+                , Maybe.map (\id -> ( id, path )) maybeId |> Maybe.Extra.toList
+                )
         , load =
             \input model ->
                 case ( Maybe.andThen .selected input, model ) of
@@ -1999,13 +2036,14 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
         { init =
             \path _ ->
                 case previousOptionFields.init path previousOptionFields.maybeId of
-                    ( Sum location meta previousOptions, previousOptionsCmd ) ->
+                    ( Sum location meta previousOptions, previousOptionsCmd, previousOptionsLookups ) ->
                         let
-                            ( thisOptionModel, thisOptionCmd ) =
+                            ( thisOptionModel, thisOptionCmd, thisOptionLookups ) =
                                 thisOptionField.init (List.length previousOptions :: path) thisOptionField.maybeId
                         in
                         ( Sum location { meta | last = meta.last + 1 } (( thisOptionLabel, thisOptionModel ) :: previousOptions)
                         , Cmd.batch [ previousOptionsCmd, thisOptionCmd ]
+                        , thisOptionLookups ++ previousOptionsLookups
                         )
 
                     _ ->
@@ -2079,7 +2117,7 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
                                     [ H.input
                                         [ HA.type_ "radio"
                                         , HA.name config.label
-                                        , HE.onClick (OptionSelected (locationToPath location) idx)
+                                        , HE.onClick (OptionSelected location idx)
                                         , HA.checked (meta.selected == idx)
                                         ]
                                         []
@@ -2094,7 +2132,7 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
 
                             viewOptionSelector =
                                 if meta.last == List.length previousOptionLabelsAndModels then
-                                    H.fieldset [ HA.id (locationToString location) ]
+                                    H.fieldset [ HA.id (pathToString location) ]
                                         (H.legend [] [ H.text config.label ] :: List.indexedMap radio labels)
 
                                 else
@@ -2105,7 +2143,7 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
                                     thisOptionField.view
                                         { config
                                             | label = thisOptionField.label
-                                            , id = thisOptionModel |> locationFromModel |> locationToString
+                                            , id = thisOptionModel |> pathFromModel |> pathToString
                                         }
                                         thisOptionModel
 
@@ -2706,23 +2744,23 @@ convertToField args =
         { init =
             \path maybeId ->
                 let
-                    location =
-                        newLocation path maybeId
+                    ( model, cmd ) =
+                        args.init
                 in
-                args.init
-                    |> Tuple.mapBoth
-                        (\model -> Value location model)
-                        (\cmd -> Cmd.map (ValueChanged (locationToLocator location)) cmd)
+                ( Value path model
+                , Cmd.map (ValueChanged path) cmd
+                , Maybe.map (\id -> ( id, path )) maybeId |> Maybe.Extra.toList
+                )
         , load =
             \input model ->
                 case ( input, model ) of
-                    ( Just widgetMsg, Value location innerModel ) ->
+                    ( Just widgetMsg, Value path innerModel ) ->
                         let
                             ( newModel, cmd ) =
                                 args.load widgetMsg innerModel
                         in
-                        ( Value location newModel
-                        , Cmd.map (ValueChanged (locationToLocator location)) cmd
+                        ( Value path newModel
+                        , Cmd.map (ValueChanged path) cmd
                         )
 
                     _ ->
@@ -2733,13 +2771,13 @@ convertToField args =
                     Value location innerModel ->
                         case msg of
                             ValueChanged locator widgetMsg ->
-                                if isLocated locator location then
+                                if locator == location then
                                     let
                                         ( newModel, cmd ) =
                                             args.update widgetMsg innerModel
                                     in
                                     ( Value location newModel
-                                    , Cmd.map (ValueChanged (locationToLocator location)) cmd
+                                    , Cmd.map (ValueChanged location) cmd
                                     )
 
                                 else
@@ -2754,12 +2792,12 @@ convertToField args =
             \viewConfig model ->
                 let
                     location =
-                        locationFromModel model
+                        pathFromModel model
 
                     relevantFeedback =
                         List.filterMap
                             (\f ->
-                                if isLocated f.locator location then
+                                if f.path == location then
                                     Just f.message
 
                                 else
@@ -2770,14 +2808,14 @@ convertToField args =
                     ( model_, mapper ) =
                         case model of
                             Value _ model__ ->
-                                ( model__, ValueChanged (locationToLocator location) )
+                                ( model__, ValueChanged location )
 
                             _ ->
                                 ( args.blankModel, always Noop )
                 in
                 args.view
                     { feedback = relevantFeedback
-                    , id = locationToString location
+                    , id = pathToString location
                     , label = viewConfig.label
                     }
                     model_
@@ -2786,14 +2824,14 @@ convertToField args =
         , submit =
             \checks model ->
                 case model of
-                    Value location model_ ->
+                    Value path model_ ->
                         args.submit model_
                             |> Result.mapError
                                 (\errs ->
                                     List.map
                                         (\err ->
                                             { err
-                                                | locator = locationToLocator location
+                                                | locator = ByPath path
                                             }
                                         )
                                         errs
@@ -2808,7 +2846,7 @@ convertToField args =
                 case model of
                     Value location model_ ->
                         args.subscriptions model_
-                            |> Sub.map (ValueChanged (locationToLocator location))
+                            |> Sub.map (ValueChanged location)
 
                     _ ->
                         Sub.none
@@ -2819,11 +2857,11 @@ convertToField args =
                         Noop
 
                     Just id_ ->
-                        ValueChanged (ById id_) (args.send msg)
+                        ValueChangedById id_ (args.send msg)
         , intercept =
             \maybeId msg ->
                 case ( maybeId, msg ) of
-                    ( Just id_, ValueChanged (ById msgId) msgTuple ) ->
+                    ( Just id_, ValueChangedById msgId msgTuple ) ->
                         if msgId == id_ then
                             args.intercept msgTuple
 
@@ -2915,16 +2953,6 @@ endFolder5 =
 -}
 
 
-locationToString : Location -> String
-locationToString location =
-    case location of
-        Located path ->
-            pathToString path
-
-        Identified _ id_ ->
-            id_
-
-
 pathToString : List Int -> String
 pathToString path =
     path
@@ -2933,18 +2961,8 @@ pathToString path =
         |> String.join "."
 
 
-newLocation : Path -> Maybe String -> Location
-newLocation path maybeId =
-    case maybeId of
-        Nothing ->
-            Located path
-
-        Just id_ ->
-            Identified path id_
-
-
-locationFromModel : Node model -> Location
-locationFromModel model =
+pathFromModel : Node model -> Path
+pathFromModel model =
     case model of
         Value loc _ ->
             loc
@@ -2959,60 +2977,9 @@ locationFromModel model =
             loc
 
 
-pathFromModel : Node model -> Path
-pathFromModel =
-    locationFromModel >> locationToPath
-
-
-locationToPath : Location -> Path
-locationToPath location =
-    case location of
-        Located path_ ->
-            path_
-
-        Identified path_ _ ->
-            path_
-
-
-isLocated : Locator -> Location -> Bool
-isLocated locator location =
-    case ( locator, location ) of
-        ( ByPath path1, Located path2 ) ->
-            path1 == path2
-
-        ( ByPath path1, Identified path2 _ ) ->
-            path1 == path2
-
-        ( ById address1, Identified _ address2 ) ->
-            address1 == address2
-
-        ( ById _, Located _ ) ->
-            False
-
-
-locationToLocator : Location -> Locator
-locationToLocator location =
-    case location of
-        Located path ->
-            ByPath path
-
-        Identified _ id_ ->
-            ById id_
-
-
 locatorFromModel : Node model -> Locator
 locatorFromModel =
-    locationFromModel >> locationToLocator
-
-
-locatorToString : Locator -> String
-locatorToString locator =
-    case locator of
-        ById id_ ->
-            id_
-
-        ByPath path ->
-            pathToString path
+    pathFromModel >> ByPath
 
 
 
@@ -3056,33 +3023,33 @@ toDOT debugToString (Model _ model) =
                     { label = "Fail", shape = "octagon" }
 
         nodeLabel loc innerLabel =
-            "\"" ++ locationToString loc ++ ": " ++ innerLabel ++ "\""
+            "\"" ++ pathToString loc ++ ": " ++ innerLabel ++ "\""
 
         toPathsAndLabels model_ =
             case model_ of
                 Value loc val ->
-                    [ ( locationToPath loc
+                    [ ( loc
                       , nodeLabel loc ("Value: " ++ match val)
                       , "oval"
                       )
                     ]
 
                 Product loc ms ->
-                    ( locationToPath loc
+                    ( loc
                     , nodeLabel loc "Product"
                     , "square"
                     )
                         :: List.concatMap toPathsAndLabels ms
 
                 Sum loc _ ms ->
-                    ( locationToPath loc
+                    ( loc
                     , nodeLabel loc "Choice"
                     , "diamond"
                     )
                         :: List.concatMap (\( _, m ) -> toPathsAndLabels m) ms
 
                 Empty typ loc ->
-                    [ ( locationToPath loc
+                    [ ( loc
                       , nodeLabel loc (emptyTypeToString typ).label
                       , (emptyTypeToString typ).shape
                       )
