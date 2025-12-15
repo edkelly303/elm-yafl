@@ -1713,12 +1713,12 @@ andMap getInput (Field thisField) (Field previousFields) =
                         previousFields.init path previousFields.maybeId
                 in
                 case previousFieldsModel of
-                    Product location previousFieldNodes ->
+                    Product previousPath previousFieldNodes ->
                         let
                             ( thisFieldNode, thisFieldCmd, thisFieldLookups ) =
                                 thisField.init (List.length previousFieldNodes :: path) thisField.maybeId
                         in
-                        ( Product location (thisFieldNode :: previousFieldNodes)
+                        ( Product previousPath (thisFieldNode :: previousFieldNodes)
                         , Cmd.batch [ previousFieldsCmd, thisFieldCmd ]
                         , thisFieldLookups ++ previousFieldsLookups
                         )
@@ -1748,17 +1748,17 @@ andMap getInput (Field thisField) (Field previousFields) =
         , load =
             \input model ->
                 case ( input |> Maybe.andThen getInput, model ) of
-                    ( thisFieldInput, Product loc (thisFieldNode :: previousFieldNodes) ) ->
+                    ( thisFieldInput, Product path (thisFieldNode :: previousFieldNodes) ) ->
                         let
                             ( newThisOptionNode, thisOptionCmd ) =
                                 thisField.load thisFieldInput thisFieldNode
 
                             ( newPreviousFieldsNode, previousFieldsCmd ) =
-                                previousFields.load input (Product loc previousFieldNodes)
+                                previousFields.load input (Product path previousFieldNodes)
                         in
                         case newPreviousFieldsNode of
                             Product _ nodes ->
-                                ( Product loc (newThisOptionNode :: nodes)
+                                ( Product path (newThisOptionNode :: nodes)
                                 , Cmd.batch [ thisOptionCmd, previousFieldsCmd ]
                                 )
 
@@ -1770,17 +1770,17 @@ andMap getInput (Field thisField) (Field previousFields) =
         , update =
             \msg model ->
                 case model of
-                    Product location (thisFieldNode :: previousFieldNodes) ->
+                    Product path (thisFieldNode :: previousFieldNodes) ->
                         let
                             ( newThisFieldNode, thisFieldCmd ) =
                                 thisField.update msg thisFieldNode
 
                             ( newPreviousFieldsNode, previousFieldsCmd ) =
-                                previousFields.update msg (Product location previousFieldNodes)
+                                previousFields.update msg (Product path previousFieldNodes)
                         in
                         case newPreviousFieldsNode of
                             Product _ nodes ->
-                                ( Product location (newThisFieldNode :: nodes)
+                                ( Product path (newThisFieldNode :: nodes)
                                 , Cmd.batch [ previousFieldsCmd, thisFieldCmd ]
                                 )
 
@@ -1792,7 +1792,7 @@ andMap getInput (Field thisField) (Field previousFields) =
         , view =
             \config model ->
                 case model of
-                    Product location (thisFieldNode :: previousFieldNodes) ->
+                    Product path (thisFieldNode :: previousFieldNodes) ->
                         let
                             thisView =
                                 thisField.view
@@ -1808,7 +1808,7 @@ andMap getInput (Field thisField) (Field previousFields) =
                                     | label = previousFields.label
                                     , id = "never used"
                                 }
-                                (Product location previousFieldNodes)
+                                (Product path previousFieldNodes)
                         of
                             ViewNone ->
                                 thisView
@@ -1824,9 +1824,9 @@ andMap getInput (Field thisField) (Field previousFields) =
         , subscriptions =
             \model ->
                 case model of
-                    Product location (thisFieldNode :: previousFieldNodes) ->
+                    Product path (thisFieldNode :: previousFieldNodes) ->
                         Sub.batch
-                            [ previousFields.subscriptions (Product location previousFieldNodes)
+                            [ previousFields.subscriptions (Product path previousFieldNodes)
                             , thisField.subscriptions thisFieldNode
                             ]
 
@@ -1835,10 +1835,10 @@ andMap getInput (Field thisField) (Field previousFields) =
         , submit =
             \checks model ->
                 case model of
-                    Product location (thisFieldNode :: previousFieldNodes) ->
+                    Product path (thisFieldNode :: previousFieldNodes) ->
                         case
                             ( thisField.submit thisField.checks thisFieldNode
-                            , previousFields.submit previousFields.checks (Product location previousFieldNodes)
+                            , previousFields.submit previousFields.checks (Product path previousFieldNodes)
                             )
                         of
                             ( Ok thisFieldOutput, Ok outputConstructor ) ->
@@ -1996,8 +1996,8 @@ choice =
         , load =
             \input model ->
                 case ( Maybe.andThen .selected input, model ) of
-                    ( Just selected, Sum loc meta nodes ) ->
-                        ( Sum loc { meta | selected = selected } nodes
+                    ( Just selected, Sum path meta nodes ) ->
+                        ( Sum path { meta | selected = selected } nodes
                         , Cmd.none
                         )
 
@@ -2072,12 +2072,12 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
         { init =
             \path _ ->
                 case previousOptionFields.init path previousOptionFields.maybeId of
-                    ( Sum location meta previousOptions, previousOptionsCmd, previousOptionsLookups ) ->
+                    ( Sum previousPath meta previousOptions, previousOptionsCmd, previousOptionsLookups ) ->
                         let
                             ( thisOptionModel, thisOptionCmd, thisOptionLookups ) =
                                 thisOptionField.init (List.length previousOptions :: path) thisOptionField.maybeId
                         in
-                        ( Sum location { meta | last = meta.last + 1 } (( thisOptionLabel, thisOptionModel ) :: previousOptions)
+                        ( Sum previousPath { meta | last = meta.last + 1 } (( thisOptionLabel, thisOptionModel ) :: previousOptions)
                         , Cmd.batch [ previousOptionsCmd, thisOptionCmd ]
                         , thisOptionLookups ++ previousOptionsLookups
                         )
@@ -2087,17 +2087,17 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
         , load =
             \input model ->
                 case ( input |> Maybe.andThen .options |> Maybe.andThen getInput, model ) of
-                    ( thisOptionInput, Sum loc sel (( _, thisOptionNode ) :: previousOptionLabelsAndNodes) ) ->
+                    ( thisOptionInput, Sum path sel (( _, thisOptionNode ) :: previousOptionLabelsAndNodes) ) ->
                         let
                             ( newThisOptionNode, thisOptionCmd ) =
                                 thisOptionField.load thisOptionInput thisOptionNode
 
                             ( newPreviousOptionsNode, previousOptionsCmd ) =
-                                previousOptionFields.load input (Sum loc sel previousOptionLabelsAndNodes)
+                                previousOptionFields.load input (Sum path sel previousOptionLabelsAndNodes)
                         in
                         case newPreviousOptionsNode of
                             Sum _ newSel newPreviousOptionLabelsAndNodes ->
-                                ( Sum loc newSel (( thisOptionLabel, newThisOptionNode ) :: newPreviousOptionLabelsAndNodes)
+                                ( Sum path newSel (( thisOptionLabel, newThisOptionNode ) :: newPreviousOptionLabelsAndNodes)
                                 , Cmd.batch [ thisOptionCmd, previousOptionsCmd ]
                                 )
 
@@ -2109,7 +2109,7 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
         , update =
             \msg model ->
                 case model of
-                    Sum location meta ((( _, thisOptionModel ) :: previousOptionLabelsAndModels) as options) ->
+                    Sum path meta ((( _, thisOptionModel ) :: previousOptionLabelsAndModels) as options) ->
                         let
                             fallback =
                                 let
@@ -2117,11 +2117,11 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
                                         thisOptionField.update msg thisOptionModel
 
                                     ( newPreviousOptionModels, previousOptionsCmd ) =
-                                        previousOptionFields.update msg (Sum location meta previousOptionLabelsAndModels)
+                                        previousOptionFields.update msg (Sum path meta previousOptionLabelsAndModels)
                                 in
                                 case newPreviousOptionModels of
                                     Sum _ _ newPreviousOptionLabelsAndModels ->
-                                        ( Sum location meta (( thisOptionLabel, newThisOptionModel ) :: newPreviousOptionLabelsAndModels)
+                                        ( Sum path meta (( thisOptionLabel, newThisOptionModel ) :: newPreviousOptionLabelsAndModels)
                                         , Cmd.batch [ previousOptionsCmd, thisOptionCmd ]
                                         )
 
@@ -2129,9 +2129,9 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
                                         ( model, Cmd.none )
                         in
                         case msg of
-                            OptionSelected path selected ->
-                                if path == pathFromModel model then
-                                    ( Sum location { meta | selected = selected } options
+                            OptionSelected msgPath selected ->
+                                if msgPath == path then
+                                    ( Sum path { meta | selected = selected } options
                                     , Cmd.none
                                     )
 
@@ -2146,14 +2146,14 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
         , view =
             \config model ->
                 case model of
-                    Sum location meta (( _, thisOptionModel ) :: previousOptionLabelsAndModels) ->
+                    Sum path meta (( _, thisOptionModel ) :: previousOptionLabelsAndModels) ->
                         let
                             radio idx lbl =
                                 H.label [ HA.class "yafl-radio-option" ]
                                     [ H.input
                                         [ HA.type_ "radio"
                                         , HA.name config.label
-                                        , HE.onClick (OptionSelected location idx)
+                                        , HE.onClick (OptionSelected path idx)
                                         , HA.checked (meta.selected == idx)
                                         ]
                                         []
@@ -2168,7 +2168,7 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
 
                             viewOptionSelector =
                                 if meta.last == List.length previousOptionLabelsAndModels then
-                                    H.fieldset [ HA.id (pathToString location) ]
+                                    H.fieldset [ HA.id (pathToString path) ]
                                         (H.legend [] [ H.text config.label ] :: List.indexedMap radio labels)
 
                                 else
@@ -2189,7 +2189,7 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
                                             | label = previousOptionFields.label
                                             , id = "never used"
                                         }
-                                        (Sum location meta previousOptionLabelsAndModels)
+                                        (Sum path meta previousOptionLabelsAndModels)
                         in
                         case viewSelectedOption of
                             ViewOne v ->
@@ -2206,9 +2206,9 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
         , subscriptions =
             \model ->
                 case model of
-                    Sum location meta (( _, thisOptionModel ) :: previousOptionLabelsAndModels) ->
+                    Sum path meta (( _, thisOptionModel ) :: previousOptionLabelsAndModels) ->
                         Sub.batch
-                            [ previousOptionFields.subscriptions (Sum location meta previousOptionLabelsAndModels)
+                            [ previousOptionFields.subscriptions (Sum path meta previousOptionLabelsAndModels)
                             , thisOptionField.subscriptions thisOptionModel
                             ]
 
@@ -2217,12 +2217,12 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
         , submit =
             \_ model ->
                 case model of
-                    Sum location meta (( _, thisOptionModel ) :: previousOptionLabelsAndModels) ->
+                    Sum path meta (( _, thisOptionModel ) :: previousOptionLabelsAndModels) ->
                         if meta.selected == List.length previousOptionLabelsAndModels then
                             thisOptionField.submit thisOptionField.checks thisOptionModel
 
                         else
-                            previousOptionFields.submit previousOptionFields.checks (Sum location meta previousOptionLabelsAndModels)
+                            previousOptionFields.submit previousOptionFields.checks (Sum path meta previousOptionLabelsAndModels)
 
                     _ ->
                         Err
@@ -2804,16 +2804,16 @@ convertToField args =
         , update =
             \msg model ->
                 case model of
-                    Value location innerModel ->
+                    Value path innerModel ->
                         case msg of
                             ValueChanged locator widgetMsg ->
-                                if locator == location then
+                                if locator == path then
                                     let
                                         ( newModel, cmd ) =
                                             args.update widgetMsg innerModel
                                     in
-                                    ( Value location newModel
-                                    , Cmd.map (ValueChanged location) cmd
+                                    ( Value path newModel
+                                    , Cmd.map (ValueChanged path) cmd
                                     )
 
                                 else
@@ -2827,13 +2827,13 @@ convertToField args =
         , view =
             \viewConfig model ->
                 let
-                    location =
+                    path =
                         pathFromModel model
 
                     relevantFeedback =
                         List.filterMap
                             (\f ->
-                                if f.path == location then
+                                if f.path == path then
                                     Just f.message
 
                                 else
@@ -2844,14 +2844,14 @@ convertToField args =
                     ( model_, mapper ) =
                         case model of
                             Value _ model__ ->
-                                ( model__, ValueChanged location )
+                                ( model__, ValueChanged path )
 
                             _ ->
                                 ( args.blankModel, always Noop )
                 in
                 args.view
                     { feedback = relevantFeedback
-                    , id = pathToString location
+                    , id = pathToString path
                     , label = viewConfig.label
                     }
                     model_
@@ -2880,9 +2880,9 @@ convertToField args =
         , subscriptions =
             \model ->
                 case model of
-                    Value location model_ ->
+                    Value path model_ ->
                         args.subscriptions model_
-                            |> Sub.map (ValueChanged location)
+                            |> Sub.map (ValueChanged path)
 
                     _ ->
                         Sub.none
@@ -2978,12 +2978,12 @@ endFolder5 =
 
 
 {-
-   db       .d88b.   .o88b.  .d8b.  d888888b d888888b  .d88b.  d8b   db
-   88      .8P  Y8. d8P  Y8 d8' `8b `~~88~~'   `88'   .8P  Y8. 888o  88
-   88      88    88 8P      88ooo88    88       88    88    88 88V8o 88
-   88      88    88 8b      88~~~88    88       88    88    88 88 V8o88
-   88booo. `8b  d8' Y8b  d8 88   88    88      .88.   `8b  d8' 88  V888
-   Y88888P  `Y88P'   `Y88P' YP   YP    YP    Y888888P  `Y88P'  VP   V8P
+   d8888b.  .d8b.  d888888b db   db
+   88  `8D d8' `8b `~~88~~' 88   88
+   88oodD' 88ooo88    88    88ooo88
+   88~~~   88~~~88    88    88~~~88
+   88      88   88    88    88   88
+   88      YP   YP    YP    YP   YP
 
 
 -}
@@ -3000,17 +3000,17 @@ pathToString path =
 pathFromModel : Node model -> Path
 pathFromModel model =
     case model of
-        Value loc _ ->
-            loc
+        Value path _ ->
+            path
 
-        Product loc _ ->
-            loc
+        Product path _ ->
+            path
 
-        Sum loc _ _ ->
-            loc
+        Sum path _ _ ->
+            path
 
-        Empty _ loc ->
-            loc
+        Empty _ path ->
+            path
 
 
 locatorFromModel : Node model -> Locator
@@ -3058,35 +3058,35 @@ toDOT debugToString (Model _ model) =
                 Fail ->
                     { label = "Fail", shape = "octagon" }
 
-        nodeLabel loc innerLabel =
-            "\"" ++ pathToString loc ++ ": " ++ innerLabel ++ "\""
+        nodeLabel path innerLabel =
+            "\"" ++ pathToString path ++ ": " ++ innerLabel ++ "\""
 
         toPathsAndLabels model_ =
             case model_ of
-                Value loc val ->
-                    [ ( loc
-                      , nodeLabel loc ("Value: " ++ match val)
+                Value path val ->
+                    [ ( path
+                      , nodeLabel path ("Value: " ++ match val)
                       , "oval"
                       )
                     ]
 
-                Product loc ms ->
-                    ( loc
-                    , nodeLabel loc "Product"
+                Product path ms ->
+                    ( path
+                    , nodeLabel path "Product"
                     , "square"
                     )
                         :: List.concatMap toPathsAndLabels ms
 
-                Sum loc _ ms ->
-                    ( loc
-                    , nodeLabel loc "Choice"
+                Sum path _ ms ->
+                    ( path
+                    , nodeLabel path "Choice"
                     , "diamond"
                     )
                         :: List.concatMap (\( _, m ) -> toPathsAndLabels m) ms
 
-                Empty typ loc ->
-                    [ ( loc
-                      , nodeLabel loc (emptyTypeToString typ).label
+                Empty typ path ->
+                    [ ( path
+                      , nodeLabel path (emptyTypeToString typ).label
                       , (emptyTypeToString typ).shape
                       )
                     ]
