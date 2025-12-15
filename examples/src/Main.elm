@@ -1,11 +1,12 @@
 module Main exposing (main)
 
+import Array
 import Browser
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
 import Yafl
-import Array
+
 
 main =
     Browser.element
@@ -53,31 +54,27 @@ main =
             \( output, model ) ->
                 if Yafl.isFormValid form then
                     let
-                        { stepView, backMsg, nextMsg, stepIndex, totalSteps, selectStepMsg } =
+                        { stepView, stepIndex, totalSteps, selectStepMsg } =
                             Yafl.viewWizard form model
                     in
                     H.form [ HE.onSubmit Nothing ]
                         ((stepView |> List.map (H.map Just))
                             ++ [ H.div []
-                                    [ case backMsg of
-                                        Nothing ->
-                                            H.button [ HA.type_ "button", HA.disabled True ] [ H.text "Back" ]
+                                    [ if stepIndex == 0 then
+                                        H.button [ HA.type_ "button", HA.disabled True ] [ H.text "Back" ]
 
-                                        Just msg ->
-                                            H.button [ HA.type_ "button", HE.onClick (Just msg) ] [ H.text "Back" ]
+                                      else
+                                        H.button [ HA.type_ "button", HE.onClick (Just (selectStepMsg (stepIndex - 1))) ] [ H.text "Back" ]
                                     , H.text (String.fromInt (stepIndex + 1) ++ " of " ++ String.fromInt totalSteps)
-                                    , case nextMsg of
-                                        Nothing ->
-                                            H.input [ HA.type_ "submit", HA.value "Submit" ] []
+                                    , if stepIndex == totalSteps - 1 then
+                                        H.input [ HA.type_ "submit", HA.value "Submit" ] []
 
-                                        Just msg ->
-                                            H.button [ HA.type_ "button", HE.onClick (Just msg) ] [ H.text "Next" ]
+                                      else
+                                        H.button [ HA.type_ "button", HE.onClick (Just (selectStepMsg (stepIndex + 1))) ] [ H.text "Next" ]
                                     ]
                                , H.pre [] [ H.text (Debug.toString output) ]
                                , H.div [] [ H.a [ HA.href "https://dreampuf.github.io/GraphvizOnline" ] [ H.text "Graphviz" ] ]
                                , H.text (Yafl.toDOT Debug.toString model)
-                               , H.div [] (Yafl.viewStep 4 form model) |> H.map Just
-                               , H.text (String.fromInt (Yafl.countSteps form))
                                ]
                         )
 
