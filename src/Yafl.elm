@@ -2841,15 +2841,7 @@ runChecks :
     List ( MaybeId, output2 -> Maybe String )
     -> Node formModel
     -> output2
-    ->
-        Result
-            (List
-                { message : String
-                , fail : Bool
-                , locator : Locator
-                }
-            )
-            output2
+    -> Result (List InternalFeedback) output2
 runChecks checks model output =
     case
         List.filterMap
