@@ -786,6 +786,7 @@ type alias Wizard formMsg =
     , stepIndex : Int
     , totalSteps : Int
     , selectStepMsg : Int -> Msg formMsg
+    , isStepValid : Bool
     }
 
 
@@ -801,6 +802,40 @@ viewWizard (Field field) (Model meta model) =
         feedback =
             locateFeedback (Field field) (Model meta model)
 
+        isStepValid =
+            -- We want to check if any of the feedback relates to fields that
+            -- are descendants of the currently selected field.
+            --
+            -- The currently selected field will always be an immediate child of
+            -- the root node, whose path is `[ 0 ]`, so we know that its path
+            -- will be two digits, like `[ 0, 0 ]`, `[ 1, 0 ]`, etc. and the
+            -- paths of its descendants will always end in `[ ... , 0, 0 ]`, `[
+            -- ... , 1, 0 ]` etc.
+            --
+            -- So, if `meta.selected` is 1, then we want to find any feedback
+            -- items with a path that ends in `[ 1, 0 ]`; if `meta.selected` is
+            -- 2, then we want any that end in `[ 2, 0 ]`, etc.
+            --
+            -- If there isn't any feedback for any of those paths, then we know
+            -- that all the fields for this step of the wizard are valid. So,
+            -- for example, the user can show a "next" button in this case.
+            feedback
+                |> List.filter
+                    (\{ path } ->
+                        case
+                            path
+                                |> List.reverse
+                                |> List.drop 1
+                                |> List.head
+                        of
+                            Nothing ->
+                                False
+
+                            Just idx ->
+                                idx == meta.selected
+                    )
+                |> List.isEmpty
+
         toList =
             viewToList []
 
@@ -809,6 +844,7 @@ viewWizard (Field field) (Model meta model) =
             , selectStepMsg = OptionSelected []
             , stepIndex = meta.selected
             , totalSteps = 0
+            , isStepValid = isStepValid
             }
     in
     case
