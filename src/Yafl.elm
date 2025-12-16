@@ -253,7 +253,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 @docs succeed, fail, failAt
 
 
-## Converting output types
+## Converting input and output types
 
 @docs map, contraMap
 
@@ -406,7 +406,7 @@ type Field formModel formMsg id widgetMsg input output
             Node formModel
             -> Sub (Msg formMsg)
         , send : MaybeId -> widgetMsg -> Msg formMsg
-        , intercept : MaybeId -> Msg formMsg -> Maybe widgetMsg
+        , intercept : Path -> Msg formMsg -> Maybe widgetMsg
         , label : String
         , maybeId : MaybeId
         }
@@ -778,8 +778,28 @@ view (Field field) (Model meta model) =
 -}
 
 
-{-| A record produced by `viewWizard`, containing fields that are useful if you
-want to render your form as a multi-step "wizard".
+{-| A record produced by [`viewWizard`](#viewWizard), containing fields that are
+useful if you want to render your form as a multi-step "wizard".
+
+  - `stepView` is the HTML produced by the view function for the current step of
+    the wizard.
+
+  - `stepIndex` is the zero-indexed number of the current step of the wizard.
+
+  - `totalSteps` is the total number of steps in the wizard.
+
+  - `selectStepMsg` lets you jump to a specified step of the wizard - for
+    example, `selectStepMsg (currentStep + 1)` would move to the next step of
+    the wizard. (In general, you'll want to take care not to let the user move
+    to a `stepIndex` less than 0 or greater than `totalSteps - 1`, but there
+    _are_ possible designs where you might want to do this, so Yafl doesn't
+    guard against it.)
+
+  - `isStepValid` indicates whether all the fields displayed in the current step
+    of the wizard pass validation (i.e. their `submit` functions return an
+    `Ok`). You could use this to decide whether to display a "next" button in
+    the view of the current step.
+
 -}
 type alias Wizard formMsg =
     { stepView : List (H.Html (Msg formMsg))
@@ -790,8 +810,12 @@ type alias Wizard formMsg =
     }
 
 
-{-| View your form as a multi-step wizard. This will only work if the top level
-of your form is a product type created with `succeed` and `andMap`.
+{-| View your form as a multi-step wizard. This will only work if the top-level
+field of your form is a product type created with `succeed` and `andMap`.
+
+`viewWizard` doesn't produce a fully-fledged wizard view; it returns a value of
+type `Wizard`. [Jump over to the `Wizard` docs for an explanation](#Wizard).
+
 -}
 viewWizard :
     Field formModel formMsg id widgetMsg input output
@@ -1276,20 +1300,26 @@ send (Field field) msg =
 {-| Intercept the top-level `Msg` sent to your form, and if it contains a message sent to the specified field, return that message.
 
     import Yafl
-    import Examples exposing (FormModel, FormMsg, fields)
+    import Examples exposing (CounterMsg, FormModel, FormMsg, fields)
 
     myFieldWithId =
-        fields.string
+        fields.counter
             |> Yafl.identifier "any-string-as-long-as-it's-unique"
 
-    Yafl.intercept myFieldWithId
+    model =
+        Yafl.init myFieldWithId
+            |> Tuple.first
 
-    --: Yafl.Msg FormMsg -> Maybe String
+    Yafl.intercept myFieldWithId model
+
+    --: Yafl.Msg FormMsg -> Maybe CounterMsg
 
 -}
-intercept : Field formModel formMsg HasId widgetMsg input output -> Msg formMsg -> Maybe widgetMsg
-intercept (Field field) =
-    field.intercept field.maybeId
+intercept : Field formModel formMsg HasId widgetMsg input fieldOutput -> Model formModel formOutput -> Msg formMsg -> Maybe widgetMsg
+intercept (Field field) (Model meta _) msg =
+    field.maybeId
+        |> Maybe.andThen (\id -> Dict.get id meta.idLookup)
+        |> Maybe.andThen (\path -> field.intercept path msg)
 
 
 
@@ -1584,7 +1614,26 @@ failAt (Field failField) e =
 -}
 
 
-{-| Contramap
+{-| Convert the input of a `Field` from one type to another.
+
+This can feel like a bit of a head-scratcher, but it's useful if you want to
+control how data is loaded into your form with [`load`](#load).
+
+    import Examples exposing (fields)
+    import Yafl
+
+
+    -- Example: tidying up a complex input
+
+    passwordField =
+        Yafl.succeed (\password _ -> password)
+            |> Yafl.andMap .password fields.string
+            |> Yafl.andMap .confirm fields.string
+            |> Yafl.validate (\password confirm -> Maybe.fromBool password == confirm)
+
+    1
+    --> 1
+
 -}
 contraMap :
     (input2 -> input)
@@ -1627,7 +1676,7 @@ type variants.
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
 
-    -- Example 1: Creating a custom type variant
+    -- Example: Creating a custom type variant
 
     type MyCustomType
         = Foo String
@@ -2895,10 +2944,10 @@ convertToField args =
                     Just id_ ->
                         ValueChangedById id_ (args.send msg)
         , intercept =
-            \maybeId msg ->
-                case ( maybeId, msg ) of
-                    ( Just id_, ValueChangedById msgId msgTuple ) ->
-                        if msgId == id_ then
+            \path msg ->
+                case msg of
+                    ValueChanged msgPath msgTuple ->
+                        if msgPath == path then
                             args.intercept msgTuple
 
                         else
