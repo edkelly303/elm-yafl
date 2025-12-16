@@ -1614,25 +1614,64 @@ failAt (Field failField) e =
 -}
 
 
-{-| Convert the input of a `Field` from one type to another.
+{-| Convert the input of a [`Field`](#Field) from one type to another.
 
-This can feel like a bit of a head-scratcher, but it's useful if you want to
-control how data is loaded into your form with [`load`](#load).
+This is useful if you want to control how data is loaded into your form with
+[`load`](#load).
 
-    import Examples exposing (fields)
+    import Examples exposing (fields, FormModel, FormMsg)
     import Yafl
 
-
-    -- Example: tidying up a complex input
-
+    passwordField :
+        Yafl.Field
+            FormModel
+            FormMsg
+            Never
+            Never
+            -- Here's the `input` parameter:
+            { password : Maybe String
+            , confirm : Maybe String
+            }
+            String
     passwordField =
         Yafl.succeed (\password _ -> password)
             |> Yafl.andMap .password fields.string
             |> Yafl.andMap .confirm fields.string
-            |> Yafl.validate (\password confirm -> Maybe.fromBool password == confirm)
+            |> Yafl.validate
+                (\password confirm ->
+                    if password == confirm then
+                        Nothing
+                    else
+                        Just "Passwords need to match"
+                )
 
-    1
-    --> 1
+    -- With the `.password` and `.confirm` functions that we
+    -- pass to `andMap` here, our `Field`'s `input` type
+    -- parameter is a record containing both of those fields.
+    -- By using `contraMap`, we can change the `input` type
+    -- to make the field a bit easier to use.
+
+    passwordFieldThatIsEasierToLoad :
+        Yafl.Field
+            FormModel
+            FormMsg
+            Never
+            Never
+            -- after `contraMap`, the `input` parameter 
+            -- is just a `String`
+            String
+            String
+    passwordFieldThatIsEasierToLoad =
+        passwordField
+            |> Yafl.contraMap
+                (\string ->
+                    { password = Just string
+                    , confirm = Just string
+                    }
+                )
+
+    passwordField --: Yafl.Field FormModel FormMsg Never Never { password : Maybe String, confirm : Maybe String } String
+    passwordFieldThatIsEasierToLoad --: Yafl.Field FormModel FormMsg Never Never String String
 
 -}
 contraMap :

@@ -311,7 +311,37 @@ tests =
                 "contraMap"
                 [ Test.describe
                     "code snippet 0"
-                    [ Test.test "0" (\() -> 1 |> Expect.equal 1) ]
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            let
+                                unused :
+                                    Yafl.Field
+                                        Examples.FormModel
+                                        Examples.FormMsg
+                                        Basics.Never
+                                        Basics.Never
+                                        { password :
+                                            Maybe.Maybe String.String
+                                        , confirm : Maybe.Maybe String.String
+                                        }
+                                        String.String
+                                unused =
+                                    passwordField__Yafl__contraMap_0
+                            in
+                            Expect.pass
+                        )
+                    , Test.test
+                        "1"
+                        (\() ->
+                            let
+                                unused : Yafl.Field Examples.FormModel Examples.FormMsg Basics.Never Basics.Never String.String String.String
+                                unused =
+                                    passwordFieldThatIsEasierToLoad__Yafl__contraMap_0
+                            in
+                            Expect.pass
+                        )
+                    ]
                 ]
             , Test.describe
                 "fail"
@@ -910,12 +940,38 @@ model__Yafl__andMap_0 =
     Yafl.init form__Yafl__andMap_0 |> Tuple.first
 
 
+passwordField__Yafl__contraMap_0 :
+    Yafl.Field
+        Examples.FormModel
+        Examples.FormMsg
+        Basics.Never
+        Basics.Never
+        { password :
+            Maybe.Maybe String.String
+        , confirm : Maybe.Maybe String.String
+        }
+        String.String
 passwordField__Yafl__contraMap_0 =
     Yafl.succeed (\password _ -> password)
         |> Yafl.andMap .password Examples.fields.string
         |> Yafl.andMap .confirm Examples.fields.string
         |> Yafl.validate
-            (\password confirm -> Maybe.fromBool password == confirm)
+            (\password confirm ->
+                if password == confirm then
+                    Maybe.Nothing
+
+                else
+                    Maybe.Just "Passwords need to match"
+            )
+
+
+passwordFieldThatIsEasierToLoad__Yafl__contraMap_0 : Yafl.Field Examples.FormModel Examples.FormMsg Basics.Never Basics.Never String.String String.String
+passwordFieldThatIsEasierToLoad__Yafl__contraMap_0 =
+    passwordField__Yafl__contraMap_0
+        |> Yafl.contraMap
+            (\string ->
+                { password = Maybe.Just string, confirm = Maybe.Just string }
+            )
 
 
 form__Yafl__fail_0 =
