@@ -75,7 +75,7 @@ type alias Person =
     { name : String
     , hasPets : Bool
     , address : Address
-    , settings : ()
+    , settings : ( Bool, Bool, Bool )
     , password : Password
     }
 
@@ -115,6 +115,7 @@ name : Field FieldModel FieldMsg HasId String String String
 name =
     fields.string
         |> label "What is their name?"
+        |> identifier "name"
         |> validate
             (\s ->
                 if String.isEmpty s then
@@ -123,9 +124,8 @@ name =
                 else
                     Nothing
             )
-        |> identifier "name"
-        |> htmlBefore (H.p [] [ H.text "Let's make a Person!" ])
-        |> htmlAfter (H.p [] [ H.text "(and by the way, thanks for coming to my Yafl demo!)" ])
+        |> htmlBefore (H.h1 [] [ H.text "Let's make a Person!" ])
+        |> htmlAfter (H.p [] [ H.small [] [ H.text "(and by the way, thanks for coming to my Yafl demo!)" ] ])
 
 
 hasPets : Field FieldModel FieldMsg NoId Bool Bool Bool
@@ -147,7 +147,7 @@ address :
 address =
     choice
         |> label "What is their address?"
-        |> option "House name" .bar (map HouseName fields.string)
+        |> option "House name" .bar (map HouseName houseName)
         |> option "House number" .baz (map HouseNumber houseNumber)
         |> andThen
             (\ad ->
@@ -160,9 +160,16 @@ address =
             )
 
 
+houseName : Field FieldModel FieldMsg NoId String String String
+houseName =
+    fields.string
+        |> label "What is the name of their house?"
+
+
 houseNumber : Field FieldModel FieldMsg HasId String String Int
 houseNumber =
     fields.string
+        |> label "What's their house number?"
         |> identifier "house-number"
         |> andThen
             (\str ->
@@ -185,9 +192,9 @@ settings :
         , two : Maybe Bool
         , one : Maybe Bool
         }
-        ()
+        ( Bool, Bool, Bool )
 settings =
-    succeed (\_ _ _ -> ())
+    succeed (\a b c -> ( a, b, c ))
         |> andMap .one (fields.bool |> label "one")
         |> andMap .two (fields.bool |> label "two")
         |> andMap .three (fields.bool |> label "three")
@@ -196,7 +203,7 @@ settings =
 password : Field FieldModel FieldMsg Never Never String Password
 password =
     succeed (\p c -> ( p, c ))
-        |> andMap .password fields.string
+        |> andMap .password password_
         |> andMap .confirm confirm
         |> validateAt confirm
             (\( p, c ) ->
@@ -211,10 +218,17 @@ password =
         |> contraMap (\p -> { confirm = Just p, password = Just p })
 
 
+password_ : Field FieldModel FieldMsg NoId String String String
+password_ =
+    fields.string
+        |> label "Whats' their password?"
+
+
 confirm : Field FieldModel FieldMsg HasId String String String
 confirm =
     fields.string
         |> identifier "confirm"
+        |> label "Confirm their password"
 
 
 main : Program () ( Result (List ( String, String )) Person, Model FieldModel Person ) (Maybe (Msg FieldMsg))
@@ -225,12 +239,8 @@ main =
     in
     Browser.element
         { init =
-            \flags ->
+            \() ->
                 let
-                    x : ()
-                    x =
-                        flags
-
                     ( m1, c1 ) =
                         init form
 
@@ -270,10 +280,6 @@ main =
                         )
         , view =
             \( output, fmodel ) ->
-                let
-                    _ =
-                        view form fmodel
-                in
                 if isFormValid form then
                     let
                         wizard : Wizard FieldMsg
@@ -308,6 +314,7 @@ main =
                                , H.pre [] [ H.text (Debug.toString output) ]
                                , H.div [] [ H.a [ HA.href "https://dreampuf.github.io/GraphvizOnline" ] [ H.text "Graphviz" ] ]
                                , H.text (toDOT Debug.toString fmodel)
+                               , H.div [] (view form fmodel) |> H.map Just
                                ]
                         )
 
