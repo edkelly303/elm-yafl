@@ -308,6 +308,12 @@ tests =
                     ]
                 ]
             , Test.describe
+                "contraMap"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test "0" (\() -> 1 |> Expect.equal 1) ]
+                ]
+            , Test.describe
                 "fail"
                 [ Test.describe
                     "code snippet 0"
@@ -416,10 +422,11 @@ tests =
                             let
                                 unused :
                                     Yafl.Msg Examples.FormMsg
-                                    -> Maybe.Maybe String.String
+                                    -> Maybe.Maybe Examples.CounterMsg
                                 unused =
                                     Yafl.intercept
                                         myFieldWithId__Yafl__intercept_0
+                                        model__Yafl__intercept_0
                             in
                             Expect.pass
                         )
@@ -903,6 +910,14 @@ model__Yafl__andMap_0 =
     Yafl.init form__Yafl__andMap_0 |> Tuple.first
 
 
+passwordField__Yafl__contraMap_0 =
+    Yafl.succeed (\password _ -> password)
+        |> Yafl.andMap .password Examples.fields.string
+        |> Yafl.andMap .confirm Examples.fields.string
+        |> Yafl.validate
+            (\password confirm -> Maybe.fromBool password == confirm)
+
+
 form__Yafl__fail_0 =
     Yafl.fail "Oh dear!"
 
@@ -929,8 +944,12 @@ myFieldWithId__Yafl__identifier_0 =
 
 
 myFieldWithId__Yafl__intercept_0 =
-    Examples.fields.string
+    Examples.fields.counter
         |> Yafl.identifier "any-string-as-long-as-it's-unique"
+
+
+model__Yafl__intercept_0 =
+    Yafl.init myFieldWithId__Yafl__intercept_0 |> Tuple.first
 
 
 nameField__Yafl__label_0 =
