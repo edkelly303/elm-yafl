@@ -1634,16 +1634,17 @@ This is useful if you want to control how data is loaded into your form with
             }
             String
     passwordField =
-        Yafl.succeed (\password _ -> password)
+        Yafl.succeed (\password confirm -> { password = password, confirm = confirm } )
             |> Yafl.andMap .password fields.string
             |> Yafl.andMap .confirm fields.string
             |> Yafl.validate
-                (\password confirm ->
+                (\{ password, confirm } ->
                     if password == confirm then
                         Nothing
                     else
                         Just "Passwords need to match"
                 )
+            |> Yafl.map .password
 
     -- With the `.password` and `.confirm` functions that we
     -- pass to `andMap` here, our `Field`'s `input` type
@@ -1657,7 +1658,7 @@ This is useful if you want to control how data is loaded into your form with
             FormMsg
             Never
             Never
-            -- after `contraMap`, the `input` parameter 
+            -- after `contraMap`, the `input` parameter
             -- is just a `String`
             String
             String

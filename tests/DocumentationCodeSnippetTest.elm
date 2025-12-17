@@ -952,17 +952,19 @@ passwordField__Yafl__contraMap_0 :
         }
         String.String
 passwordField__Yafl__contraMap_0 =
-    Yafl.succeed (\password _ -> password)
+    Yafl.succeed
+        (\password confirm -> { password = password, confirm = confirm })
         |> Yafl.andMap .password Examples.fields.string
         |> Yafl.andMap .confirm Examples.fields.string
         |> Yafl.validate
-            (\password confirm ->
+            (\{ password, confirm } ->
                 if password == confirm then
                     Maybe.Nothing
 
                 else
                     Maybe.Just "Passwords need to match"
             )
+        |> Yafl.map .password
 
 
 passwordFieldThatIsEasierToLoad__Yafl__contraMap_0 : Yafl.Field Examples.FormModel Examples.FormMsg Basics.Never Basics.Never String.String String.String
