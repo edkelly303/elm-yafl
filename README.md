@@ -382,11 +382,6 @@ There _are_ some cool features of `elm-any-type-forms` that haven't made it into
 * I haven't included integrated debouncing, because I'm currently thinking this
 might be better left in userland. 
 
-* Fields are not bidirectional - you can't instantly load a `User` value into a
-  `User` field. I think this was a feature that sounded super-cool, but wasn't
-  terribly useful in the real world. Nevertheless, loading data into a form is
-  more of a hassle in `elm-yafl`.
-
 There are various other things I'd like to add, but I'm dogfooding the current
 version first to see what my real-world requirements are. (If I'd done this with
 `elm-any-type-forms`, I could have saved myself a lot of work!)
