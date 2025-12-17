@@ -1076,11 +1076,9 @@ submit (Field field) (Model _ model) =
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
 
-    nameField =
-        fields.string
-            |> Yafl.label "What is your name?"
-
-    nameField
+    
+    fields.string
+        |> Yafl.label "What is your name?"
 
     --: Yafl.Field FormModel FormMsg Yafl.NoId String String String
 
@@ -1546,6 +1544,32 @@ fail e =
 Field. This can be useful in multi-field validation, when you have an error that
 results from a combination of several fields, but you only want to display the
 error message on one specific field.
+
+    import Examples exposing (fields)
+    import Yafl
+
+    form =
+        Yafl.succeed 
+            (\targetOutput failAtOutput -> targetOutput)
+            |> Yafl.andMap .target targetField
+            |> Yafl.andMap .failure failAtField
+
+    targetField =
+        fields.string
+            |> Yafl.identifier "target-field"
+
+    failAtField = 
+        Yafl.failAt targetField "Uh oh!"
+
+    output = 
+        Yafl.init form
+            |> Tuple.first
+            |> Yafl.submit form
+
+    -- The error is assigned to `targetField`, 
+    -- not `failAtField`
+    output --> Err [ ( "target-field", "Uh oh!" ) ]
+
 -}
 failAt :
     Field formModel formMsg HasId widgetMsg1 input1 output1
@@ -1634,7 +1658,8 @@ This is useful if you want to control how data is loaded into your form with
             }
             String
     passwordField =
-        Yafl.succeed (\password confirm -> { password = password, confirm = confirm })
+        Yafl.succeed 
+            (\p c -> { password = p, confirm = c })
             |> Yafl.andMap .password fields.string
             |> Yafl.andMap .confirm fields.string
             |> Yafl.validate
@@ -1652,7 +1677,7 @@ This is useful if you want to control how data is loaded into your form with
     -- parameter is a record containing both of those fields.
     -- By using `contraMap`, we can change the `input` type
     -- to make the field a bit easier to use.
-    
+
     passwordFieldThatIsEasierToLoad :
         Yafl.Field
             FormModel
@@ -1987,7 +2012,8 @@ it to return arbitrary Fields, you should only use it with `succeed`, `fail` and
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
 
-    -- Example 1: Repurposing an existing widget to return a different type
+    -- Example 1: Repurposing an existing widget to return 
+    -- a different type
 
     fields.string
             |> Yafl.label "Enter a floating-point number"
@@ -1998,18 +2024,23 @@ it to return arbitrary Fields, you should only use it with `succeed`, `fail` and
                             Yafl.succeed float
 
                         Nothing ->
-                            Yafl.fail "That's not a valid float"
+                            Yafl.fail 
+                                "That's not a valid float"
                 )
 
     --: Yafl.Field FormModel FormMsg Yafl.NoId String String Float
 
     -- Example 2: Validating a field's output
+    -- (This works, but it's better to use `validate` 
+    -- and `validateAt`.)
 
     fields.string
         |> Yafl.label "Enter the first name of a Beatle"
         |> Yafl.andThen
             (\name ->
-                if List.member name [ "John", "Paul", "George", "Ringo" ] then
+                if List.member name 
+                    [ "John", "Paul", "George", "Ringo" ] 
+                then
                     Yafl.succeed name
 
                 else

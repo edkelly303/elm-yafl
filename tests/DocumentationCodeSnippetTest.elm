@@ -357,6 +357,19 @@ tests =
                     ]
                 ]
             , Test.describe
+                "failAt"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            output__Yafl__failAt_0
+                                |> Expect.equal
+                                    (Result.Err [ ( "target-field", "Uh oh!" ) ])
+                        )
+                    ]
+                ]
+            , Test.describe
                 "htmlAfter"
                 [ Test.describe
                     "code snippet 0"
@@ -472,7 +485,8 @@ tests =
                             let
                                 unused : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId String.String String.String String.String
                                 unused =
-                                    nameField__Yafl__label_0
+                                    Examples.fields.string
+                                        |> Yafl.label "What is your name?"
                             in
                             Expect.pass
                         )
@@ -952,8 +966,7 @@ passwordField__Yafl__contraMap_0 :
         }
         String.String
 passwordField__Yafl__contraMap_0 =
-    Yafl.succeed
-        (\password confirm -> { password = password, confirm = confirm })
+    Yafl.succeed (\p c -> { password = p, confirm = c })
         |> Yafl.andMap .password Examples.fields.string
         |> Yafl.andMap .confirm Examples.fields.string
         |> Yafl.validate
@@ -984,6 +997,26 @@ model__Yafl__fail_0 =
     form__Yafl__fail_0 |> Yafl.init |> Tuple.first
 
 
+form__Yafl__failAt_0 =
+    Yafl.succeed (\targetOutput failAtOutput -> targetOutput)
+        |> Yafl.andMap .target targetField__Yafl__failAt_0
+        |> Yafl.andMap .failure failAtField__Yafl__failAt_0
+
+
+targetField__Yafl__failAt_0 =
+    Examples.fields.string |> Yafl.identifier "target-field"
+
+
+failAtField__Yafl__failAt_0 =
+    Yafl.failAt targetField__Yafl__failAt_0 "Uh oh!"
+
+
+output__Yafl__failAt_0 =
+    Yafl.init form__Yafl__failAt_0
+        |> Tuple.first
+        |> Yafl.submit form__Yafl__failAt_0
+
+
 form__Yafl__htmlAfter_0 =
     Examples.fields.string |> Yafl.htmlAfter (Html.text "Here's some text")
 
@@ -1008,10 +1041,6 @@ myFieldWithId__Yafl__intercept_0 =
 
 model__Yafl__intercept_0 =
     Yafl.init myFieldWithId__Yafl__intercept_0 |> Tuple.first
-
-
-nameField__Yafl__label_0 =
-    Examples.fields.string |> Yafl.label "What is your name?"
 
 
 form__Yafl__load_0 =
