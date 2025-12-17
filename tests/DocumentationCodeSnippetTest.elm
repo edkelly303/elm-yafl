@@ -142,6 +142,19 @@ tests =
                         Expect.pass
                     )
                 ]
+            , Test.describe
+                "code snippet 5"
+                [ Test.test
+                    "0"
+                    (\() ->
+                        let
+                            unused : Platform.Program () (Yafl.Model Examples.FormModel Examples.User) (Yafl.Msg Examples.FormMsg)
+                            unused =
+                                main__Readme_5
+                        in
+                        Expect.pass
+                    )
+                ]
             ]
         , Test.describe
             "Yafl"
@@ -881,7 +894,6 @@ lastName__Readme_2 =
     Examples.nonEmptyString |> Yafl.label "What is the user's last name?"
 
 
-numberOfPets__Readme_2 : Yafl.Field Examples.FormModel Examples.FormMsg Yafl.NoId Examples.CounterMsg Examples.CounterMsg Basics.Int
 numberOfPets__Readme_2 =
     Examples.fields.counter |> Yafl.label "How many pets do they have?"
 
@@ -894,6 +906,10 @@ user__Readme_3 =
 
 
 main__Readme_4 =
+    Yafl.studio Debug.toString Examples.user
+
+
+main__Readme_5 =
     Browser.element
         { init = \flags -> Yafl.init Examples.user
         , update = \msg model -> Yafl.update Examples.user msg model

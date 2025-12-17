@@ -73,7 +73,7 @@ fields =
 
 type alias Person =
     { name : String
-    , hasPets : Bool
+    , numberOfPets : Int
     , address : Address
     , settings : ( Bool, Bool, Bool )
     , password : Password
@@ -98,14 +98,14 @@ form :
         { password : Maybe String
         , settings : Maybe { three : Maybe Bool, two : Maybe Bool, one : Maybe Bool }
         , address : Maybe { selected : Maybe Int, options : Maybe { baz : Maybe String, bar : Maybe String } }
-        , hasPets : Maybe Bool
+        , numberOfPets : Maybe Int
         , name : Maybe String
         }
         Person
 form =
     succeed Person
         |> andMap .name name
-        |> andMap .hasPets hasPets
+        |> andMap .numberOfPets numberOfPets
         |> andMap .address address
         |> andMap .settings settings
         |> andMap .password password
@@ -128,10 +128,10 @@ name =
         |> htmlAfter (H.p [] [ H.small [] [ H.text "(and by the way, thanks for coming to my Yafl demo!)" ] ])
 
 
-hasPets : Field FieldModel FieldMsg NoId Bool Bool Bool
-hasPets =
-    fields.bool
-        |> label "Do they have pets?"
+numberOfPets : Field FieldModel FieldMsg NoId Int Int Int
+numberOfPets =
+    fields.radio ["No pets", "One pet", "Two pets or more"]
+        |> label "How many pets do they have?"
 
 
 address :
@@ -221,7 +221,7 @@ password =
 password_ : Field FieldModel FieldMsg NoId String String String
 password_ =
     fields.string
-        |> label "Whats' their password?"
+        |> label "What's their password?"
 
 
 confirm : Field FieldModel FieldMsg HasId String String String
@@ -250,7 +250,7 @@ main =
                             , address = Nothing
                             , settings = Nothing
                             , password = Nothing
-                            , hasPets = Just True
+                            , numberOfPets = Nothing
                             }
                             m1
                 in
@@ -380,7 +380,7 @@ radioWidget labels =
     , view = radioWidgetView labels
     , subscriptions = \_ -> Sub.none
     , submit = \model -> Ok model
-    , label = "String"
+    , label = "Radio"
     }
 
 

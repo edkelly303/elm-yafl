@@ -8,9 +8,9 @@ using it in production.
 
 ## What does it do?
 
-This package allows you to create
+This package allows you to create very sophisticated forms by designing 
 [`Widget`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#Widget)s,
-which are essentially miniature Elm applications, and convert them into
+(which are essentially miniature Elm applications), and converting them into
 [`Field`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#Field)s
 which can then be composed to create HTML forms.
 
@@ -30,11 +30,12 @@ composing simpler `Field`s, without too much wiring or boilerplate.
 
 ## What's nice about it?
 
-* Custom `Widget`s with whatever types you like
+* Custom `Widget`s that can draw on the full power of the Elm architecture
 * Composable API built on familiar functional combinators
 * Minimal wiring and boilerplate
-* Built-in validation
-* Built-in "actor model" for communicating between `Field`s
+* Built-in validation, including multi-field validation
+* Support for both traditional forms and multi-step wizards
+* Inter-`Field` communication through message-passing
 
 ## What's... less nice about it?
 
@@ -63,15 +64,18 @@ module Examples exposing (..)
 type alias User = 
     { firstName : String
     , lastName : String
-    , isAdmin : Bool 
+    , numberOfPets : Int
     }
 ```
 
 ### Step 1: Define your `Widget`s
 
-First, we'll need some `Widget`s for the primitive types (`String` and `Int`).
-They are just like little Elm apps! But in addition to `init`, `update`, `view`
-and `subscriptions`, they also have a `submit` function and a `label`:
+First, we'll need some `Widget`s that can generate the primitive types for our
+`User`'s record fields (`String` and `Int`). `Widgets` are just like little Elm
+apps! But in addition to `init`, `update`, `view` and `subscriptions`, they need
+a `submit` function and a `label`. (They also take a parameter that allows you
+to pass in some configuration, but we don't need that here, so we just pass in
+`()`):
 
 ```elm
 import Html as H
@@ -118,9 +122,18 @@ counterWidget () =
             [ H.label [ HA.for id ] [ H.text label ]
             , H.fieldset
                 [ HA.id id ]
-                [ H.button [ HA.type_ "button", HE.onClick Decrement ] [ H.text "-" ]
-                , H.output [] [ H.text (String.fromInt model) ]
-                , H.button [ HA.type_ "button", HE.onClick Increment ] [ H.text "+" ]
+                [ H.button 
+                    [ HA.type_ "button"
+                    , HE.onClick Decrement 
+                    ] 
+                    [ H.text "-" ]
+                , H.output [] 
+                    [ H.text (String.fromInt model) ]
+                , H.button 
+                    [ HA.type_ "button"
+                    , HE.onClick Increment 
+                    ] 
+                    [ H.text "+" ]
                 ]
             ]
     , subscriptions = \_ -> Sub.none
@@ -146,7 +159,11 @@ import Yafl
 
 fields =
     Yafl.defineFields
-        (\string counter -> { string = string, counter = counter })
+        (\string counter -> 
+            { string = string
+            , counter = counter 
+            }
+        )
         |> Yafl.addWidget stringWidget
         |> Yafl.addWidget counterWidget
         |> Yafl.endFields
@@ -195,11 +212,9 @@ lastName =
     nonEmptyString
         |> Yafl.label "What is the user's last name?"
 
-numberOfPets : Yafl.Field FormModel FormMsg Yafl.NoId CounterMsg CounterMsg Int
 numberOfPets =
     fields.counter
         |> Yafl.label "How many pets do they have?"
-
 
 -- DOC TESTS
 nonEmptyString --: Yafl.Field FormModel FormMsg Yafl.NoId String String  String
@@ -214,7 +229,7 @@ We can use a combination of
 [`succeed`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#succeed)
 and
 [`andMap`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#andMap)
-to compose our `Field`s into a `User` type:
+to compose our `Field`s into a form that produces our `User` type as its output:
 
 ```elm
 import Examples exposing (..)
@@ -230,9 +245,27 @@ user =
 user --: Yafl.Field FormModel FormMsg Never Never { firstName : Maybe String, lastName : Maybe String, numberOfPets : Maybe CounterMsg } User
 ```
 
-### Step 5: Integrate the form into your Elm application
+### Step 5: Try out your form in `Yafl.studio`
 
-This isn't a very realistic example, but it should get you up and running:
+If you create a `main` function with `Yafl.studio`, you can use `elm reactor` to
+take your form for a quick test-drive in the browser.
+
+```elm
+import Examples exposing (..)
+import Yafl
+
+main = 
+    Yafl.studio Debug.toString user
+
+-- DOC TESTS
+main --: Platform.Program () (Yafl.Model FormModel User) (Yafl.Msg FormMsg)
+```
+
+### Step 6: Integrate your form into your Elm application
+
+Once you are happy with how your form looks and behaves, you'll probably want to
+integrate it into a larger Elm app. This isn't a very realistic example, but it
+should get you up and running:
 
 ```elm
 import Examples exposing (..)
@@ -256,7 +289,19 @@ main --: Program () (Yafl.Model FormModel User) (Yafl.Msg FormMsg )
 For a slightly larger-scale example, take a look at the
 [`examples`](https://github.com/edkelly303/elm-yafl/tree/main/examples) folder.
 
-## Not forms again?! Why are you doing this?
+### Step 7: That's all, folks!
+
+That's the end of the Getting Started section of this README. Hopefully it is
+enough to get you up and running. The API docs for the
+[`Yafl`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl)
+module should help you explore the package in a bit more detail.
+
+The rest of this document is about the rationale behind creating this package,
+design decisions and tradeoffs.
+
+# Yafl: an apologia
+
+## "Not forms again?! Why are you doing this?"
 
 I guess you could say that I have... _form_ for creating form packages in Elm.
 My previous attempt was
@@ -332,12 +377,13 @@ If you misused any of these functions, the compiler would often spend several
 seconds printing out thousands of lines of error messages, which
 was... somewhat offputting for most users?
 
-In `elm-yafl`, there are only three functions that have crazy type signatures:
+In `elm-yafl`, there are only four functions that have crazy type signatures:
 [`defineFields`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#defineFields),
-[`addWidget`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#addWidget)
+[`addWidget`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#addWidget),
+[`addWidgetWithConfig`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#addWidgetWithConfig)
 and
-[`endFields`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#endFields), 
-and the longest is _only_ 81 lines of code. 
+[`endFields`](https://package.elm-lang.org/packages/edkelly303/elm-yafl/1.0.0/Yafl/#endFields),
+and the longest is _only_ 70 lines of code. 
 
 These functions only need to be used once per project, and they are
 designed to be difficult to misuse, so it's less likely that users will be
@@ -371,7 +417,7 @@ work with. It's also 9,500 lines of code in one main file, with literally
 thousands of lines of type annotations.
 
 By contrast, `elm-yafl` builds on `elm-nested-tuples`, which reduces the
-complexity significantly. It also comes in at just under 3,000 lines of code
+complexity significantly. It also comes in at just over 3,000 lines of code
 including type annotations and documentation.
 
 ### Trade-offs
@@ -380,8 +426,14 @@ There _are_ some cool features of `elm-any-type-forms` that haven't made it into
 `elm-yafl`. 
 
 * I haven't included integrated debouncing, because I'm currently thinking this
-might be better left in userland. 
+might be better left in userland. For many fields, debouncing doesn't make
+sense, or needs to be handled in a field-specific way, so I don't think there's
+a single abstraction that will fit all use-cases.
+* With field validation, the only option is to raise an error message and
+prevent form submission. In `elm-any-type-forms`, fields could also raise
+warnings, which would show the user a message without preventing submission. I'd
+like to add this feature to `elm-yafl` when I have time.
 
-There are various other things I'd like to add, but I'm dogfooding the current
-version first to see what my real-world requirements are. (If I'd done this with
+There are many other possible features, but I'm dogfooding the current version
+first to see what my real-world requirements are. (If I'd done this with
 `elm-any-type-forms`, I could have saved myself a lot of work!)
