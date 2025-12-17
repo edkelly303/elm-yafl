@@ -288,6 +288,8 @@ main --: Program () (Yafl.Model FormModel User) (Yafl.Msg FormMsg )
 
 For a slightly larger-scale example, take a look at the
 [`examples`](https://github.com/edkelly303/elm-yafl/tree/main/examples) folder.
+You can run the examples and tests and view this documentation by doing `npx
+run-pty run-pty.json`
 
 ### Step 7: That's all, folks!
 

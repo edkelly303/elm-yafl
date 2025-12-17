@@ -49,282 +49,17 @@ import Yafl
         )
 
 
-type alias FieldMsg =
-    ( Maybe String, ( Maybe Bool, ( Maybe Int, () ) ) )
+
+{-
+   db   d8b   db d888888b d8888b.  d888b  d88888b d888888b .d8888.
+   88   I8I   88   `88'   88  `8D 88' Y8b 88'     `~~88~~' 88'  YP
+   88   I8I   88    88    88   88 88      88ooooo    88    `8bo.
+   Y8   I8I   88    88    88   88 88  ooo 88~~~~~    88      `Y8b.
+   `8b d8'8b d8'   .88.   88  .8D 88. ~8~ 88.        88    db   8D
+    `8b8' `8d8'  Y888888P Y8888D'  Y888P  Y88888P    YP    `8888Y'
 
 
-type alias FieldModel =
-    ( Maybe String, ( Maybe Bool, ( Maybe Int, () ) ) )
-
-
-fields :
-    { string : Field FieldModel FieldMsg NoId String String String
-    , bool : Field FieldModel FieldMsg NoId Bool Bool Bool
-    , radio : List String -> Field FieldModel FieldMsg NoId Int Int Int
-    }
-fields =
-    defineFields
-        (\s b r -> { string = s, bool = b, radio = r })
-        |> addWidget stringWidget
-        |> addWidget boolWidget
-        |> addWidgetWithConfig radioWidget
-        |> endFields
-
-
-type alias Person =
-    { name : String
-    , numberOfPets : Int
-    , address : Address
-    , settings : ( Bool, Bool, Bool )
-    , password : Password
-    }
-
-
-type Address
-    = HouseName String
-    | HouseNumber Int
-
-
-type Password
-    = Password String
-
-
-form :
-    Field
-        FieldModel
-        FieldMsg
-        Never
-        Never
-        { password : Maybe String
-        , settings : Maybe { three : Maybe Bool, two : Maybe Bool, one : Maybe Bool }
-        , address : Maybe { selected : Maybe Int, options : Maybe { baz : Maybe String, bar : Maybe String } }
-        , numberOfPets : Maybe Int
-        , name : Maybe String
-        }
-        Person
-form =
-    succeed Person
-        |> andMap .name name
-        |> andMap .numberOfPets numberOfPets
-        |> andMap .address address
-        |> andMap .settings settings
-        |> andMap .password password
-
-
-name : Field FieldModel FieldMsg HasId String String String
-name =
-    fields.string
-        |> label "What is their name?"
-        |> identifier "name"
-        |> validate
-            (\s ->
-                if String.isEmpty s then
-                    Just "Can't be blank"
-
-                else
-                    Nothing
-            )
-        |> htmlBefore (H.h1 [] [ H.text "Let's make a Person!" ])
-        |> htmlAfter (H.p [] [ H.small [] [ H.text "(and by the way, thanks for coming to my Yafl demo!)" ] ])
-
-
-numberOfPets : Field FieldModel FieldMsg NoId Int Int Int
-numberOfPets =
-    fields.radio ["No pets", "One pet", "Two pets or more"]
-        |> label "How many pets do they have?"
-
-
-address :
-    Field
-        FieldModel
-        FieldMsg
-        Never
-        Never
-        { selected : Maybe Int
-        , options : Maybe { baz : Maybe String, bar : Maybe String }
-        }
-        Address
-address =
-    choice
-        |> label "What is their address?"
-        |> option "House name" .bar (map HouseName houseName)
-        |> option "House number" .baz (map HouseNumber houseNumber)
-        |> andThen
-            (\ad ->
-                case ad of
-                    HouseNumber _ ->
-                        failAt houseNumber "Only named houses are allowed"
-
-                    _ ->
-                        succeed ad
-            )
-
-
-houseName : Field FieldModel FieldMsg NoId String String String
-houseName =
-    fields.string
-        |> label "What is the name of their house?"
-
-
-houseNumber : Field FieldModel FieldMsg HasId String String Int
-houseNumber =
-    fields.string
-        |> label "What's their house number?"
-        |> identifier "house-number"
-        |> andThen
-            (\str ->
-                case String.toInt str of
-                    Nothing ->
-                        fail "Not a valid number"
-
-                    Just int ->
-                        succeed int
-            )
-
-
-settings :
-    Field
-        FieldModel
-        FieldMsg
-        Never
-        Never
-        { three : Maybe Bool
-        , two : Maybe Bool
-        , one : Maybe Bool
-        }
-        ( Bool, Bool, Bool )
-settings =
-    succeed (\a b c -> ( a, b, c ))
-        |> andMap .one (fields.bool |> label "one")
-        |> andMap .two (fields.bool |> label "two")
-        |> andMap .three (fields.bool |> label "three")
-
-
-password : Field FieldModel FieldMsg Never Never String Password
-password =
-    succeed (\p c -> ( p, c ))
-        |> andMap .password password_
-        |> andMap .confirm confirm
-        |> validateAt confirm
-            (\( p, c ) ->
-                if p == c then
-                    Nothing
-
-                else
-                    Just "Password and confirmation must match"
-            )
-        |> map Tuple.first
-        |> map Password
-        |> contraMap (\p -> { confirm = Just p, password = Just p })
-
-
-password_ : Field FieldModel FieldMsg NoId String String String
-password_ =
-    fields.string
-        |> label "What's their password?"
-
-
-confirm : Field FieldModel FieldMsg HasId String String String
-confirm =
-    fields.string
-        |> identifier "confirm"
-        |> label "Confirm their password"
-
-
-main : Program () ( Result (List ( String, String )) Person, Model FieldModel Person ) (Maybe (Msg FieldMsg))
-main =
-    let
-        _ =
-            studio Debug.toString form
-    in
-    Browser.element
-        { init =
-            \() ->
-                let
-                    ( m1, c1 ) =
-                        init form
-
-                    ( m2, c2 ) =
-                        load form
-                            { name = Just "Ed"
-                            , address = Nothing
-                            , settings = Nothing
-                            , password = Nothing
-                            , numberOfPets = Nothing
-                            }
-                            m1
-                in
-                ( ( Err [], m2 )
-                , Cmd.batch [ c1, c2 ] |> Cmd.map Just
-                )
-        , update =
-            \msg ( output, fmodel ) ->
-                case msg of
-                    Nothing ->
-                        ( ( submit form fmodel, fmodel ), Cmd.none )
-
-                    Just fmsg ->
-                        let
-                            ( newModel, cmd ) =
-                                case intercept houseNumber fmodel fmsg of
-                                    Just "a" ->
-                                        ( update form fmsg fmodel |> Tuple.first
-                                        , send houseNumber "b"
-                                        )
-
-                                    _ ->
-                                        update form fmsg fmodel
-                        in
-                        ( ( output, newModel )
-                        , Cmd.map Just cmd
-                        )
-        , view =
-            \( output, fmodel ) ->
-                if isFormValid form then
-                    let
-                        wizard : Wizard FieldMsg
-                        wizard =
-                            viewWizard form fmodel
-                    in
-                    H.form [ HE.onSubmit Nothing ]
-                        ((wizard.stepView |> List.map (H.map Just))
-                            ++ [ H.div []
-                                    [ if wizard.stepIndex == 0 then
-                                        H.button [ HA.type_ "button", HA.disabled True ] [ H.text "Back" ]
-
-                                      else
-                                        H.button [ HA.type_ "button", HE.onClick (Just (wizard.selectStepMsg (wizard.stepIndex - 1))) ] [ H.text "Back" ]
-                                    , H.text (String.fromInt (wizard.stepIndex + 1) ++ " of " ++ String.fromInt wizard.totalSteps)
-                                    , if wizard.stepIndex == wizard.totalSteps - 1 then
-                                        H.input
-                                            [ HA.type_ "submit"
-                                            , HA.value "Submit"
-                                            , HA.disabled (not wizard.isStepValid)
-                                            ]
-                                            []
-
-                                      else
-                                        H.button
-                                            [ HA.type_ "button"
-                                            , HE.onClick (Just (wizard.selectStepMsg (wizard.stepIndex + 1)))
-                                            , HA.disabled (not wizard.isStepValid)
-                                            ]
-                                            [ H.text "Next" ]
-                                    ]
-                               , H.pre [] [ H.text (Debug.toString output) ]
-                               , H.div [] [ H.a [ HA.href "https://dreampuf.github.io/GraphvizOnline" ] [ H.text "Graphviz" ] ]
-                               , H.text (toDOT Debug.toString fmodel)
-                               , H.div [] (view form fmodel) |> H.map Just
-                               ]
-                        )
-
-                else
-                    H.h1 [] [ H.text "Uh oh!" ]
-        , subscriptions =
-            \( _, fmodel ) ->
-                subscriptions form fmodel
-                    |> Sub.map Just
-        }
+-}
 
 
 boolWidget : Widget () Bool Bool Bool
@@ -424,3 +159,341 @@ viewFeedback feedback =
                     (\f -> H.li [] [ H.small [] [ H.text ("⚠️ " ++ f) ] ])
                     feedback
                 )
+
+
+
+{-
+   d88888b d888888b d88888b db      d8888b. .d8888.
+   88'       `88'   88'     88      88  `8D 88'  YP
+   88ooo      88    88ooooo 88      88   88 `8bo.
+   88~~~      88    88~~~~~ 88      88   88   `Y8b.
+   88        .88.   88.     88booo. 88  .8D db   8D
+   YP      Y888888P Y88888P Y88888P Y8888D' `8888Y'
+
+
+-}
+
+
+type alias FormMsg =
+    ( Maybe String, ( Maybe Bool, ( Maybe Int, () ) ) )
+
+
+type alias FormModel =
+    ( Maybe String, ( Maybe Bool, ( Maybe Int, () ) ) )
+
+
+fields :
+    { string : Field FormModel FormMsg NoId String String String
+    , bool : Field FormModel FormMsg NoId Bool Bool Bool
+    , radio : List String -> Field FormModel FormMsg NoId Int Int Int
+    }
+fields =
+    defineFields
+        (\s b r -> { string = s, bool = b, radio = r })
+        |> addWidget stringWidget
+        |> addWidget boolWidget
+        |> addWidgetWithConfig radioWidget
+        |> endFields
+
+
+
+{-
+   d88888b  .d88b.  d8888b. .88b  d88.
+   88'     .8P  Y8. 88  `8D 88'YbdP`88
+   88ooo   88    88 88oobY' 88  88  88
+   88~~~   88    88 88`8b   88  88  88
+   88      `8b  d8' 88 `88. 88  88  88
+   YP       `Y88P'  88   YD YP  YP  YP
+
+
+-}
+
+
+type alias Person =
+    { name : String
+    , numberOfPets : Int
+    , address : Address
+    , settings : ( Bool, Bool, Bool )
+    , password : Password
+    }
+
+
+type Address
+    = HouseName String
+    | HouseNumber Int
+
+
+type Password
+    = Password String
+
+
+form :
+    Field
+        FormModel
+        FormMsg
+        Never
+        Never
+        { password : Maybe String
+        , settings : Maybe { three : Maybe Bool, two : Maybe Bool, one : Maybe Bool }
+        , address : Maybe { selected : Maybe Int, options : Maybe { baz : Maybe String, bar : Maybe String } }
+        , numberOfPets : Maybe Int
+        , name : Maybe String
+        }
+        Person
+form =
+    succeed Person
+        |> andMap .name name
+        |> andMap .numberOfPets numberOfPets
+        |> andMap .address address
+        |> andMap .settings settings
+        |> andMap .password password
+
+
+name : Field FormModel FormMsg HasId String String String
+name =
+    fields.string
+        |> label "What is their name?"
+        |> identifier "name"
+        |> validate
+            (\s ->
+                if String.isEmpty s then
+                    Just "Can't be blank"
+
+                else
+                    Nothing
+            )
+        |> htmlBefore (H.h1 [] [ H.text "Let's make a Person!" ])
+        |> htmlAfter (H.p [] [ H.small [] [ H.text "(and by the way, thanks for coming to my Yafl demo!)" ] ])
+
+
+numberOfPets : Field FormModel FormMsg NoId Int Int Int
+numberOfPets =
+    fields.radio [ "No pets", "One pet", "Two pets or more" ]
+        |> label "How many pets do they have?"
+
+
+address :
+    Field
+        FormModel
+        FormMsg
+        Never
+        Never
+        { selected : Maybe Int
+        , options : Maybe { baz : Maybe String, bar : Maybe String }
+        }
+        Address
+address =
+    choice
+        |> label "What is their address?"
+        |> option "House name" .bar (map HouseName houseName)
+        |> option "House number" .baz (map HouseNumber houseNumber)
+        |> andThen
+            (\ad ->
+                case ad of
+                    HouseNumber _ ->
+                        failAt houseNumber "Only named houses are allowed"
+
+                    _ ->
+                        succeed ad
+            )
+
+
+houseName : Field FormModel FormMsg NoId String String String
+houseName =
+    fields.string
+        |> label "What is the name of their house?"
+
+
+houseNumber : Field FormModel FormMsg HasId String String Int
+houseNumber =
+    fields.string
+        |> label "What's their house number?"
+        |> identifier "house-number"
+        |> andThen
+            (\str ->
+                case String.toInt str of
+                    Nothing ->
+                        fail "Not a valid number"
+
+                    Just int ->
+                        succeed int
+            )
+
+
+settings :
+    Field
+        FormModel
+        FormMsg
+        Never
+        Never
+        { three : Maybe Bool
+        , two : Maybe Bool
+        , one : Maybe Bool
+        }
+        ( Bool, Bool, Bool )
+settings =
+    succeed (\a b c -> ( a, b, c ))
+        |> andMap .one (fields.bool |> label "one")
+        |> andMap .two (fields.bool |> label "two")
+        |> andMap .three (fields.bool |> label "three")
+
+
+password : Field FormModel FormMsg Never Never String Password
+password =
+    succeed (\p c -> ( p, c ))
+        |> andMap .password password_
+        |> andMap .confirm confirm
+        |> validateAt confirm
+            (\( p, c ) ->
+                if p == c then
+                    Nothing
+
+                else
+                    Just "Password and confirmation must match"
+            )
+        |> map Tuple.first
+        |> map Password
+        |> contraMap (\p -> { confirm = Just p, password = Just p })
+
+
+password_ : Field FormModel FormMsg NoId String String String
+password_ =
+    fields.string
+        |> label "What's their password?"
+
+
+confirm : Field FormModel FormMsg HasId String String String
+confirm =
+    fields.string
+        |> identifier "confirm"
+        |> label "Confirm their password"
+
+
+
+{-
+   .88b  d88.  .d8b.  d888888b d8b   db
+   88'YbdP`88 d8' `8b   `88'   888o  88
+   88  88  88 88ooo88    88    88V8o 88
+   88  88  88 88~~~88    88    88 V8o88
+   88  88  88 88   88   .88.   88  V888
+   YP  YP  YP YP   YP Y888888P VP   V8P
+
+
+-}
+
+
+type alias Model =
+    { output : Result (List ( String, String )) Person
+    , formModel : Yafl.Model FormModel Person
+    }
+
+
+type Msg
+    = FormUpdated (Yafl.Msg FormMsg)
+    | FormSubmitted
+    | FormViewSwitched
+
+
+main : Program () Model Msg
+main =
+    let
+        _ =
+            studio Debug.toString form
+    in
+    Browser.element
+        { init =
+            \() ->
+                let
+                    ( m1, c1 ) =
+                        init form
+
+                    ( m2, c2 ) =
+                        load form
+                            { name = Just "Ed"
+                            , address = Nothing
+                            , settings = Nothing
+                            , password = Nothing
+                            , numberOfPets = Nothing
+                            }
+                            m1
+                in
+                ( { output = Err [], formModel = m2 }
+                , Cmd.batch [ c1, c2 ]
+                    |> Cmd.map FormUpdated
+                )
+        , update =
+            \msg model ->
+                case msg of
+                    FormViewSwitched ->
+                        ( model, Cmd.none )
+
+                    FormSubmitted ->
+                        ( { model
+                            | output = submit form model.formModel
+                            , formModel = model.formModel
+                          }
+                        , Cmd.none
+                        )
+
+                    FormUpdated fmsg ->
+                        let
+                            ( newModel, cmd ) =
+                                case intercept houseNumber model.formModel fmsg of
+                                    Just "a" ->
+                                        ( update form fmsg model.formModel |> Tuple.first
+                                        , send houseNumber "b"
+                                        )
+
+                                    _ ->
+                                        update form fmsg model.formModel
+                        in
+                        ( { model | formModel = newModel }
+                        , Cmd.map FormUpdated cmd
+                        )
+        , view =
+            \{ output, formModel } ->
+                if isFormValid form then
+                    let
+                        wizard : Wizard FormMsg
+                        wizard =
+                            viewWizard form formModel
+                    in
+                    H.form [ HE.onSubmit FormSubmitted ]
+                        ((wizard.stepView |> List.map (H.map FormUpdated))
+                            ++ [ H.div []
+                                    [ if wizard.stepIndex == 0 then
+                                        H.button [ HA.type_ "button", HA.disabled True ] [ H.text "Back" ]
+
+                                      else
+                                        H.button [ HA.type_ "button", HE.onClick (FormUpdated (wizard.selectStepMsg (wizard.stepIndex - 1))) ] [ H.text "Back" ]
+                                    , H.text (String.fromInt (wizard.stepIndex + 1) ++ " of " ++ String.fromInt wizard.totalSteps)
+                                    , if wizard.stepIndex == wizard.totalSteps - 1 then
+                                        H.input
+                                            [ HA.type_ "submit"
+                                            , HA.value "Submit"
+                                            , HA.disabled (not wizard.isStepValid)
+                                            ]
+                                            []
+
+                                      else
+                                        H.button
+                                            [ HA.type_ "button"
+                                            , HE.onClick (FormUpdated (wizard.selectStepMsg (wizard.stepIndex + 1)))
+                                            , HA.disabled (not wizard.isStepValid)
+                                            ]
+                                            [ H.text "Next" ]
+                                    ]
+                               , H.pre [] [ H.text (Debug.toString output) ]
+                               , H.div [] [ H.a [ HA.href "https://dreampuf.github.io/GraphvizOnline" ] [ H.text "Graphviz" ] ]
+                               , H.text (toDOT Debug.toString formModel)
+                               , H.div [] (view form formModel) |> H.map FormUpdated
+                               ]
+                        )
+
+                else
+                    H.h1 [] [ H.text "Uh oh!" ]
+        , subscriptions =
+            \{ formModel } ->
+                subscriptions form formModel
+                    |> Sub.map FormUpdated
+        }
