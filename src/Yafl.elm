@@ -1619,7 +1619,7 @@ failAt (Field failField) e =
 This is useful if you want to control how data is loaded into your form with
 [`load`](#load).
 
-    import Examples exposing (fields, FormModel, FormMsg)
+    import Examples exposing (FormModel, FormMsg, fields)
     import Yafl
 
     passwordField :
@@ -1634,13 +1634,14 @@ This is useful if you want to control how data is loaded into your form with
             }
             String
     passwordField =
-        Yafl.succeed (\password confirm -> { password = password, confirm = confirm } )
+        Yafl.succeed (\password confirm -> { password = password, confirm = confirm })
             |> Yafl.andMap .password fields.string
             |> Yafl.andMap .confirm fields.string
             |> Yafl.validate
                 (\{ password, confirm } ->
                     if password == confirm then
                         Nothing
+
                     else
                         Just "Passwords need to match"
                 )
@@ -1651,7 +1652,7 @@ This is useful if you want to control how data is loaded into your form with
     -- parameter is a record containing both of those fields.
     -- By using `contraMap`, we can change the `input` type
     -- to make the field a bit easier to use.
-
+    
     passwordFieldThatIsEasierToLoad :
         Yafl.Field
             FormModel
@@ -1671,6 +1672,7 @@ This is useful if you want to control how data is loaded into your form with
                     }
                 )
 
+    -- DOC TESTS
     passwordField --: Yafl.Field FormModel FormMsg Never Never { password : Maybe String, confirm : Maybe String } String
     passwordFieldThatIsEasierToLoad --: Yafl.Field FormModel FormMsg Never Never String String
 
