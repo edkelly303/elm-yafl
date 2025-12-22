@@ -1241,7 +1241,9 @@ return `Ok`.
 
     form
         |> Yafl.init
-        |> Tuple.first
+        |> Tuple.first            
+        --  since we used `warning` instead of `error`,
+        --  submitting the form will succeed with an `Ok`
         |> Yafl.submit form
 
     --> Ok 0
@@ -1303,15 +1305,18 @@ you only want to display a warning on one field.
                         Just "Passwords do not match"
                 )
 
-    form
-        |> Yafl.init
-        |> Tuple.first
-        |> Yafl.load form
-            { passwordField = Just "password123"
-            , confirmField = Just "password124"
-            }
-        |> Tuple.first
-        |> Yafl.submit form
+    result = 
+        form
+            |> Yafl.init
+            |> Tuple.first
+            |> Yafl.load form
+                { passwordField = Just "password123"
+                , confirmField = Just "password124"
+                }
+            |> Tuple.first
+            --  since we used `warningAt` instead of `errorAt`,
+            --  submitting the form will succeed with an `Ok`
+            |> Yafl.submit form
 
     --> Ok { password = "password123", confirm = "password124" }
 

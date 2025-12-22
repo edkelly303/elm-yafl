@@ -809,32 +809,6 @@ tests =
                         )
                     ]
                 ]
-            , Test.describe
-                "warningAt"
-                [ Test.describe
-                    "code snippet 0"
-                    [ Test.test
-                        "0"
-                        (\() ->
-                            form__Yafl__warningAt_0
-                                |> Yafl.init
-                                |> Tuple.first
-                                |> Yafl.load
-                                    form__Yafl__warningAt_0
-                                    { passwordField = Maybe.Just "password123"
-                                    , confirmField = Maybe.Just "password124"
-                                    }
-                                |> Tuple.first
-                                |> Yafl.submit form__Yafl__warningAt_0
-                                |> Expect.equal
-                                    (Result.Ok
-                                        { password = "password123"
-                                        , confirm = "password124"
-                                        }
-                                    )
-                        )
-                    ]
-                ]
             ]
         ]
 
@@ -1264,28 +1238,4 @@ form__Yafl__warning_0 =
                         ("Should be greater than 0, but the value is "
                             ++ String.fromInt int
                         )
-            )
-
-
-passwordField__Yafl__warningAt_0 =
-    Examples.fields.string |> Yafl.identifier "password"
-
-
-confirmField__Yafl__warningAt_0 =
-    Examples.fields.string |> Yafl.identifier "confirm"
-
-
-form__Yafl__warningAt_0 =
-    Yafl.succeed
-        (\password confirm -> { password = password, confirm = confirm })
-        |> Yafl.andMap .passwordField passwordField__Yafl__warningAt_0
-        |> Yafl.andMap .confirmField confirmField__Yafl__warningAt_0
-        |> Yafl.warningAt
-            confirmField__Yafl__warningAt_0
-            (\{ password, confirm } ->
-                if password == confirm then
-                    Maybe.Nothing
-
-                else
-                    Maybe.Just "Passwords do not match"
             )
