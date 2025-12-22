@@ -1305,7 +1305,7 @@ you only want to display a warning on one field.
                     else
                         Just "Passwords do not match"
                 )
-    
+
     form
         |> Yafl.init
         |> Tuple.first
@@ -2108,11 +2108,11 @@ andMap getInput (Field thisField) (Field previousFields) =
                                     Err feedback_ ->
                                         Err (outputConstructorWarnings ++ thisFieldWarnings ++ feedback_)
 
-                            ( Ok _, Err previousErrors ) ->
-                                Err previousErrors
+                            ( Ok ( _, thisWarnings ), Err previousErrors ) ->
+                                Err (previousErrors ++ thisWarnings)
 
-                            ( Err thisError, Ok _ ) ->
-                                Err thisError
+                            ( Err thisError, Ok ( _, previousWarnings ) ) ->
+                                Err (previousWarnings ++ thisError)
 
                             ( Err thisError, Err previousErrors ) ->
                                 Err (previousErrors ++ thisError)
