@@ -576,11 +576,10 @@ then update its model and optionally send a `Cmd`.
     Yafl.submit form modelAfterLoading
     --> Ok 1
 
-For `Field`s composed using `map2` or `andMap`, you can pass in a record where
-each field is a `Maybe widgetMsg`. If the record field's value is `Just`, then
-the message will be dispatched to the `Field`'s update function. If it's
-`Nothing`, then no message will be dispatched and the `Field`'s model will
-remain unchanged.
+For `Field`s composed using `andMap`, you can pass in a record where each field
+is a `Maybe widgetMsg`. If the record field's value is `Just`, then the message
+will be dispatched to the `Field`'s update function. If it's `Nothing`, then no
+message will be dispatched and the `Field`'s model will remain unchanged.
 
     import Yafl
     import Examples exposing (FormModel, FormMsg, CounterMsg(..), fields)
