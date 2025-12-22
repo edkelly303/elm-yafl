@@ -1220,7 +1220,7 @@ errorAt (Field target) check (Field field) =
 -}
 
 
-{-| Validate a `Field` and specify an warning message if validation fails. A
+{-| Validate a `Field` and specify a warning message if validation fails. A
 `warning` is like an `error`, but if you call `submit` on the `Field`, it will
 return `Ok`.
 
@@ -1275,9 +1275,9 @@ checkToWarning check =
 -}
 
 
-{-| Validate a `Field` and specify a `warning` to display on a _different_ `Field`.
+{-| Validate a `Field` and specify a warning to display on a _different_ `Field`.
 This is useful when you are doing validation that involves multiple fields, but
-you only want to display an warning on one field.
+you only want to display a warning on one field.
 
     import Yafl
     import Examples exposing (fields)
