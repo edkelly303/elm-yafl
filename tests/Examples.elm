@@ -93,7 +93,7 @@ viewFeedback feedback =
                 , HA.style "padding" "0px"
                 ]
                 (List.map
-                    (\f -> H.li [] [ H.small [] [ H.text ("⚠️ " ++ f) ] ])
+                    (\f -> H.li [] [ H.small [] [ H.text ("⚠️ " ++ f.message) ] ])
                     feedback
                 )
 

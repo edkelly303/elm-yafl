@@ -7,7 +7,7 @@ module Yafl exposing
     , andMap, andThen
     , choice, option
     , label, htmlBefore, htmlAfter
-    , validate, validateAt
+    , error, errorAt, warning, warningAt
     , HasId, NoId, identifier, intercept, send, isFormValid
     , studio, toDOT
     )
@@ -52,7 +52,7 @@ composing self-contained [`Widget`](#Widget)s.
 
 ### [Validating Fields](#validating-fields)
 
-[`validate`](#validate), [`validateAt`](#validateAt)
+[`error`](#error), [`errorAt`](#errorAt), [`warning`](#warning), [`warningAt`](#warningAt)
 
 
 ### [Communicating between Fields](#communicating-between-fields)
@@ -308,7 +308,7 @@ submitted, `succeed` always returns an `Ok`, while `fail` always returns an
 
 [_Back to top_](#table-of-contents)
 
-@docs validate, validateAt
+@docs error, errorAt, warning, warningAt
 
 
 # Communicating between Fields
@@ -398,10 +398,10 @@ type Field formModel formMsg id widgetMsg input output
             -> Node formModel
             -> View formMsg
         , submit :
-            List ( MaybeId, output -> Maybe String )
+            List ( MaybeId, output -> Maybe ( Bool, String ) )
             -> Node formModel
-            -> Result (List InternalFeedback) output
-        , checks : List ( MaybeId, output -> Maybe String )
+            -> Result (List InternalFeedback) ( output, List InternalFeedback )
+        , checks : List ( MaybeId, output -> Maybe ( Bool, String ) )
         , subscriptions :
             Node formModel
             -> Sub (Msg formMsg)
@@ -463,7 +463,7 @@ type alias ViewConfig =
 {-| Feedback produced when the [`submit`](#submit) function on a [`Field`](#Field) returns errors.
 -}
 type alias Feedback =
-    String
+    { isError : Bool, message : String }
 
 
 type alias InternalViewConfig =
@@ -474,11 +474,11 @@ type alias InternalViewConfig =
 
 
 type alias InternalFeedback =
-    { message : String, fail : Bool, locator : Locator }
+    { message : String, isError : Bool, locator : Locator }
 
 
 type alias LocatedFeedback =
-    { message : String, fail : Bool, path : Path }
+    { message : String, isError : Bool, path : Path }
 
 
 
@@ -844,18 +844,20 @@ viewWizard (Field field) (Model meta model) =
             -- for example, the user can show a "next" button in this case.
             feedback
                 |> List.filter
-                    (\{ path } ->
-                        case
-                            path
-                                |> List.reverse
-                                |> List.drop 1
-                                |> List.head
-                        of
-                            Nothing ->
-                                False
+                    (\{ path, isError } ->
+                        isError
+                            && (case
+                                    path
+                                        |> List.reverse
+                                        |> List.drop 1
+                                        |> List.head
+                                of
+                                    Nothing ->
+                                        False
 
-                            Just idx ->
-                                idx == meta.selected
+                                    Just idx ->
+                                        idx == meta.selected
+                               )
                     )
                 |> List.isEmpty
 
@@ -904,32 +906,33 @@ locateFeedback :
     -> Model formModel output
     -> List LocatedFeedback
 locateFeedback (Field field) (Model meta model) =
-    case field.submit field.checks model of
-        Ok _ ->
-            []
-
-        Err fdbk ->
-            fdbk
-                |> List.filterMap
-                    (\f ->
-                        case f.locator of
-                            ById id ->
-                                Dict.get id meta.idLookup
-                                    |> Maybe.map
-                                        (\path ->
-                                            { message = f.message
-                                            , fail = f.fail
-                                            , path = path
-                                            }
-                                        )
-
-                            ByPath path ->
-                                Just
+    let
+        locatorToPath =
+            \f ->
+                case f.locator of
+                    ById id ->
+                        Dict.get id meta.idLookup
+                            |> Maybe.map
+                                (\path ->
                                     { message = f.message
-                                    , fail = f.fail
+                                    , isError = f.isError
                                     , path = path
                                     }
-                    )
+                                )
+
+                    ByPath path ->
+                        Just
+                            { message = f.message
+                            , isError = f.isError
+                            , path = path
+                            }
+    in
+    case field.submit field.checks model of
+        Ok ( _, warnings ) ->
+            List.filterMap locatorToPath warnings
+
+        Err feedback_ ->
+            List.filterMap locatorToPath feedback_
 
 
 viewToList : List (H.Html (Msg formMsg)) -> View formMsg -> List (H.Html (Msg formMsg))
@@ -1042,6 +1045,7 @@ subscriptions (Field field) (Model _ model) =
 submit : Field formModel formMsg id widgetMsg input output -> Model formModel output -> Result (List ( String, String )) output
 submit (Field field) (Model _ model) =
     field.submit field.checks model
+        |> Result.map Tuple.first
         |> Result.mapError
             (List.map
                 (\{ message, locator } ->
@@ -1089,24 +1093,24 @@ label label_ (Field field) =
 
 
 {-
-   db    db  .d8b.  db      d888888b d8888b.  .d8b.  d888888b d88888b
-   88    88 d8' `8b 88        `88'   88  `8D d8' `8b `~~88~~' 88'
-   Y8    8P 88ooo88 88         88    88   88 88ooo88    88    88ooooo
-   `8b  d8' 88~~~88 88         88    88   88 88~~~88    88    88~~~~~
-    `8bd8'  88   88 88booo.   .88.   88  .8D 88   88    88    88.
-      YP    YP   YP Y88888P Y888888P Y8888D' YP   YP    YP    Y88888P
+   d88888b d8888b. d8888b.  .d88b.  d8888b.
+   88'     88  `8D 88  `8D .8P  Y8. 88  `8D
+   88ooooo 88oobY' 88oobY' 88    88 88oobY'
+   88~~~~~ 88`8b   88`8b   88    88 88`8b
+   88.     88 `88. 88 `88. `8b  d8' 88 `88.
+   Y88888P 88   YD 88   YD  `Y88P'  88   YD
 
 
 -}
 
 
-{-| Validate a field and specify an error message if validation fails.
+{-| Validate a `Field` and specify an error message if validation fails.
 
     import Yafl
 
     form =
         Yafl.succeed 0
-            |> Yafl.validate
+            |> Yafl.error
                 (\int ->
                     if int > 0 then
                         Nothing
@@ -1125,28 +1129,35 @@ label label_ (Field field) =
     --> Err [ ( "0", "Must be greater than 0, but the value is 0" ) ]
 
 -}
-validate :
+error :
     (output -> Maybe String)
     -> Field formModel formMsg id widgetMsg input output
     -> Field formModel formMsg id widgetMsg input output
-validate check (Field field) =
-    Field { field | checks = field.checks ++ [ ( Nothing, check ) ] }
+error check (Field field) =
+    Field { field | checks = field.checks ++ [ ( Nothing, checkToError check ) ] }
+
+
+checkToError : (output -> Maybe String) -> (output -> Maybe ( Bool, String ))
+checkToError check =
+    \output ->
+        check output
+            |> Maybe.map (Tuple.pair True)
 
 
 
 {-
-   db    db  .d8b.  db      d888888b d8888b.  .d8b.  d888888b d88888b  .d8b.  d888888b
-   88    88 d8' `8b 88        `88'   88  `8D d8' `8b `~~88~~' 88'     d8' `8b `~~88~~'
-   Y8    8P 88ooo88 88         88    88   88 88ooo88    88    88ooooo 88ooo88    88
-   `8b  d8' 88~~~88 88         88    88   88 88~~~88    88    88~~~~~ 88~~~88    88
-    `8bd8'  88   88 88booo.   .88.   88  .8D 88   88    88    88.     88   88    88
-      YP    YP   YP Y88888P Y888888P Y8888D' YP   YP    YP    Y88888P YP   YP    YP
+   d88888b d8888b. d8888b.  .d88b.  d8888b.  .d8b.  d888888b
+   88'     88  `8D 88  `8D .8P  Y8. 88  `8D d8' `8b `~~88~~'
+   88ooooo 88oobY' 88oobY' 88    88 88oobY' 88ooo88    88
+   88~~~~~ 88`8b   88`8b   88    88 88`8b   88~~~88    88
+   88.     88 `88. 88 `88. `8b  d8' 88 `88. 88   88    88
+   Y88888P 88   YD 88   YD  `Y88P'  88   YD YP   YP    YP
 
 
 -}
 
 
-{-| Validate a field and specify an error to display on a _different_ field.
+{-| Validate a `Field` and specify an error to display on a _different_ field.
 This is useful when you are doing validation that involves multiple fields, but
 you only want to display an error on one field.
 
@@ -1166,7 +1177,7 @@ you only want to display an error on one field.
             (\password confirm -> { password = password, confirm = confirm })
             |> Yafl.andMap .passwordField passwordField
             |> Yafl.andMap .confirmField confirmField
-            |> Yafl.validateAt confirmField
+            |> Yafl.errorAt confirmField
                 (\{ password, confirm } ->
                     if password == confirm then
                         Nothing
@@ -1187,13 +1198,131 @@ you only want to display an error on one field.
     --> Err [ ( "confirm", "Passwords do not match" ) ]
 
 -}
-validateAt :
+errorAt :
     Field formModel formMsg HasId widgetMsg2 input2 output2
     -> (output -> Maybe String)
     -> Field formModel formMsg id widgetMsg input output
     -> Field formModel formMsg id widgetMsg input output
-validateAt (Field target) check (Field field) =
-    Field { field | checks = field.checks ++ [ ( target.maybeId, check ) ] }
+errorAt (Field target) check (Field field) =
+    Field { field | checks = field.checks ++ [ ( target.maybeId, checkToError check ) ] }
+
+
+
+{-
+   db   d8b   db  .d8b.  d8888b. d8b   db d888888b d8b   db  d888b
+   88   I8I   88 d8' `8b 88  `8D 888o  88   `88'   888o  88 88' Y8b
+   88   I8I   88 88ooo88 88oobY' 88V8o 88    88    88V8o 88 88
+   Y8   I8I   88 88~~~88 88`8b   88 V8o88    88    88 V8o88 88  ooo
+   `8b d8'8b d8' 88   88 88 `88. 88  V888   .88.   88  V888 88. ~8~
+    `8b8' `8d8'  YP   YP 88   YD VP   V8P Y888888P VP   V8P  Y888P
+
+
+-}
+
+
+{-| Validate a `Field` and specify an warning message if validation fails. A
+`warning` is like an `error`, but if you call `submit` on the `Field`, it will
+return `Ok`.
+
+    import Yafl
+
+    form =
+        Yafl.succeed 0
+            |> Yafl.warning
+                (\int ->
+                    if int > 0 then
+                        Nothing
+                    else
+                        Just
+                            ("Should be greater than 0, but the value is "
+                                ++ String.fromInt int
+                            )
+                )
+
+    form
+        |> Yafl.init
+        |> Tuple.first
+        |> Yafl.submit form
+
+    --> Ok 0
+
+-}
+warning :
+    (output -> Maybe String)
+    -> Field formModel formMsg id widgetMsg input output
+    -> Field formModel formMsg id widgetMsg input output
+warning check (Field field) =
+    Field { field | checks = field.checks ++ [ ( Nothing, checkToWarning check ) ] }
+
+
+checkToWarning : (output -> Maybe String) -> (output -> Maybe ( Bool, String ))
+checkToWarning check =
+    \output ->
+        check output
+            |> Maybe.map (Tuple.pair False)
+
+
+
+{-
+   db   d8b   db  .d8b.  d8888b. d8b   db d888888b d8b   db  d888b   .d8b.  d888888b
+   88   I8I   88 d8' `8b 88  `8D 888o  88   `88'   888o  88 88' Y8b d8' `8b `~~88~~'
+   88   I8I   88 88ooo88 88oobY' 88V8o 88    88    88V8o 88 88      88ooo88    88
+   Y8   I8I   88 88~~~88 88`8b   88 V8o88    88    88 V8o88 88  ooo 88~~~88    88
+   `8b d8'8b d8' 88   88 88 `88. 88  V888   .88.   88  V888 88. ~8~ 88   88    88
+    `8b8' `8d8'  YP   YP 88   YD VP   V8P Y888888P VP   V8P  Y888P  YP   YP    YP
+
+
+-}
+
+
+{-| Validate a `Field` and specify a `warning` to display on a _different_ `Field`.
+This is useful when you are doing validation that involves multiple fields, but
+you only want to display an warning on one field.
+
+    import Yafl
+    import Examples exposing (fields)
+
+    passwordField =
+        fields.string
+            |> Yafl.identifier "password"
+
+    confirmField =
+        fields.string
+            |> Yafl.identifier "confirm"
+
+    form =
+        Yafl.succeed
+            (\password confirm -> { password = password, confirm = confirm })
+            |> Yafl.andMap .passwordField passwordField
+            |> Yafl.andMap .confirmField confirmField
+            |> Yafl.warningAt confirmField
+                (\{ password, confirm } ->
+                    if password == confirm then
+                        Nothing
+                    else
+                        Just "Passwords do not match"
+                )
+
+    form
+        |> Yafl.init
+        |> Tuple.first
+        |> Yafl.load form
+            { passwordField = Just "password123"
+            , confirmField = Just "password124"
+            }
+        |> Tuple.first
+        |> Yafl.submit form
+
+    --> Ok { password = "password123", confirm = "password124" }
+
+-}
+warningAt :
+    Field formModel formMsg HasId widgetMsg2 input2 output2
+    -> (output -> Maybe String)
+    -> Field formModel formMsg id widgetMsg input output
+    -> Field formModel formMsg id widgetMsg input output
+warningAt (Field target) check (Field field) =
+    Field { field | checks = field.checks ++ [ ( target.maybeId, checkToWarning check ) ] }
 
 
 
@@ -1515,7 +1644,7 @@ fail e =
             \_ model ->
                 Err
                     [ { message = e
-                      , fail = True
+                      , isError = True
                       , locator = locatorFromModel model
                       }
                     ]
@@ -1608,13 +1737,13 @@ failAt (Field failField) e =
                     [ case failField.maybeId of
                         Just id_ ->
                             { message = e
-                            , fail = True
+                            , isError = True
                             , locator = ById id_
                             }
 
                         Nothing ->
                             { message = "FATAL ERROR in `failAt` function"
-                            , fail = True
+                            , isError = True
                             , locator = locatorFromModel model
                             }
                     ]
@@ -1663,7 +1792,7 @@ This is useful if you want to control how data is loaded into your form with
             (\p c -> { password = p, confirm = c })
             |> Yafl.andMap .password fields.string
             |> Yafl.andMap .confirm fields.string
-            |> Yafl.validate
+            |> Yafl.error
                 (\{ password, confirm } ->
                     if password == confirm then
                         Nothing
@@ -1774,8 +1903,16 @@ map f (Field field) =
         , submit =
             \checks model ->
                 field.submit field.checks model
-                    |> Result.map f
-                    |> Result.andThen (runChecks checks model)
+                    |> Result.map (\( output, warnings ) -> ( f output, warnings ))
+                    |> Result.andThen
+                        (\( output, warnings ) ->
+                            case runChecks checks model output of
+                                Ok ( output_, moreWarnings ) ->
+                                    Ok ( output_, warnings ++ moreWarnings )
+
+                                Err feedback_ ->
+                                    Err (warnings ++ feedback_)
+                        )
         , checks = []
         , send = field.send
         , intercept = field.intercept
@@ -1958,9 +2095,13 @@ andMap getInput (Field thisField) (Field previousFields) =
                             , previousFields.submit previousFields.checks (Product path previousFieldNodes)
                             )
                         of
-                            ( Ok thisFieldOutput, Ok outputConstructor ) ->
-                                outputConstructor thisFieldOutput
-                                    |> runChecks checks model
+                            ( Ok ( thisFieldOutput, thisFieldWarnings ), Ok ( outputConstructor, outputConstructorWarnings ) ) ->
+                                case outputConstructor thisFieldOutput |> runChecks checks model of
+                                    Ok ( output, warnings ) ->
+                                        Ok ( output, outputConstructorWarnings ++ thisFieldWarnings ++ warnings )
+
+                                    Err feedback_ ->
+                                        Err (outputConstructorWarnings ++ thisFieldWarnings ++ feedback_)
 
                             ( Ok _, Err previousErrors ) ->
                                 Err previousErrors
@@ -1974,7 +2115,7 @@ andMap getInput (Field thisField) (Field previousFields) =
                     _ ->
                         Err
                             [ { message = "Fatal error in `andMap` submit function"
-                              , fail = True
+                              , isError = True
                               , locator = locatorFromModel model
                               }
                             ]
@@ -2004,7 +2145,7 @@ you want to convert an existing [`Widget`](#Widget) to return a different output
 type.
 
 (You _can_ also use it for validating a field's output, but it will probably be
-better to use [`validate`](#validate) or [`validateAt`](#validateAt) instead.)
+better to use [`error`](#error) or [`errorAt`](#errorAt) instead.)
 
 Be warned: this is not a fully law-abiding monadic `andThen` - you shouldn't use
 it to return arbitrary Fields, you should only use it with `succeed`, `fail` and
@@ -2032,8 +2173,8 @@ it to return arbitrary Fields, you should only use it with `succeed`, `fail` and
     --: Yafl.Field FormModel FormMsg Yafl.NoId String String Float
 
     -- Example 2: Validating a field's output
-    -- (This works, but it's better to use `validate`
-    -- and `validateAt`.)
+    -- (This works, but it's better to use `error`
+    -- and `errorAt`.)
 
     fields.string
         |> Yafl.label "Enter the first name of a Beatle"
@@ -2071,12 +2212,17 @@ andThen f (Field field) =
             \checks model ->
                 field.submit field.checks model
                     |> Result.andThen
-                        (\output ->
+                        (\( output, warnings ) ->
                             let
                                 (Field andThenField) =
                                     f output
                             in
-                            andThenField.submit (andThenField.checks ++ checks) model
+                            case andThenField.submit (andThenField.checks ++ checks) model of
+                                Ok ( andThenOutput, andThenWarnings ) ->
+                                    Ok ( andThenOutput, warnings ++ andThenWarnings )
+
+                                Err feedback_ ->
+                                    Err (warnings ++ feedback_)
                         )
         }
 
@@ -2133,7 +2279,7 @@ choice =
             \_ model ->
                 Err
                     [ { message = "empty choice"
-                      , fail = True
+                      , isError = True
                       , locator = locatorFromModel model
                       }
                     ]
@@ -2350,7 +2496,7 @@ option thisOptionLabel getInput (Field thisOptionField) (Field previousOptionFie
                     _ ->
                         Err
                             [ { message = "Fatal error in `option` submit function"
-                              , fail = True
+                              , isError = True
                               , locator = locatorFromModel model
                               }
                             ]
@@ -2751,17 +2897,18 @@ applierWithConfig msgGetter msgSetter modelGetter modelSetter widgetFromConfig a
                                                 List.map
                                                     (\err ->
                                                         { message = err
-                                                        , fail = True
+                                                        , isError = True
                                                         , locator = ByPath []
                                                         }
                                                     )
                                                     errs
                                             )
+                                        |> Result.map (\output -> ( output, [] ))
                                 )
                             |> Maybe.withDefault
                                 (Err
                                     [ { message = "error in `applier` function"
-                                      , fail = True
+                                      , isError = True
                                       , locator = ByPath []
                                       }
                                     ]
@@ -2853,17 +3000,18 @@ applierWithoutConfig msgGetter msgSetter modelGetter modelSetter widget acc =
                                                 List.map
                                                     (\err ->
                                                         { message = err
-                                                        , fail = True
+                                                        , isError = True
                                                         , locator = ByPath []
                                                         }
                                                     )
                                                     errs
                                             )
+                                        |> Result.map (\output -> ( output, [] ))
                                 )
                             |> Maybe.withDefault
                                 (Err
                                     [ { message = "error in `applier` function"
-                                      , fail = True
+                                      , isError = True
                                       , locator = ByPath []
                                       }
                                     ]
@@ -2891,7 +3039,7 @@ convertToField :
     , update : formMsg -> formModel -> ( formModel, Cmd formMsg )
     , blankModel : formModel
     , view : ViewConfig -> formModel -> List (H.Html formMsg)
-    , submit : formModel -> Result (List InternalFeedback) value
+    , submit : formModel -> Result (List InternalFeedback) ( value, List InternalFeedback )
     , subscriptions : formModel -> Sub formMsg
     , send : widgetMsg -> formMsg
     , intercept : formMsg -> Maybe widgetMsg
@@ -2957,7 +3105,7 @@ convertToField args =
                         List.filterMap
                             (\f ->
                                 if f.path == path then
-                                    Just f.message
+                                    Just { message = f.message, isError = f.isError }
 
                                 else
                                     Nothing
@@ -2995,7 +3143,15 @@ convertToField args =
                                         )
                                         errs
                                 )
-                            |> Result.andThen (runChecks checks model)
+                            |> Result.andThen
+                                (\( output, warnings ) ->
+                                    case runChecks checks model output of
+                                        Ok ( output_, moreWarnings ) ->
+                                            Ok ( output_, warnings ++ moreWarnings )
+
+                                        Err feedback_ ->
+                                            Err (warnings ++ feedback_)
+                                )
 
                     _ ->
                         Err []
@@ -3035,19 +3191,19 @@ convertToField args =
 
 
 runChecks :
-    List ( MaybeId, output2 -> Maybe String )
+    List ( MaybeId, output2 -> Maybe ( Bool, String ) )
     -> Node formModel
     -> output2
-    -> Result (List InternalFeedback) output2
+    -> Result (List InternalFeedback) ( output2, List InternalFeedback )
 runChecks checks model output =
     case
         List.filterMap
             (\( maybeId, check ) ->
                 check output
                     |> Maybe.map
-                        (\m ->
-                            { message = m
-                            , fail = True
+                        (\( isError, message ) ->
+                            { message = message
+                            , isError = isError
                             , locator =
                                 case maybeId of
                                     Nothing ->
@@ -3059,12 +3215,13 @@ runChecks checks model output =
                         )
             )
             checks
+            |> List.partition (\{ isError } -> isError)
     of
-        [] ->
-            Ok output
+        ( [], warnings ) ->
+            Ok ( output, warnings )
 
-        errs ->
-            Err errs
+        ( errs, warnings ) ->
+            Err (errs ++ warnings)
 
 
 folder5 :

@@ -96,7 +96,7 @@ stringWidget () =
                 , HE.onInput identity
                 ]
                 []
-            , H.ul [] (List.map (\f -> H.li [] [ H.text f ]) feedback)
+            , H.ul [] (List.map (\f -> H.li [] [ H.text f.message ]) feedback)
             ]
     , subscriptions = \model -> Sub.none
     , submit = \model -> Ok model
@@ -196,7 +196,7 @@ import Yafl
 
 nonEmptyString =
     fields.string
-        |> Yafl.validate
+        |> Yafl.error
             (\string -> 
                 if String.isEmpty string then 
                     Just "This field must not be blank"

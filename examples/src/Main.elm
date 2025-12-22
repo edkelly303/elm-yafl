@@ -42,10 +42,12 @@ import Yafl
         , succeed
         , toDOT
         , update
-        , validate
-        , validateAt
+        , error
+        , errorAt
         , view
         , viewWizard
+        , warning
+        , warningAt
         )
 
 
@@ -150,13 +152,17 @@ viewFeedback feedback =
             H.text ""
 
         _ ->
+            let 
+                icon {isError }= if isError then "⛔" else "⚠️" 
+            in
             H.ul
                 [ HA.style "list-style-type" "none"
                 , HA.style "margin" "0px"
                 , HA.style "padding" "0px"
                 ]
                 (List.map
-                    (\f -> H.li [] [ H.small [] [ H.text ("⚠️ " ++ f) ] ])
+                    (\f -> 
+                        H.li [] [ H.small [] [ H.text (icon f ++ " " ++ f.message) ] ])
                     feedback
                 )
 
@@ -254,7 +260,7 @@ name =
     fields.string
         |> label "What is their name?"
         |> identifier "name"
-        |> validate
+        |> error
             (\s ->
                 if String.isEmpty s then
                     Just "Can't be blank"
@@ -262,6 +268,9 @@ name =
                 else
                     Nothing
             )
+        |> warning (\s ->
+            let len = String.length s in
+            if len > 0 && len < 2 then Just "Is that their full name?" else Nothing)
         |> htmlBefore (H.h1 [] [ H.text "Let's make a Person!" ])
         |> htmlAfter (H.p [] [ H.small [] [ H.text "(and by the way, thanks for coming to my Yafl demo!)" ] ])
 
@@ -343,7 +352,8 @@ password =
     succeed (\p c -> ( p, c ))
         |> andMap .password password_
         |> andMap .confirm confirm
-        |> validateAt confirm
+
+        |> errorAt confirm
             (\( p, c ) ->
                 if p == c then
                     Nothing
@@ -351,14 +361,23 @@ password =
                 else
                     Just "Password and confirmation must match"
             )
+        |> warningAt password_
+            (\( p, c ) ->
+                if String.length p > 12 then
+                    Nothing
+
+                else
+                    Just "Passwords should be at least 12 characters long"
+            )
         |> map Tuple.first
         |> map Password
         |> contraMap (\p -> { confirm = Just p, password = Just p })
 
 
-password_ : Field FormModel FormMsg NoId String String String
+password_ : Field FormModel FormMsg HasId String String String
 password_ =
     fields.string
+        |> identifier "password"
         |> label "What's their password?"
 
 

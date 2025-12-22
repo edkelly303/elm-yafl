@@ -357,6 +357,54 @@ tests =
                     ]
                 ]
             , Test.describe
+                "error"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            form__Yafl__error_0
+                                |> Yafl.init
+                                |> Tuple.first
+                                |> Yafl.submit form__Yafl__error_0
+                                |> Expect.equal
+                                    (Result.Err
+                                        [ ( "0"
+                                          , "Must be greater than 0, but the value is 0"
+                                          )
+                                        ]
+                                    )
+                        )
+                    ]
+                ]
+            , Test.describe
+                "errorAt"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            form__Yafl__errorAt_0
+                                |> Yafl.init
+                                |> Tuple.first
+                                |> Yafl.load
+                                    form__Yafl__errorAt_0
+                                    { passwordField = Maybe.Just "password123"
+                                    , confirmField = Maybe.Just "password124"
+                                    }
+                                |> Tuple.first
+                                |> Yafl.submit form__Yafl__errorAt_0
+                                |> Expect.equal
+                                    (Result.Err
+                                        [ ( "confirm"
+                                          , "Passwords do not match"
+                                          )
+                                        ]
+                                    )
+                        )
+                    ]
+                ]
+            , Test.describe
                 "fail"
                 [ Test.describe
                     "code snippet 0"
@@ -729,54 +777,6 @@ tests =
                     ]
                 ]
             , Test.describe
-                "validate"
-                [ Test.describe
-                    "code snippet 0"
-                    [ Test.test
-                        "0"
-                        (\() ->
-                            form__Yafl__validate_0
-                                |> Yafl.init
-                                |> Tuple.first
-                                |> Yafl.submit form__Yafl__validate_0
-                                |> Expect.equal
-                                    (Result.Err
-                                        [ ( "0"
-                                          , "Must be greater than 0, but the value is 0"
-                                          )
-                                        ]
-                                    )
-                        )
-                    ]
-                ]
-            , Test.describe
-                "validateAt"
-                [ Test.describe
-                    "code snippet 0"
-                    [ Test.test
-                        "0"
-                        (\() ->
-                            form__Yafl__validateAt_0
-                                |> Yafl.init
-                                |> Tuple.first
-                                |> Yafl.load
-                                    form__Yafl__validateAt_0
-                                    { passwordField = Maybe.Just "password123"
-                                    , confirmField = Maybe.Just "password124"
-                                    }
-                                |> Tuple.first
-                                |> Yafl.submit form__Yafl__validateAt_0
-                                |> Expect.equal
-                                    (Result.Err
-                                        [ ( "confirm"
-                                          , "Passwords do not match"
-                                          )
-                                        ]
-                                    )
-                        )
-                    ]
-                ]
-            , Test.describe
                 "view"
                 [ Test.describe
                     "code snippet 0"
@@ -791,6 +791,47 @@ tests =
                                         model__Yafl__view_0
                             in
                             Expect.pass
+                        )
+                    ]
+                ]
+            , Test.describe
+                "warning"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            form__Yafl__warning_0
+                                |> Yafl.init
+                                |> Tuple.first
+                                |> Yafl.submit form__Yafl__warning_0
+                                |> Expect.equal (Result.Ok 0)
+                        )
+                    ]
+                ]
+            , Test.describe
+                "warningAt"
+                [ Test.describe
+                    "code snippet 0"
+                    [ Test.test
+                        "0"
+                        (\() ->
+                            form__Yafl__warningAt_0
+                                |> Yafl.init
+                                |> Tuple.first
+                                |> Yafl.load
+                                    form__Yafl__warningAt_0
+                                    { passwordField = Maybe.Just "password123"
+                                    , confirmField = Maybe.Just "password124"
+                                    }
+                                |> Tuple.first
+                                |> Yafl.submit form__Yafl__warningAt_0
+                                |> Expect.equal
+                                    (Result.Ok
+                                        { password = "password123"
+                                        , confirm = "password124"
+                                        }
+                                    )
                         )
                     ]
                 ]
@@ -811,7 +852,9 @@ stringWidget__Readme_0 () =
                 , Html.Events.onInput Basics.identity
                 ]
                 []
-            , Html.ul [] (List.map (\f -> Html.li [] [ Html.text f ]) feedback)
+            , Html.ul
+                []
+                (List.map (\f -> Html.li [] [ Html.text f.message ]) feedback)
             ]
     , subscriptions = \model -> Platform.Sub.none
     , submit = \model -> Result.Ok model
@@ -876,7 +919,7 @@ type alias FormMsg__Readme_1 =
 
 nonEmptyString__Readme_2 =
     Examples.fields.string
-        |> Yafl.validate
+        |> Yafl.error
             (\string ->
                 if String.isEmpty string then
                     Maybe.Just "This field must not be blank"
@@ -985,7 +1028,7 @@ passwordField__Yafl__contraMap_0 =
     Yafl.succeed (\p c -> { password = p, confirm = c })
         |> Yafl.andMap .password Examples.fields.string
         |> Yafl.andMap .confirm Examples.fields.string
-        |> Yafl.validate
+        |> Yafl.error
             (\{ password, confirm } ->
                 if password == confirm then
                     Maybe.Nothing
@@ -1002,6 +1045,45 @@ passwordFieldThatIsEasierToLoad__Yafl__contraMap_0 =
         |> Yafl.contraMap
             (\string ->
                 { password = Maybe.Just string, confirm = Maybe.Just string }
+            )
+
+
+form__Yafl__error_0 =
+    Yafl.succeed 0
+        |> Yafl.error
+            (\int ->
+                if int > 0 then
+                    Maybe.Nothing
+
+                else
+                    Maybe.Just
+                        ("Must be greater than 0, but the value is "
+                            ++ String.fromInt int
+                        )
+            )
+
+
+passwordField__Yafl__errorAt_0 =
+    Examples.fields.string |> Yafl.identifier "password"
+
+
+confirmField__Yafl__errorAt_0 =
+    Examples.fields.string |> Yafl.identifier "confirm"
+
+
+form__Yafl__errorAt_0 =
+    Yafl.succeed
+        (\password confirm -> { password = password, confirm = confirm })
+        |> Yafl.andMap .passwordField passwordField__Yafl__errorAt_0
+        |> Yafl.andMap .confirmField confirmField__Yafl__errorAt_0
+        |> Yafl.errorAt
+            confirmField__Yafl__errorAt_0
+            (\{ password, confirm } ->
+                if password == confirm then
+                    Maybe.Nothing
+
+                else
+                    Maybe.Just "Passwords do not match"
             )
 
 
@@ -1162,36 +1244,44 @@ model__Yafl__succeed_0 =
     form__Yafl__succeed_0 |> Yafl.init |> Tuple.first
 
 
-form__Yafl__validate_0 =
+form__Yafl__view_0 =
+    Examples.fields.string
+
+
+model__Yafl__view_0 =
+    form__Yafl__view_0 |> Yafl.init |> Tuple.first
+
+
+form__Yafl__warning_0 =
     Yafl.succeed 0
-        |> Yafl.validate
+        |> Yafl.warning
             (\int ->
                 if int > 0 then
                     Maybe.Nothing
 
                 else
                     Maybe.Just
-                        ("Must be greater than 0, but the value is "
+                        ("Should be greater than 0, but the value is "
                             ++ String.fromInt int
                         )
             )
 
 
-passwordField__Yafl__validateAt_0 =
+passwordField__Yafl__warningAt_0 =
     Examples.fields.string |> Yafl.identifier "password"
 
 
-confirmField__Yafl__validateAt_0 =
+confirmField__Yafl__warningAt_0 =
     Examples.fields.string |> Yafl.identifier "confirm"
 
 
-form__Yafl__validateAt_0 =
+form__Yafl__warningAt_0 =
     Yafl.succeed
         (\password confirm -> { password = password, confirm = confirm })
-        |> Yafl.andMap .passwordField passwordField__Yafl__validateAt_0
-        |> Yafl.andMap .confirmField confirmField__Yafl__validateAt_0
-        |> Yafl.validateAt
-            confirmField__Yafl__validateAt_0
+        |> Yafl.andMap .passwordField passwordField__Yafl__warningAt_0
+        |> Yafl.andMap .confirmField confirmField__Yafl__warningAt_0
+        |> Yafl.warningAt
+            confirmField__Yafl__warningAt_0
             (\{ password, confirm } ->
                 if password == confirm then
                     Maybe.Nothing
@@ -1199,11 +1289,3 @@ form__Yafl__validateAt_0 =
                 else
                     Maybe.Just "Passwords do not match"
             )
-
-
-form__Yafl__view_0 =
-    Examples.fields.string
-
-
-model__Yafl__view_0 =
-    form__Yafl__view_0 |> Yafl.init |> Tuple.first
