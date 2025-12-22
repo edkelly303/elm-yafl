@@ -431,10 +431,6 @@ There _are_ some cool features of `elm-any-type-forms` that haven't made it into
 might be better left in userland. For many fields, debouncing doesn't make
 sense, or needs to be handled in a field-specific way, so I don't think there's
 a single abstraction that will fit all use-cases.
-* With field validation, the only option is to raise an error message and
-prevent form submission. In `elm-any-type-forms`, fields could also raise
-warnings, which would show the user a message without preventing submission. I'd
-like to add this feature to `elm-yafl` when I have time.
 
 There are many other possible features, but I'm dogfooding the current version
 first to see what my real-world requirements are. (If I'd done this with
