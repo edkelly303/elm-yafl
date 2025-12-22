@@ -1241,7 +1241,7 @@ return `Ok`.
 
     form
         |> Yafl.init
-        |> Tuple.first            
+        |> Tuple.first
         --  since we used `warning` instead of `error`,
         --  submitting the form will succeed with an `Ok`
         |> Yafl.submit form
@@ -1281,8 +1281,8 @@ checkToWarning check =
 This is useful when you are doing validation that involves multiple fields, but
 you only want to display a warning on one field.
 
-    import Yafl
     import Examples exposing (fields)
+    import Yafl
 
     passwordField =
         fields.string
@@ -1301,22 +1301,22 @@ you only want to display a warning on one field.
                 (\{ password, confirm } ->
                     if password == confirm then
                         Nothing
+
                     else
                         Just "Passwords do not match"
                 )
-
-    result = 
-        form
-            |> Yafl.init
-            |> Tuple.first
-            |> Yafl.load form
-                { passwordField = Just "password123"
-                , confirmField = Just "password124"
-                }
-            |> Tuple.first
-            --  since we used `warningAt` instead of `errorAt`,
-            --  submitting the form will succeed with an `Ok`
-            |> Yafl.submit form
+    
+    form
+        |> Yafl.init
+        |> Tuple.first
+        |> Yafl.load form
+            { passwordField = Just "password123"
+            , confirmField = Just "password124"
+            }
+        |> Tuple.first
+        --  since we used `warningAt` instead of `errorAt`,
+        --  submitting the form will succeed with an `Ok`
+        |> Yafl.submit form
 
     --> Ok { password = "password123", confirm = "password124" }
 
