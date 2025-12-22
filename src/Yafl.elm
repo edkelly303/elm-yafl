@@ -1075,7 +1075,7 @@ submit (Field field) (Model _ model) =
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
 
-    
+
     fields.string
         |> Yafl.label "What is your name?"
 
@@ -1508,7 +1508,8 @@ fail e =
                                     filtered
                                 )
                             ]
-                                |> Debug.log "We really need to give the user a way to define how they want errors to be rendered"
+
+        --|> Debug.log "We really need to give the user a way to define how they want errors to be rendered"
         , subscriptions = \_ -> Sub.none
         , submit =
             \_ model ->
@@ -1548,7 +1549,7 @@ error message on one specific field.
     import Yafl
 
     form =
-        Yafl.succeed 
+        Yafl.succeed
             (\targetOutput failAtOutput -> targetOutput)
             |> Yafl.andMap .target targetField
             |> Yafl.andMap .failure failAtField
@@ -1557,15 +1558,15 @@ error message on one specific field.
         fields.string
             |> Yafl.identifier "target-field"
 
-    failAtField = 
+    failAtField =
         Yafl.failAt targetField "Uh oh!"
 
-    output = 
+    output =
         Yafl.init form
             |> Tuple.first
             |> Yafl.submit form
 
-    -- The error is assigned to `targetField`, 
+    -- The error is assigned to `targetField`,
     -- not `failAtField`
     output --> Err [ ( "target-field", "Uh oh!" ) ]
 
@@ -1598,7 +1599,8 @@ failAt (Field failField) e =
                                     filtered
                                 )
                             ]
-                                |> Debug.log "We really need to give the user a way to define how they want errors to be rendered"
+
+        --|> Debug.log "We really need to give the user a way to define how they want errors to be rendered"
         , subscriptions = \_ -> Sub.none
         , submit =
             \_ model ->
@@ -1657,7 +1659,7 @@ This is useful if you want to control how data is loaded into your form with
             }
             String
     passwordField =
-        Yafl.succeed 
+        Yafl.succeed
             (\p c -> { password = p, confirm = c })
             |> Yafl.andMap .password fields.string
             |> Yafl.andMap .confirm fields.string
@@ -2011,7 +2013,7 @@ it to return arbitrary Fields, you should only use it with `succeed`, `fail` and
     import Yafl
     import Examples exposing (FormModel, FormMsg, fields)
 
-    -- Example 1: Repurposing an existing widget to return 
+    -- Example 1: Repurposing an existing widget to return
     -- a different type
 
     fields.string
@@ -2023,22 +2025,22 @@ it to return arbitrary Fields, you should only use it with `succeed`, `fail` and
                             Yafl.succeed float
 
                         Nothing ->
-                            Yafl.fail 
+                            Yafl.fail
                                 "That's not a valid float"
                 )
 
     --: Yafl.Field FormModel FormMsg Yafl.NoId String String Float
 
     -- Example 2: Validating a field's output
-    -- (This works, but it's better to use `validate` 
+    -- (This works, but it's better to use `validate`
     -- and `validateAt`.)
 
     fields.string
         |> Yafl.label "Enter the first name of a Beatle"
         |> Yafl.andThen
             (\name ->
-                if List.member name 
-                    [ "John", "Paul", "George", "Ringo" ] 
+                if List.member name
+                    [ "John", "Paul", "George", "Ringo" ]
                 then
                     Yafl.succeed name
 
