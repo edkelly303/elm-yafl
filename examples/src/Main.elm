@@ -23,6 +23,8 @@ import Yafl
         , contraMap
         , defineFields
         , endFields
+        , error
+        , errorAt
         , fail
         , failAt
         , htmlAfter
@@ -42,8 +44,6 @@ import Yafl
         , succeed
         , toDOT
         , update
-        , error
-        , errorAt
         , view
         , viewWizard
         , warning
@@ -152,8 +152,13 @@ viewFeedback feedback =
             H.text ""
 
         _ ->
-            let 
-                icon {isError }= if isError then "⛔" else "⚠️" 
+            let
+                icon { isError } =
+                    if isError then
+                        "⛔"
+
+                    else
+                        "⚠️"
             in
             H.ul
                 [ HA.style "list-style-type" "none"
@@ -161,8 +166,9 @@ viewFeedback feedback =
                 , HA.style "padding" "0px"
                 ]
                 (List.map
-                    (\f -> 
-                        H.li [] [ H.small [] [ H.text (icon f ++ " " ++ f.message) ] ])
+                    (\f ->
+                        H.li [] [ H.small [] [ H.text (icon f ++ " " ++ f.message) ] ]
+                    )
                     feedback
                 )
 
@@ -268,9 +274,18 @@ name =
                 else
                     Nothing
             )
-        |> warning (\s ->
-            let len = String.length s in
-            if len > 0 && len < 2 then Just "Is that their full name?" else Nothing)
+        |> warning
+            (\s ->
+                let
+                    len =
+                        String.length s
+                in
+                if len > 0 && len < 2 then
+                    Just "Is that their full name?"
+
+                else
+                    Nothing
+            )
         |> htmlBefore (H.h1 [] [ H.text "Let's make a Person!" ])
         |> htmlAfter (H.p [] [ H.small [] [ H.text "(and by the way, thanks for coming to my Yafl demo!)" ] ])
 
@@ -352,7 +367,6 @@ password =
     succeed (\p c -> ( p, c ))
         |> andMap .password password_
         |> andMap .confirm confirm
-
         |> errorAt confirm
             (\( p, c ) ->
                 if p == c then
